@@ -242,11 +242,13 @@ We need to focus on the **critical path**: Get ONE Ubuntu VM to actually deploy 
 1. ✅ Document Proxmox setup (how to get Ubuntu templates)
 2. ✅ Implement ProxmoxClient with real API calls
 3. ✅ Implement UbuntuInstallerAgent with real VM creation
-4. ✅ Test single VM creation end-to-end
-5. ⏳ Add cloud-init support for user/package config
-6. ⏳ Test orchestrator with 2-VM lab
-7. ⏳ Add database persistence
-8. ⏳ Add frontend connectivity
-9. ⏳ Add other OS agents (Kali, Debian, etc.)
-10. ⏳ Add cloud providers (Azure, AWS)
+4. ✅ Add credential collection wizard (setup_proxmox.py)
+5. ⏳ Test single VM creation end-to-end with real Proxmox
+6. ⏳ Implement API Key Management System (see FEATURES_TODO.md)
+7. ⏳ Add cloud-init support for user/package config
+8. ⏳ Add database persistence
+9. ⏳ Test orchestrator with 2-VM lab
+10. ⏳ Add other OS agents (Kali, Debian, etc.)
+11. ⏳ Add cloud providers (Azure, AWS)
+12. ⏳ Add AI service integration (OpenAI, Anthropic)
 
