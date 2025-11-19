@@ -1,0 +1,99 @@
+import { useNavigate } from 'react-router-dom'
+import '../styles/Dashboard.css'
+
+function Dashboard({ healthStatus }) {
+  const navigate = useNavigate()
+
+  return (
+    <div className="dashboard">
+      <div className="hero-section">
+        <h1>Agentic Cyber Range Deployment</h1>
+        <p className="hero-subtitle">
+          Deploy complex cybersecurity lab environments with autonomous agents
+        </p>
+        <button className="btn-primary" onClick={() => navigate('/lab')}>
+          Create New Lab
+        </button>
+      </div>
+
+      <div className="features-grid">
+        <div className="feature-card">
+          <div className="feature-icon">🤖</div>
+          <h3>Autonomous Agents</h3>
+          <p>AI-powered deployment agents handle complex orchestration automatically</p>
+        </div>
+
+        <div className="feature-card">
+          <div className="feature-icon">🎨</div>
+          <h3>Drag & Drop Design</h3>
+          <p>Visual lab designer with intuitive drag-and-drop interface</p>
+        </div>
+
+        <div className="feature-card">
+          <div className="feature-icon">☁️</div>
+          <h3>Multi-Platform</h3>
+          <p>Deploy to Proxmox, Azure, AWS, or hybrid environments</p>
+        </div>
+
+        <div className="feature-card">
+          <div className="feature-icon">⚡</div>
+          <h3>Rapid Deployment</h3>
+          <p>Go from design to deployed lab in minutes, not hours</p>
+        </div>
+
+        <div className="feature-card">
+          <div className="feature-icon">🔄</div>
+          <h3>Orchestration</h3>
+          <p>Complex dependency management and parallel execution</p>
+        </div>
+
+        <div className="feature-card">
+          <div className="feature-icon">📊</div>
+          <h3>Real-time Monitoring</h3>
+          <p>Track deployment progress and resource health in real-time</p>
+        </div>
+      </div>
+
+      <div className="platforms-section">
+        <h2>Supported Platforms</h2>
+        <div className="platform-badges">
+          <div className="platform-badge">
+            <span className="badge-icon">🖥️</span>
+            <span>Proxmox</span>
+          </div>
+          <div className="platform-badge">
+            <span className="badge-icon">☁️</span>
+            <span>Azure</span>
+          </div>
+          <div className="platform-badge">
+            <span className="badge-icon">☁️</span>
+            <span>AWS</span>
+          </div>
+        </div>
+      </div>
+
+      <div className="status-section">
+        <h3>System Status</h3>
+        <div className="status-grid">
+          <div className="status-item">
+            <span className="status-label">Backend API</span>
+            <span className={`status-value ${healthStatus ? 'healthy' : 'error'}`}>
+              {healthStatus ? 'Operational' : 'Down'}
+            </span>
+          </div>
+          <div className="status-item">
+            <span className="status-label">Agent Manager</span>
+            <span className="status-value healthy">Ready</span>
+          </div>
+          <div className="status-item">
+            <span className="status-label">Orchestration Engine</span>
+            <span className="status-value healthy">Ready</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+export default Dashboard
+

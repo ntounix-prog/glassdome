@@ -1,0 +1,134 @@
+.dashboard {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+.hero-section {
+  text-align: center;
+  padding: 4rem 2rem;
+}
+
+.hero-section h1 {
+  font-size: 3rem;
+  margin: 0;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.hero-subtitle {
+  font-size: 1.25rem;
+  color: #888;
+  margin: 1rem 0 2rem;
+}
+
+.features-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 2rem;
+  margin: 4rem 0;
+}
+
+.feature-card {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(10px);
+  border-radius: 15px;
+  padding: 2rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  transition: transform 0.2s, border-color 0.2s;
+}
+
+.feature-card:hover {
+  transform: translateY(-5px);
+  border-color: rgba(102, 126, 234, 0.5);
+}
+
+.feature-icon {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+}
+
+.feature-card h3 {
+  margin: 0.5rem 0;
+  color: #fff;
+}
+
+.feature-card p {
+  color: #aaa;
+  line-height: 1.6;
+}
+
+.platforms-section {
+  text-align: center;
+  margin: 4rem 0;
+}
+
+.platforms-section h2 {
+  margin-bottom: 2rem;
+}
+
+.platform-badges {
+  display: flex;
+  justify-content: center;
+  gap: 2rem;
+  flex-wrap: wrap;
+}
+
+.platform-badge {
+  background: rgba(255, 255, 255, 0.05);
+  padding: 1rem 2rem;
+  border-radius: 50px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.badge-icon {
+  font-size: 1.5rem;
+}
+
+.status-section {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 15px;
+  padding: 2rem;
+  margin: 4rem 0;
+}
+
+.status-section h3 {
+  margin-top: 0;
+}
+
+.status-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 2rem;
+  margin-top: 1.5rem;
+}
+
+.status-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.status-label {
+  color: #888;
+  font-size: 0.875rem;
+}
+
+.status-value {
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.status-value.healthy {
+  color: #6bcf7f;
+}
+
+.status-value.error {
+  color: #ff6b6b;
+}
+

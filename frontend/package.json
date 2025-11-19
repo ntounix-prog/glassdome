@@ -6,7 +6,10 @@
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-router-dom": "^6.20.0",
-    "axios": "^1.6.0"
+    "react-flow-renderer": "^10.3.17",
+    "reactflow": "^11.10.1",
+    "axios": "^1.6.0",
+    "zustand": "^4.4.7"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.2.0",
@@ -15,7 +18,10 @@
     "@types/react-dom": "^18.2.0",
     "typescript": "^5.3.0",
     "eslint": "^8.55.0",
-    "eslint-plugin-react": "^7.33.0"
+    "eslint-plugin-react": "^7.33.0",
+    "autoprefixer": "^10.4.16",
+    "postcss": "^8.4.32",
+    "tailwindcss": "^3.3.6"
   },
   "scripts": {
     "dev": "vite",
@@ -24,4 +30,3 @@
     "lint": "eslint . --ext js,jsx,ts,tsx"
   }
 }
-

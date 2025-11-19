@@ -1,4 +1,8 @@
 import { useState, useEffect } from 'react'
+import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom'
+import Dashboard from './pages/Dashboard'
+import LabCanvas from './pages/LabCanvas'
+import Deployments from './pages/Deployments'
 import './App.css'
 
 function App() {
@@ -19,38 +23,38 @@ function App() {
   }, [])
 
   return (
-    <div className="App">
-      <header className="App-header">
-        <h1>🔮 Glassdome</h1>
-        <p>Full Stack Application</p>
-        
-        <div className="status-card">
-          <h3>Backend Status</h3>
-          {loading ? (
-            <p>Checking...</p>
-          ) : healthStatus ? (
-            <div className="status-success">
-              <p>✅ {healthStatus.message}</p>
-              <p>Status: {healthStatus.status}</p>
-            </div>
-          ) : (
-            <p className="status-error">❌ Backend not responding</p>
-          )}
-        </div>
-
-        <div className="tech-stack">
-          <h3>Tech Stack</h3>
-          <div className="tech-badges">
-            <span className="badge">⚛️ React</span>
-            <span className="badge">🐍 Python</span>
-            <span className="badge">⚡ FastAPI</span>
-            <span className="badge">🐳 Docker</span>
+    <Router>
+      <div className="App">
+        <nav className="navbar">
+          <div className="nav-brand">
+            <h1>🔮 Glassdome</h1>
+            <p className="tagline">Cyber Range Deployment Framework</p>
           </div>
-        </div>
-      </header>
-    </div>
+          <div className="nav-links">
+            <Link to="/">Dashboard</Link>
+            <Link to="/lab">Lab Designer</Link>
+            <Link to="/deployments">Deployments</Link>
+          </div>
+          <div className="nav-status">
+            {loading ? (
+              <span className="status-indicator status-loading">Checking...</span>
+            ) : healthStatus ? (
+              <span className="status-indicator status-healthy">✓ Connected</span>
+            ) : (
+              <span className="status-indicator status-error">✗ Disconnected</span>
+            )}
+          </div>
+        </nav>
+
+        <Routes>
+          <Route path="/" element={<Dashboard healthStatus={healthStatus} />} />
+          <Route path="/lab" element={<LabCanvas />} />
+          <Route path="/lab/:labId" element={<LabCanvas />} />
+          <Route path="/deployments" element={<Deployments />} />
+        </Routes>
+      </div>
+    </Router>
   )
 }
 
 export default App
-

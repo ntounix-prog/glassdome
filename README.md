@@ -1,35 +1,85 @@
-# Glassdome
+# Glassdome 🔮
 
-A clean, well-structured project repository.
+**Agentic Cyber Range Deployment Framework**
 
-## Project Structure
+Glassdome is an autonomous, AI-powered deployment system for cybersecurity lab environments. Using intelligent agents and a visual drag-and-drop interface, deploy complex cyber range scenarios to Proxmox, Azure, or AWS in minutes.
+
+## 🎯 Key Features
+
+- **🤖 Autonomous Agents** - AI-powered agents handle complex deployments automatically
+- **🎨 Drag & Drop Designer** - Visual canvas for designing cyber range labs
+- **☁️ Multi-Platform** - Deploy to Proxmox, Azure, or AWS seamlessly
+- **🔄 Smart Orchestration** - Dependency management and parallel execution
+- **📊 Real-time Monitoring** - Track deployment progress and resource health
+- **📚 Template Library** - Reusable lab configurations for common scenarios
+
+## 🏗️ Project Structure
 
 ```
 glassdome/
-├── backend/              # Python FastAPI backend
-│   ├── main.py          # Main application entry
-│   └── __init__.py      # Package initialization
-├── frontend/            # React frontend (Vite)
-│   ├── src/            # React source code
-│   ├── package.json    # Node dependencies
-│   └── vite.config.js  # Vite configuration
-├── docs/               # Documentation files
-├── agent_context/      # Agent context and configurations
-├── venv/               # Virtual environment (created by setup)
-├── Dockerfile          # Docker container definition
-├── docker-compose.yml  # Docker orchestration
-├── requirements.txt    # Python dependencies
-├── package.json        # Root npm scripts
-├── setup.sh           # Environment setup script
-└── README.md          # This file
+├── backend/                      # Python FastAPI backend
+│   ├── agents/                  # Autonomous agent framework
+│   │   ├── base.py             # Base agent classes
+│   │   └── manager.py          # Agent coordination
+│   ├── orchestration/           # Deployment orchestration
+│   │   └── engine.py           # Orchestration engine
+│   ├── platforms/               # Platform integrations
+│   │   ├── proxmox_client.py   # Proxmox API
+│   │   ├── azure_client.py     # Azure API  
+│   │   └── aws_client.py       # AWS API
+│   ├── models/                  # Database models
+│   │   ├── lab.py              # Lab configurations
+│   │   ├── deployment.py       # Deployment tracking
+│   │   └── platform.py         # Platform configs
+│   ├── core/                    # Core configuration
+│   │   ├── config.py           # Settings
+│   │   └── database.py         # Database setup
+│   └── main.py                 # API entry point
+├── frontend/                    # React frontend (Vite)
+│   ├── src/
+│   │   ├── pages/
+│   │   │   ├── Dashboard.jsx   # Main dashboard
+│   │   │   ├── LabCanvas.jsx   # Drag-and-drop lab designer
+│   │   │   └── Deployments.jsx # Deployment monitoring
+│   │   └── styles/             # Component styles
+│   ├── package.json            # Node dependencies
+│   └── vite.config.js          # Vite configuration
+├── docs/                        # Comprehensive documentation
+│   ├── PROJECT_VISION.md       # Project vision and goals
+│   ├── ARCHITECTURE.md         # System architecture
+│   ├── SETUP.md                # Setup instructions
+│   ├── API.md                  # API documentation
+│   └── GIT_SETUP.md            # Git workflow
+├── agent_context/              # Agent context files
+├── docker-compose.yml          # Docker orchestration
+├── Dockerfile                  # Multi-stage build
+└── requirements.txt            # Python dependencies
 ```
 
-## Tech Stack
+## 🛠️ Tech Stack
 
-- **Backend**: Python + FastAPI + Uvicorn
-- **Frontend**: React 18 + Vite
-- **Containerization**: Docker + Docker Compose
-- **Package Management**: pip (Python) + npm (Node.js)
+### Backend
+- **Python 3.11+** - Core language
+- **FastAPI** - High-performance async API framework
+- **SQLAlchemy** - ORM for database operations
+- **Celery + Redis** - Task queue for long-running operations
+- **LangChain** - AI agent framework
+
+### Frontend
+- **React 18** - UI framework
+- **Vite** - Lightning-fast build tool
+- **React Flow** - Drag-and-drop canvas
+- **Zustand** - State management
+
+### Platform Integrations
+- **Proxmoxer** - Proxmox VE API client
+- **Boto3** - AWS SDK
+- **Azure SDK** - Azure management clients
+
+### Infrastructure
+- **PostgreSQL** - Primary database
+- **Redis** - Caching and message broker
+- **Docker** - Containerization
 
 ## Getting Started
 
