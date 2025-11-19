@@ -1,0 +1,67 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: glassdome-backend
+    ports:
+      - "8000:8000"
+    environment:
+      - ENVIRONMENT=development
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - ./backend:/app/backend
+      - ./frontend/dist:/app/frontend/dist
+    restart: unless-stopped
+    networks:
+      - glassdome-network
+
+  frontend-dev:
+    image: node:20-alpine
+    container_name: glassdome-frontend
+    working_dir: /app
+    volumes:
+      - ./frontend:/app
+    ports:
+      - "5173:5173"
+    command: sh -c "npm install && npm run dev -- --host 0.0.0.0"
+    environment:
+      - NODE_ENV=development
+    networks:
+      - glassdome-network
+    profiles:
+      - dev
+
+  # Uncomment to add PostgreSQL
+  # postgres:
+  #   image: postgres:16-alpine
+  #   container_name: glassdome-db
+  #   environment:
+  #     POSTGRES_USER: glassdome
+  #     POSTGRES_PASSWORD: glassdome
+  #     POSTGRES_DB: glassdome
+  #   volumes:
+  #     - postgres_data:/var/lib/postgresql/data
+  #   ports:
+  #     - "5432:5432"
+  #   networks:
+  #     - glassdome-network
+
+  # Uncomment to add Redis
+  # redis:
+  #   image: redis:7-alpine
+  #   container_name: glassdome-redis
+  #   ports:
+  #     - "6379:6379"
+  #   networks:
+  #     - glassdome-network
+
+networks:
+  glassdome-network:
+    driver: bridge
+
+# volumes:
+#   postgres_data:
+
