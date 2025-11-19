@@ -185,4 +185,123 @@ class ProxmoxClient:
         except Exception as e:
             logger.error(f"Failed to create network: {str(e)}")
             return {"success": False, "error": str(e)}
+    
+    async def wait_for_task(self, node: str, upid: str, timeout: int = 300) -> Dict[str, Any]:
+        """
+        Wait for a Proxmox task to complete
+        
+        Args:
+            node: Node name
+            upid: Task UPID
+            timeout: Timeout in seconds
+            
+        Returns:
+            Task result
+        """
+        import time
+        start_time = time.time()
+        
+        try:
+            while time.time() - start_time < timeout:
+                status = self.client.nodes(node).tasks(upid).status.get()
+                
+                if status['status'] == 'stopped':
+                    if status.get('exitstatus') == 'OK':
+                        logger.info(f"Task {upid} completed successfully")
+                        return {"success": True, "status": status}
+                    else:
+                        logger.error(f"Task {upid} failed: {status.get('exitstatus')}")
+                        return {"success": False, "error": status.get('exitstatus')}
+                
+                time.sleep(2)
+            
+            logger.error(f"Task {upid} timed out after {timeout}s")
+            return {"success": False, "error": f"Timeout after {timeout}s"}
+            
+        except Exception as e:
+            logger.error(f"Failed to wait for task {upid}: {str(e)}")
+            return {"success": False, "error": str(e)}
+    
+    async def get_vm_ip(self, node: str, vmid: int, timeout: int = 120) -> Optional[str]:
+        """
+        Get VM IP address (waits for QEMU guest agent)
+        
+        Args:
+            node: Node name
+            vmid: VM ID
+            timeout: Timeout in seconds
+            
+        Returns:
+            IP address or None
+        """
+        import time
+        start_time = time.time()
+        
+        try:
+            while time.time() - start_time < timeout:
+                try:
+                    # Try to get agent network interfaces
+                    interfaces = self.client.nodes(node).qemu(vmid).agent.get('network-get-interfaces')
+                    
+                    for iface in interfaces.get('result', []):
+                        if iface.get('name') in ['eth0', 'ens18', 'ens3']:
+                            for addr in iface.get('ip-addresses', []):
+                                if addr.get('ip-address-type') == 'ipv4':
+                                    ip = addr.get('ip-address')
+                                    if not ip.startswith('127.'):
+                                        logger.info(f"VM {vmid} has IP: {ip}")
+                                        return ip
+                except:
+                    # Agent not ready yet
+                    pass
+                
+                time.sleep(5)
+            
+            logger.warning(f"Could not get IP for VM {vmid} after {timeout}s")
+            return None
+            
+        except Exception as e:
+            logger.error(f"Failed to get IP for VM {vmid}: {str(e)}")
+            return None
+    
+    async def configure_vm(self, node: str, vmid: int, config: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Configure VM settings
+        
+        Args:
+            node: Node name
+            vmid: VM ID
+            config: Configuration parameters
+            
+        Returns:
+            Success status
+        """
+        try:
+            self.client.nodes(node).qemu(vmid).config.put(**config)
+            logger.info(f"VM {vmid} configured")
+            return {"success": True}
+        except Exception as e:
+            logger.error(f"Failed to configure VM {vmid}: {str(e)}")
+            return {"success": False, "error": str(e)}
+    
+    async def resize_disk(self, node: str, vmid: int, disk: str, size: str) -> Dict[str, Any]:
+        """
+        Resize VM disk
+        
+        Args:
+            node: Node name
+            vmid: VM ID
+            disk: Disk name (e.g., 'scsi0')
+            size: New size (e.g., '+10G')
+            
+        Returns:
+            Success status
+        """
+        try:
+            self.client.nodes(node).qemu(vmid).resize.put(disk=disk, size=size)
+            logger.info(f"VM {vmid} disk {disk} resized to {size}")
+            return {"success": True}
+        except Exception as e:
+            logger.error(f"Failed to resize disk {disk} on VM {vmid}: {str(e)}")
+            return {"success": False, "error": str(e)}
 

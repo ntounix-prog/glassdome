@@ -272,11 +272,25 @@ class UbuntuInstallerAgent(DeploymentAgent):
         """
         logger.info(f"Configuring VM {vmid} with resources: {config}")
         
-        # In a real implementation, you'd call Proxmox API to update VM config
-        # For now, this is a placeholder
-        # self.proxmox.client.nodes(node).qemu(vmid).config.put(**config)
+        # Build configuration dict for Proxmox
+        proxmox_config = {}
         
-        await asyncio.sleep(0.5)  # Simulate configuration time
+        if "cores" in config:
+            proxmox_config["cores"] = config["cores"]
+        if "memory" in config:
+            proxmox_config["memory"] = config["memory"]
+        
+        # Update VM configuration
+        if proxmox_config:
+            result = await self.proxmox.configure_vm(node, vmid, proxmox_config)
+            if not result.get("success"):
+                logger.warning(f"Failed to configure VM: {result.get('error')}")
+        
+        # Resize disk if needed
+        if "disk_size" in config:
+            disk_size = config["disk_size"]
+            # Check if resize is needed (template might be smaller)
+            await self.proxmox.resize_disk(node, vmid, "scsi0", f"{disk_size}G")
     
     async def _wait_for_ip(self, node: str, vmid: int, timeout: int = 60) -> Optional[str]:
         """
@@ -292,27 +306,15 @@ class UbuntuInstallerAgent(DeploymentAgent):
         """
         logger.info(f"Waiting for VM {vmid} to get IP address (timeout: {timeout}s)")
         
-        elapsed = 0
-        while elapsed < timeout:
-            try:
-                status = await self.proxmox.get_vm_status(node, vmid)
-                
-                # Check if VM is running and has IP
-                # In real implementation, you'd parse QEMU guest agent data
-                # For now, simulate
-                if elapsed > 10:  # Simulate IP assignment after 10 seconds
-                    ip = f"10.0.0.{vmid % 255}"
-                    logger.info(f"VM {vmid} got IP: {ip}")
-                    return ip
-                
-            except Exception as e:
-                logger.debug(f"Error checking VM status: {str(e)}")
-            
-            await asyncio.sleep(2)
-            elapsed += 2
+        # Use ProxmoxClient's get_vm_ip method which handles QEMU guest agent
+        ip = await self.proxmox.get_vm_ip(node, vmid, timeout=timeout)
         
-        logger.warning(f"Timeout waiting for IP for VM {vmid}")
-        return None
+        if ip:
+            logger.info(f"VM {vmid} got IP: {ip}")
+        else:
+            logger.warning(f"Timeout waiting for IP for VM {vmid}")
+        
+        return ip
     
     async def create_template(
         self,
