@@ -47,14 +47,16 @@ source "$VENV_DIR/bin/activate"
 echo "⬆️  Upgrading pip..."
 pip install --upgrade pip
 
-# Install requirements
-if [ -f "requirements.txt" ]; then
-    echo "📥 Installing dependencies from requirements.txt..."
-    pip install -r requirements.txt
-    echo "✓ Dependencies installed"
-else
-    echo "⚠️  No requirements.txt found, skipping dependency installation"
-fi
+# Install package in editable mode
+echo "📦 Installing Glassdome package..."
+pip install -e .
+echo "✓ Glassdome installed successfully"
+
+# Verify installation
+echo ""
+echo "🧪 Verifying installation..."
+python -c "import glassdome; print(f'Glassdome v{glassdome.__version__} installed')" || echo "⚠️ Import verification failed"
+which glassdome > /dev/null && echo "✓ CLI command available" || echo "⚠️ CLI command not in PATH"
 
 echo ""
 echo "================================"
