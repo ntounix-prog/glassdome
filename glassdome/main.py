@@ -15,6 +15,9 @@ from glassdome.core.database import get_db, init_db
 from glassdome.agents.manager import agent_manager
 from glassdome.orchestration import OrchestrationEngine
 
+# Import API routers
+from glassdome.api.ubuntu import router as ubuntu_router
+
 # Initialize FastAPI app
 app = FastAPI(
     title="Glassdome API",
@@ -30,6 +33,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Include API routers
+app.include_router(ubuntu_router, prefix=settings.api_prefix)
 
 
 # Startup and shutdown events
