@@ -14,9 +14,10 @@ class Settings(BaseSettings):
     environment: str = "development"
     debug: bool = True
     
-    # API
+    # API - Changed default port to avoid conflicts
     api_prefix: str = "/api"
-    backend_cors_origins: list = ["http://localhost:5173", "http://localhost:3000"]
+    backend_port: int = 8001
+    backend_cors_origins: list = ["http://localhost:5174", "http://localhost:3000"]
     
     # Database
     database_url: str = "postgresql+asyncpg://glassdome:glassdome@localhost:5432/glassdome"

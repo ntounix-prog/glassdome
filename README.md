@@ -4,6 +4,11 @@
 
 Glassdome is an autonomous, AI-powered deployment system for cybersecurity lab environments. Using intelligent agents and a visual drag-and-drop interface, deploy complex cyber range scenarios to Proxmox, Azure, or AWS in minutes.
 
+[![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.104+-green.svg)](https://fastapi.tiangolo.com/)
+[![React 18](https://img.shields.io/badge/React-18-blue.svg)](https://react.dev/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 ## 🎯 Key Features
 
 - **🤖 Autonomous Agents** - AI-powered agents handle complex deployments automatically
@@ -12,155 +17,309 @@ Glassdome is an autonomous, AI-powered deployment system for cybersecurity lab e
 - **🔄 Smart Orchestration** - Dependency management and parallel execution
 - **📊 Real-time Monitoring** - Track deployment progress and resource health
 - **📚 Template Library** - Reusable lab configurations for common scenarios
+- **📦 Python Package** - Install anywhere, use everywhere
 
-## 🏗️ Project Structure
+## 🚀 Quick Start
+
+### Installation as a Package
+
+```bash
+# Clone the repository
+git clone https://github.com/ntounix-prog/glassdome.git
+cd glassdome
+
+# Install as a Python package (editable mode)
+pip install -e .
+
+# Or install with development dependencies
+pip install -e ".[dev]"
+```
+
+### Start the Server
+
+```bash
+# Using CLI command (port 8001 to avoid conflicts)
+glassdome serve
+
+# Or with custom port
+glassdome serve --port 9000 --host 0.0.0.0
+
+# Or traditional way
+cd glassdome
+uvicorn main:app --reload --port 8001
+```
+
+### Start the Frontend
+
+```bash
+cd frontend
+npm install
+npm run dev  # Runs on port 5174
+```
+
+### Access Your Application
+
+- 🌐 **Frontend:** http://localhost:5174
+- ⚡ **Backend API:** http://localhost:8001
+- 📖 **API Docs:** http://localhost:8001/docs
+
+### Docker (Alternative)
+
+```bash
+docker-compose up --build
+```
+
+## 📦 Use as a Python Package
+
+After installation, use Glassdome from anywhere:
+
+```python
+# Import from anywhere on your system
+from glassdome import ProxmoxClient, AzureClient, AWSClient
+from glassdome import agent_manager, OrchestrationEngine
+from glassdome.models import Lab, Deployment
+
+# Use in your own projects
+client = ProxmoxClient(host="...", user="...", password="...")
+
+# Create orchestration
+engine = OrchestrationEngine()
+engine.add_task("vm1", {"type": "create_vm", "config": {...}})
+
+# Deploy programmatically
+result = await engine.run(executor_func=deploy_task)
+```
+
+## 🛠️ CLI Commands
+
+```bash
+# System management
+glassdome init              # Initialize Glassdome
+glassdome status            # Check system status
+glassdome serve             # Start API server
+
+# Platform testing
+glassdome test-platform --platform proxmox
+
+# Agent management
+glassdome agent list        # List all agents
+glassdome agent start       # Start agent manager
+
+# Lab management
+glassdome lab list          # List all labs
+glassdome lab create --name "My Lab"
+
+# Deployment management
+glassdome deploy list       # List deployments
+glassdome deploy create --lab-id lab_123 --platform proxmox
+glassdome deploy destroy deployment_id
+```
+
+## 🏗️ Architecture
 
 ```
-glassdome/
-├── backend/                      # Python FastAPI backend
-│   ├── agents/                  # Autonomous agent framework
-│   │   ├── base.py             # Base agent classes
-│   │   └── manager.py          # Agent coordination
-│   ├── orchestration/           # Deployment orchestration
-│   │   └── engine.py           # Orchestration engine
-│   ├── platforms/               # Platform integrations
-│   │   ├── proxmox_client.py   # Proxmox API
-│   │   ├── azure_client.py     # Azure API  
-│   │   └── aws_client.py       # AWS API
-│   ├── models/                  # Database models
-│   │   ├── lab.py              # Lab configurations
-│   │   ├── deployment.py       # Deployment tracking
-│   │   └── platform.py         # Platform configs
-│   ├── core/                    # Core configuration
-│   │   ├── config.py           # Settings
-│   │   └── database.py         # Database setup
-│   └── main.py                 # API entry point
-├── frontend/                    # React frontend (Vite)
-│   ├── src/
-│   │   ├── pages/
-│   │   │   ├── Dashboard.jsx   # Main dashboard
-│   │   │   ├── LabCanvas.jsx   # Drag-and-drop lab designer
-│   │   │   └── Deployments.jsx # Deployment monitoring
-│   │   └── styles/             # Component styles
-│   ├── package.json            # Node dependencies
-│   └── vite.config.js          # Vite configuration
-├── docs/                        # Comprehensive documentation
-│   ├── PROJECT_VISION.md       # Project vision and goals
-│   ├── ARCHITECTURE.md         # System architecture
-│   ├── SETUP.md                # Setup instructions
-│   ├── API.md                  # API documentation
-│   └── GIT_SETUP.md            # Git workflow
-├── agent_context/              # Agent context files
-├── docker-compose.yml          # Docker orchestration
-├── Dockerfile                  # Multi-stage build
-└── requirements.txt            # Python dependencies
+┌─────────────────────────────────────┐
+│     React Frontend (5174)           │
+│  • Dashboard  • Lab Designer        │
+└──────────────┬──────────────────────┘
+               │ REST API
+┌──────────────▼──────────────────────┐
+│   FastAPI Backend (8001)            │
+│  • Lab Management  • Agents         │
+└──────────────┬──────────────────────┘
+               │
+┌──────────────▼──────────────────────┐
+│   Agentic Orchestration Layer       │
+│  • Agent Manager  • Orchestration   │
+└───┬──────────────────────┬──────────┘
+    │                      │
+┌───▼────┐  ┌────────┐  ┌─▼──────┐
+│Proxmox │  │ Azure  │  │  AWS   │
+└────────┘  └────────┘  └────────┘
+```
+
+## 🎨 Project Structure
+
+```
+glassdome/                     # Main Python package (renamed from backend)
+├── __init__.py               # Package exports - import from anywhere!
+├── cli.py                    # Command-line interface
+├── server.py                 # Server entry point
+├── main.py                   # FastAPI application
+├── agents/                   # Autonomous agent framework
+│   ├── base.py              # Base agent classes
+│   └── manager.py           # Agent coordination
+├── orchestration/           # Deployment orchestration
+│   └── engine.py           # Orchestration engine
+├── platforms/              # Platform integrations
+│   ├── proxmox_client.py  # Proxmox API
+│   ├── azure_client.py    # Azure API  
+│   └── aws_client.py      # AWS API
+├── models/                 # Database models
+│   ├── lab.py             # Lab configurations
+│   ├── deployment.py      # Deployment tracking
+│   └── platform.py        # Platform configs
+└── core/                  # Core configuration
+    ├── config.py          # Settings
+    └── database.py        # Database setup
+
+frontend/                   # React application
+├── src/
+│   ├── pages/
+│   │   ├── Dashboard.jsx   # Main dashboard
+│   │   ├── LabCanvas.jsx   # Drag-and-drop designer
+│   │   └── Deployments.jsx # Monitoring
+│   └── styles/            # Component styles
+
+pyproject.toml             # Package configuration
+setup.py                   # Setup script
+INSTALL.md                # Installation guide
 ```
 
 ## 🛠️ Tech Stack
 
-### Backend
+### Backend (Python Package)
 - **Python 3.11+** - Core language
-- **FastAPI** - High-performance async API framework
-- **SQLAlchemy** - ORM for database operations
-- **Celery + Redis** - Task queue for long-running operations
+- **FastAPI** - Async API framework
+- **SQLAlchemy** - ORM
+- **Celery + Redis** - Task queue
 - **LangChain** - AI agent framework
+- **Click** - CLI framework
 
 ### Frontend
 - **React 18** - UI framework
-- **Vite** - Lightning-fast build tool
+- **Vite** - Build tool
 - **React Flow** - Drag-and-drop canvas
 - **Zustand** - State management
 
 ### Platform Integrations
-- **Proxmoxer** - Proxmox VE API client
+- **Proxmoxer** - Proxmox VE API
 - **Boto3** - AWS SDK
-- **Azure SDK** - Azure management clients
+- **Azure SDK** - Azure management
 
-### Infrastructure
-- **PostgreSQL** - Primary database
-- **Redis** - Caching and message broker
-- **Docker** - Containerization
+## ⚙️ Configuration
 
-## Getting Started
-
-### Option 1: Docker (Recommended)
-
-The easiest way to run the entire stack:
+Create `.env` from `env.example`:
 
 ```bash
-# Build and start all services
-docker-compose up --build
-
-# Or run in development mode with hot reload
-docker-compose --profile dev up
+cp env.example .env
 ```
 
-- Backend API: http://localhost:8000
-- Frontend Dev Server: http://localhost:5173
-- API Documentation: http://localhost:8000/docs
+Configure your platforms:
 
-### Option 2: Local Development
+```env
+# Ports (changed to avoid conflicts with other projects)
+BACKEND_PORT=8001
+VITE_PORT=5174
 
-#### Backend Setup
+# Proxmox
+PROXMOX_HOST=your-proxmox-host
+PROXMOX_USER=root@pam
+PROXMOX_PASSWORD=your-password
+
+# Azure
+AZURE_SUBSCRIPTION_ID=...
+AZURE_TENANT_ID=...
+
+# AWS
+AWS_ACCESS_KEY_ID=...
+AWS_SECRET_ACCESS_KEY=...
+```
+
+## 📚 Documentation
+
+- **[INSTALL.md](INSTALL.md)** - Package installation guide
+- **[docs/PROJECT_VISION.md](docs/PROJECT_VISION.md)** - Vision and roadmap
+- **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** - System architecture
+- **[docs/API.md](docs/API.md)** - API documentation
+- **[docs/SETUP.md](docs/SETUP.md)** - Setup instructions
+- **[QUICKSTART.md](QUICKSTART.md)** - 5-minute quick start
+- **[IMPLEMENTATION_SUMMARY.md](IMPLEMENTATION_SUMMARY.md)** - Build details
+
+## 🔧 Development
 
 ```bash
-# Create virtual environment and install dependencies
-./setup.sh
+# Install in development mode
+pip install -e ".[dev]"
 
-# Activate virtual environment
-source venv/bin/activate
+# Run tests
+pytest
 
-# Run the backend server
-cd backend
-uvicorn main:app --reload --host 0.0.0.0 --port 8000
+# Format code
+black glassdome/
+
+# Type checking
+mypy glassdome/
+
+# Start with auto-reload
+glassdome serve --reload
 ```
 
-#### Frontend Setup
+## 🎯 Use Cases
 
+- 🎯 **Red Team Labs** - Attack/defense scenarios
+- 🔒 **Security Training** - Hands-on learning
+- 🐛 **Vulnerability Testing** - Isolated environments
+- 🏆 **CTF Events** - Rapid deployment
+- 🔬 **Research Labs** - Reproducible research
+- 📜 **Certification Prep** - OSCP, CEH, CISSP
+
+## 🔗 Integration with Other Projects
+
+Since Glassdome is now a package with configurable ports, it won't conflict with your other server projects:
+
+```python
+# In your other project (running on port 8000)
+from glassdome import ProxmoxClient, agent_manager
+
+# Use Glassdome functionality
+client = ProxmoxClient(...)
+result = await client.create_vm(...)
+```
+
+## 📊 Port Configuration
+
+**Default Ports (Changed to Avoid Conflicts):**
+- Backend API: **8001** (was 8000)
+- Frontend Dev: **5174** (was 5173)
+
+Configure in `.env` or via CLI:
 ```bash
-# Install frontend dependencies
-cd frontend
-npm install
-
-# Run the dev server
-npm run dev
+glassdome serve --port 9000
 ```
 
-### Option 3: Using Make Commands
+## 🤝 Contributing
 
+Contributions welcome! Please read our contributing guidelines.
+
+## 📄 License
+
+MIT License - see LICENSE file
+
+## 🔗 Links
+
+- **Repository:** https://github.com/ntounix-prog/glassdome
+- **Issues:** https://github.com/ntounix-prog/glassdome/issues
+- **Documentation:** https://github.com/ntounix-prog/glassdome/docs
+
+## 🎉 What's New
+
+### v0.1.0 - Package Structure
+- ✅ **Python Package** - Install and import from anywhere
+- ✅ **CLI Commands** - `glassdome` command-line interface
+- ✅ **Configurable Ports** - Avoid conflicts with other projects (8001, 5174)
+- ✅ **No Location Restrictions** - Use Glassdome functions across your codebase
+- ✅ **Professional Structure** - `pyproject.toml`, proper package exports
+
+---
+
+**Built with ❤️ for autonomous cybersecurity lab deployment**
+
+**Start your first deployment:**
 ```bash
-make setup    # Initial setup
-make install  # Install/update dependencies
-make clean    # Clean up environment
-make help     # See all commands
+pip install -e .
+glassdome serve
+# Visit http://localhost:5174
 ```
 
-## Development
-
-### Adding Python Dependencies
-
-Edit `requirements.txt` and run:
-```bash
-source venv/bin/activate
-pip install -r requirements.txt
-```
-
-### Adding Node Dependencies
-
-```bash
-cd frontend
-npm install <package-name>
-```
-
-### Environment Variables
-
-Copy `env.example` to `.env` and configure your environment variables.
-
-## Documentation
-
-Project documentation can be found in the `docs/` directory.
-
-## License
-
-(Add license information here)
-
+🚀 **Deploy cyber ranges autonomously!**

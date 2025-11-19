@@ -2,7 +2,7 @@
 Agent Manager - Coordinates all agents
 """
 from typing import Dict, List, Any, Optional
-from backend.agents.base import BaseAgent, AgentType, AgentStatus
+from glassdome.agents.base import BaseAgent, AgentType, AgentStatus
 import logging
 import asyncio
 

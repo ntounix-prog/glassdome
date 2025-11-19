@@ -4,7 +4,7 @@ Lab Configuration Models
 from sqlalchemy import Column, String, Integer, JSON, DateTime, ForeignKey, Text, Boolean
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
-from backend.core.database import Base
+from glassdome.core.database import Base
 import uuid
 
 

@@ -3,7 +3,7 @@ Platform Configuration Models
 """
 from sqlalchemy import Column, String, JSON, DateTime, Boolean, Enum as SQLEnum
 from sqlalchemy.sql import func
-from backend.core.database import Base
+from glassdome.core.database import Base
 from enum import Enum
 import uuid
 

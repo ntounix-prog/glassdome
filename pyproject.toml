@@ -1,0 +1,110 @@
+[build-system]
+requires = ["setuptools>=65.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "glassdome"
+version = "0.1.0"
+description = "Agentic Cyber Range Deployment Framework"
+readme = "README.md"
+requires-python = ">=3.11"
+license = {text = "MIT"}
+authors = [
+    {name = "ntounix-prog", email = "ntounix@gmail.com"}
+]
+keywords = ["cybersecurity", "cyber-range", "automation", "agents", "proxmox", "azure", "aws"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Information Technology",
+    "Topic :: Security",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+
+dependencies = [
+    "fastapi>=0.104.0",
+    "uvicorn[standard]>=0.24.0",
+    "pydantic>=2.5.0",
+    "pydantic-settings>=2.1.0",
+    "requests>=2.31.0",
+    "httpx>=0.25.0",
+    "aiohttp>=3.9.0",
+    "python-dotenv>=1.0.0",
+    "sqlalchemy>=2.0.0",
+    "alembic>=1.12.0",
+    "psycopg2-binary>=2.9.9",
+    "asyncpg>=0.29.0",
+    "celery>=5.3.0",
+    "redis>=5.0.0",
+    "python-jose[cryptography]>=3.3.0",
+    "passlib[bcrypt]>=1.7.4",
+    "python-multipart>=0.0.6",
+    "fastapi-cors>=0.0.6",
+    "boto3>=1.34.0",
+    "azure-mgmt-compute>=30.0.0",
+    "azure-mgmt-network>=25.0.0",
+    "azure-mgmt-resource>=23.0.0",
+    "azure-identity>=1.15.0",
+    "proxmoxer>=2.0.0",
+    "python-socketio>=5.10.0",
+    "websockets>=12.0",
+    "prometheus-client>=0.19.0",
+    "structlog>=23.2.0",
+    "pyyaml>=6.0.1",
+    "toml>=0.10.2",
+    "jinja2>=3.1.2",
+    "python-dateutil>=2.8.2",
+    "pytz>=2023.3",
+    "openai>=1.0.0",
+    "anthropic>=0.7.0",
+    "langchain>=0.1.0",
+    "langgraph>=0.0.20",
+    "pandas>=2.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4.0",
+    "pytest-asyncio>=0.21.0",
+    "pytest-cov>=4.1.0",
+    "black>=23.0.0",
+    "flake8>=6.1.0",
+    "mypy>=1.7.0",
+]
+
+[project.scripts]
+glassdome = "glassdome.cli:main"
+glassdome-server = "glassdome.server:run"
+glassdome-agent = "glassdome.agents.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/ntounix-prog/glassdome"
+Documentation = "https://github.com/ntounix-prog/glassdome/docs"
+Repository = "https://github.com/ntounix-prog/glassdome"
+Issues = "https://github.com/ntounix-prog/glassdome/issues"
+
+[tool.setuptools]
+packages = ["glassdome"]
+
+[tool.setuptools.package-data]
+glassdome = ["py.typed", "templates/*", "config/*.yaml"]
+
+[tool.black]
+line-length = 100
+target-version = ['py311']
+include = '\.pyi?$'
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = "test_*.py"
+python_classes = "Test*"
+python_functions = "test_*"
+asyncio_mode = "auto"
+
+[tool.mypy]
+python_version = "3.11"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = false
+

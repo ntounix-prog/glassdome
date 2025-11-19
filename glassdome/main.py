@@ -10,10 +10,10 @@ from fastapi.responses import FileResponse
 from typing import List, Dict, Any
 import os
 
-from backend.core.config import settings
-from backend.core.database import get_db, init_db
-from backend.agents.manager import agent_manager
-from backend.orchestration import OrchestrationEngine
+from glassdome.core.config import settings
+from glassdome.core.database import get_db, init_db
+from glassdome.agents.manager import agent_manager
+from glassdome.orchestration import OrchestrationEngine
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -342,4 +342,4 @@ if os.path.exists("frontend/dist"):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=settings.backend_port)

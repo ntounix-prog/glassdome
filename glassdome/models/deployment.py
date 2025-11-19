@@ -4,7 +4,7 @@ Deployment Tracking Models
 from sqlalchemy import Column, String, Integer, JSON, DateTime, ForeignKey, Text, Enum as SQLEnum
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
-from backend.core.database import Base
+from glassdome.core.database import Base
 from enum import Enum
 import uuid
 

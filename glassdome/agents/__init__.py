@@ -1,7 +1,7 @@
 """
 Agentic Framework for Autonomous Deployment
 """
-from backend.agents.base import (
+from glassdome.agents.base import (
     BaseAgent,
     DeploymentAgent,
     MonitoringAgent,
@@ -9,7 +9,7 @@ from backend.agents.base import (
     AgentStatus,
     AgentType
 )
-from backend.agents.manager import AgentManager
+from glassdome.agents.manager import AgentManager
 
 __all__ = [
     "BaseAgent",

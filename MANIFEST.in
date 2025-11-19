@@ -1,0 +1,8 @@
+include README.md
+include LICENSE
+include requirements.txt
+include pyproject.toml
+recursive-include glassdome/templates *
+recursive-include glassdome/config *.yaml *.yml
+recursive-include docs *.md
+

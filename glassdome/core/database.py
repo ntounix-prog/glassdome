@@ -3,7 +3,7 @@ Database Configuration and Session Management
 """
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 from sqlalchemy.orm import declarative_base
-from backend.core.config import settings
+from glassdome.core.config import settings
 
 # Create async engine
 engine = create_async_engine(

@@ -1,2 +1,0 @@
-"""Glassdome Backend Package"""
-

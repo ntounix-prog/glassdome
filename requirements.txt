@@ -69,6 +69,9 @@ langgraph>=0.0.20
 pandas>=2.0.0
 pydantic>=2.5.0
 
+# CLI
+click>=8.1.0
+
 # Development Tools
 pytest>=7.4.0
 pytest-asyncio>=0.21.0
