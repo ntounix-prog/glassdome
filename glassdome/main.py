@@ -17,6 +17,7 @@ from glassdome.orchestration import OrchestrationEngine
 
 # Import API routers
 from glassdome.api.ubuntu import router as ubuntu_router
+from glassdome.api.labs import router as labs_router
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -36,6 +37,7 @@ app.add_middleware(
 
 # Include API routers
 app.include_router(ubuntu_router, prefix=settings.api_prefix)
+app.include_router(labs_router)
 
 
 # Startup and shutdown events
