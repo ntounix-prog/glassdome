@@ -7,8 +7,10 @@ from typing import Dict, Any, List, Optional
 import logging
 import asyncio
 import time
+from pathlib import Path
 
 from glassdome.platforms.base import PlatformClient, VMStatus
+from glassdome.utils.windows_autounattend import generate_autounattend_xml, create_autounattend_iso
 
 logger = logging.getLogger(__name__)
 
@@ -48,14 +50,16 @@ class ProxmoxClient(PlatformClient):
                 user=user,
                 token_name=token_name,
                 token_value=token_value,
-                verify_ssl=verify_ssl
+                verify_ssl=verify_ssl,
+                timeout=30  # Increase timeout for slow operations
             )
         elif password:
             self.client = ProxmoxAPI(
                 host,
                 user=user,
                 password=password,
-                verify_ssl=verify_ssl
+                verify_ssl=verify_ssl,
+                timeout=30  # Increase timeout for slow operations
             )
         else:
             raise ValueError("Either password or token credentials must be provided")
@@ -86,25 +90,32 @@ class ProxmoxClient(PlatformClient):
             "storage": config.get("storage", self.default_storage),
         }
         
-        # Handle template cloning vs ISO installation
-        if config.get("template_id"):
-            # Clone from template
+        # Determine deployment method based on OS type
+        os_type = config.get("os_type", "linux")
+        
+        if os_type == "windows":
+            # Windows: Create from ISO with autounattend
+            result = await self.create_windows_vm_from_iso(
+                node=node,
+                vmid=vmid,
+                config=config
+            )
+            ip_address = result.get("ip_address")
+        elif config.get("template_id"):
+            # Linux: Clone from template
             result = await self.clone_vm_from_template(
                 node=node,
                 template_id=config["template_id"],
                 new_vmid=vmid,
                 config=config
             )
+            # Start the VM
+            await self.start_vm(str(vmid))
+            # Wait for IP address
+            ip_address = await self.get_vm_ip(str(vmid), timeout=config.get("ip_timeout", 120))
         else:
-            # For now, we require a template for Proxmox
-            # Creating from scratch requires ISO setup which is complex
-            raise Exception(f"Proxmox requires template_id. Use UBUNTU_2204_TEMPLATE_ID from .env")
-        
-        # Start the VM
-        await self.start_vm(str(vmid))
-        
-        # Wait for IP address
-        ip_address = await self.get_vm_ip(str(vmid), timeout=config.get("ip_timeout", 120))
+            # No template and not Windows
+            raise Exception(f"Linux VMs require template_id. Use UBUNTU_2204_TEMPLATE_ID from .env")
         
         # Return standardized format
         return {
@@ -114,15 +125,16 @@ class ProxmoxClient(PlatformClient):
             "status": (await self.get_vm_status(str(vmid))).value,
             "ansible_connection": {
                 "host": ip_address or "unknown",
-                "user": config.get("ssh_user", "ubuntu"),
-                "ssh_key_path": config.get("ssh_key_path", "/root/.ssh/id_rsa"),
-                "port": 22
+                "user": config.get("ssh_user", "ubuntu") if os_type == "linux" else config.get("admin_user", "Administrator"),
+                "ssh_key_path": config.get("ssh_key_path", "/root/.ssh/id_rsa") if os_type == "linux" else None,
+                "port": 22 if os_type == "linux" else 3389
             },
             "platform_specific": {
                 "node": node,
                 "vmid": vmid,
                 "name": name,
-                "host": self.host
+                "host": self.host,
+                "os_type": os_type
             }
         }
     
@@ -520,6 +532,159 @@ class ProxmoxClient(PlatformClient):
         except Exception as e:
             logger.error(f"Failed to configure VM {vmid}: {str(e)}")
             return {"success": False, "error": str(e)}
+    
+    async def create_windows_vm_from_iso(self, node: str, vmid: int, config: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Create a Windows VM from ISO with autounattend
+        
+        Args:
+            node: Proxmox node
+            vmid: VM ID
+            config: VM configuration
+        
+        Returns:
+            Dict with vm_id and ip_address
+        """
+        from glassdome.core.config import settings
+        from glassdome.utils.ip_pool import get_ip_pool_manager
+        
+        name = config.get("name", f"windows-vm-{vmid}")
+        windows_version = config.get("windows_version", "server2022")
+        memory_mb = config.get("memory_mb", 4096)
+        cores = config.get("cpu_cores", 2)
+        disk_size_gb = config.get("disk_size_gb", 80)
+        admin_password = config.get("admin_password", "Glassdome123!")
+        network_cidr = config.get("network_cidr", "192.168.3.0/24")
+        
+        logger.info(f"Creating Windows VM {vmid} from ISO on node {node}")
+        
+        # Allocate static IP
+        ip_manager = get_ip_pool_manager()
+        ip_allocation = ip_manager.allocate_ip(network_cidr, str(vmid))
+        
+        if not ip_allocation:
+            raise Exception(f"Failed to allocate IP from network {network_cidr}")
+        
+        static_ip = ip_allocation["ip"]
+        gateway = ip_allocation["gateway"]
+        netmask = ip_allocation["netmask"]
+        dns_servers = ip_allocation["dns"]
+        
+        logger.info(f"Allocated IP {static_ip} to VM {vmid}")
+        
+        # Paths to ISOs
+        glassdome_root = Path(settings.glassdome_root) if hasattr(settings, 'glassdome_root') else Path.cwd()
+        windows_iso_path = glassdome_root / "isos" / "windows" / "windows-server-2022-eval.iso"
+        virtio_iso_path = glassdome_root / "isos" / "drivers" / "virtio-win.iso"
+        
+        # Generate autounattend.xml with static IP
+        autounattend_config = {
+            "hostname": name,
+            "admin_password": admin_password,
+            "windows_version": windows_version,
+            "enable_rdp": True,
+            "virtio_drivers": True,
+            "static_ip": static_ip,
+            "gateway": gateway,
+            "netmask": netmask,
+            "dns": dns_servers
+        }
+        autounattend_xml = generate_autounattend_xml(autounattend_config)
+        
+        # Create autounattend ISO
+        autounattend_iso_path = glassdome_root / "isos" / "custom" / f"autounattend-{vmid}.iso"
+        autounattend_iso_path.parent.mkdir(parents=True, exist_ok=True)
+        create_autounattend_iso(autounattend_xml, autounattend_iso_path)
+        
+        logger.info(f"Created autounattend ISO: {autounattend_iso_path}")
+        
+        # Create VM with Windows-optimized settings
+        vm_config = {
+            "vmid": vmid,
+            "name": name,
+            "memory": memory_mb,
+            "cores": cores,
+            "sockets": 1,
+            "cpu": "host",
+            "ostype": "win11",  # Windows 10/11/2022
+            "machine": "pc-q35-7.2",  # Modern machine type for Windows
+            "bios": "ovmf",  # UEFI BIOS
+            "scsihw": "virtio-scsi-pci",
+            "net0": f"virtio,bridge={config.get('network', 'vmbr0')}",
+            "ide2": f"none,media=cdrom",  # CDROM for Windows ISO
+            "efidisk0": f"{self.default_storage}:1,efitype=4m,pre-enrolled-keys=1",
+        }
+        
+        # Create the VM
+        try:
+            self.client.nodes(node).qemu.create(**vm_config)
+            logger.info(f"Created VM {vmid} shell")
+        except Exception as e:
+            logger.error(f"Failed to create VM shell: {e}")
+            raise
+        
+        # Wait a moment for VM to be fully created
+        await asyncio.sleep(2)
+        
+        # Add disk
+        try:
+            disk_config = {
+                "scsi0": f"{self.default_storage}:{disk_size_gb},cache=writeback,discard=on"
+            }
+            self.client.nodes(node).qemu(vmid).config.put(**disk_config)
+            logger.info(f"Added {disk_size_gb}GB disk to VM {vmid}")
+        except Exception as e:
+            logger.error(f"Failed to add disk: {e}")
+            raise
+        
+        # Upload ISOs to Proxmox if not already there (simplified - assumes ISOs are accessible)
+        # In production, you'd upload these to Proxmox storage
+        
+        # Attach ISOs
+        try:
+            # Windows ISO as IDE2 (primary CD-ROM)
+            # VirtIO drivers as IDE0 (secondary CD-ROM)
+            # Autounattend as IDE1 (third CD-ROM)
+            iso_config = {
+                "ide2": f"local:iso/{windows_iso_path.name},media=cdrom",
+                "ide0": f"local:iso/{virtio_iso_path.name},media=cdrom",
+                "ide1": f"local:iso/{autounattend_iso_path.name},media=cdrom"
+            }
+            self.client.nodes(node).qemu(vmid).config.put(**iso_config)
+            logger.info(f"Attached ISOs to VM {vmid}")
+        except Exception as e:
+            logger.warning(f"Failed to attach ISOs (may need manual upload): {e}")
+            # This is expected - ISOs need to be manually uploaded to Proxmox storage
+            logger.info(f"Please upload ISOs to Proxmox:")
+            logger.info(f"  1. {windows_iso_path}")
+            logger.info(f"  2. {virtio_iso_path}")
+            logger.info(f"  3. {autounattend_iso_path}")
+        
+        # Set boot order (CD-ROM first for installation)
+        try:
+            boot_config = {
+                "boot": "order=ide2;scsi0",
+                "bootdisk": "scsi0"
+            }
+            self.client.nodes(node).qemu(vmid).config.put(**boot_config)
+            logger.info(f"Set boot order for VM {vmid}")
+        except Exception as e:
+            logger.warning(f"Failed to set boot order: {e}")
+        
+        # Start VM
+        logger.info(f"Starting Windows VM {vmid} (Windows will auto-install, ~15-20 minutes)")
+        await self.start_vm(str(vmid))
+        
+        # Return with assigned static IP
+        logger.info(f"Windows VM {vmid} is installing. Check Proxmox console for progress.")
+        logger.info(f"After installation: RDP to {static_ip} with Administrator / {admin_password}")
+        
+        return {
+            "vm_id": str(vmid),
+            "ip_address": static_ip,  # Static IP assigned via autounattend
+            "status": "installing",
+            "notes": f"Windows is installing automatically. This takes 15-20 minutes. RDP: {static_ip}:3389, User: Administrator, Password: {admin_password}"
+        }
     
     async def resize_disk(self, node: str, vmid: int, disk: str, size: str) -> Dict[str, Any]:
         """

@@ -83,12 +83,14 @@ class AzureClient(PlatformClient):
     
     async def create_vm(self, config: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Create and start an Azure VM with cloud-init
+        Create and start an Azure VM (Linux or Windows)
         
         Args:
             config: VM configuration with keys:
                 - name: VM name (required)
-                - os_version: Ubuntu version (default: "22.04")
+                - os_type: "linux" or "windows" (default: "linux")
+                - os_version: Ubuntu version (default: "22.04") or windows_version
+                - windows_version: "server2022" or "win11" (for Windows VMs)
                 - cores: CPU cores (maps to VM size)
                 - memory: RAM in MB (maps to VM size)
                 - ssh_user: SSH username (default: "ubuntu")
@@ -100,16 +102,17 @@ class AzureClient(PlatformClient):
             Dict with vm_id, ip_address, platform, status, ansible_connection
         """
         name = config.get("name", f"glassdome-vm-{int(time.time())}")
+        os_type = config.get("os_type", "linux")
         os_version = config.get("os_version", "22.04")
-        vm_size = config.get("vm_size") or self._map_vm_size(config)
+        vm_size = config.get("vm_size") or self._map_vm_size(config, os_type)
         
-        logger.info(f"Creating Azure VM: {name} ({vm_size}) in {self.region}")
+        logger.info(f"Creating Azure VM: {name} ({os_type}, {vm_size}) in {self.region}")
         
         # 1. Ensure resource group exists
         await self._ensure_resource_group()
         
         # 2. Create/get network resources
-        vnet_name, subnet_name, nsg_name = await self._ensure_network(name)
+        vnet_name, subnet_name, nsg_name = await self._ensure_network(name, os_type)
         
         # 3. Create public IP
         public_ip_name = f"{name}-ip"
@@ -119,19 +122,37 @@ class AzureClient(PlatformClient):
         nic_name = f"{name}-nic"
         nic = await self._create_nic(nic_name, subnet_name, vnet_name, public_ip_name, nsg_name)
         
-        # 5. Build cloud-init
-        custom_data = self._build_cloud_init(config)
+        # 5. Get image reference
+        if os_type == "windows":
+            windows_version = config.get("windows_version", "server2022")
+            image_ref = self._get_windows_image(windows_version)
+        else:
+            image_ref = self._get_ubuntu_image(os_version)
         
-        # 6. Create VM
+        # 6. Build user data
+        if os_type == "windows":
+            custom_data = self._build_windows_customdata(config)
+        else:
+            custom_data = self._build_cloud_init(config)
+        
+        # 7. Create VM
         try:
             logger.info(f"Creating VM {name}...")
             
-            # Get Ubuntu image reference
-            image_ref = self._get_ubuntu_image(os_version)
-            
-            vm_params = {
-                'location': self.region,
-                'os_profile': {
+            # Build OS profile based on OS type
+            if os_type == "windows":
+                os_profile = {
+                    'computer_name': name[:15],  # Windows has 15 char limit
+                    'admin_username': config.get('admin_user', 'glassdomeadmin'),  # Azure reserves 'Administrator'
+                    'admin_password': config.get('admin_password', 'Glassdome123!'),
+                    'custom_data': custom_data,
+                    'windows_configuration': {
+                        'enable_automatic_updates': False,
+                        'provision_vm_agent': True
+                    }
+                }
+            else:
+                os_profile = {
                     'computer_name': name,
                     'admin_username': config.get('ssh_user', 'ubuntu'),
                     'admin_password': config.get('password', 'Glassdome123!'),  # Required by Azure
@@ -139,7 +160,11 @@ class AzureClient(PlatformClient):
                     'linux_configuration': {
                         'disable_password_authentication': False,  # Allow password for simplicity
                     }
-                },
+                }
+            
+            vm_params = {
+                'location': self.region,
+                'os_profile': os_profile,
                 'hardware_profile': {
                     'vm_size': vm_size
                 },
@@ -330,29 +355,40 @@ class AzureClient(PlatformClient):
         except Exception as e:
             logger.warning(f"Provider registration check failed (may need manual registration): {e}")
     
-    def _map_vm_size(self, config: Dict[str, Any]) -> str:
+    def _map_vm_size(self, config: Dict[str, Any], os_type: str = "linux") -> str:
         """
         Map cores/memory to Azure VM size
         
-        Default: B1s (cheapest general purpose)
+        For Linux: B-series (burstable) - cheapest!
+        For Windows: D-series (more resources needed)
         """
         cores = config.get("cores", 1)
-        memory_mb = config.get("memory", 1024)
+        memory_mb = config.get("memory", 4096 if os_type == "windows" else 1024)
         
-        # B-series (burstable, cheapest)
-        if cores == 1 and memory_mb <= 512:
-            return "Standard_B1ls"  # $0.0052/hour - cheapest!
-        elif cores == 1 and memory_mb <= 2048:
-            return "Standard_B1s"  # $0.0104/hour
-        elif cores == 1 and memory_mb <= 4096:
-            return "Standard_B1ms"  # $0.0208/hour
-        elif cores == 2:
-            return "Standard_B2s"  # $0.0416/hour
-        elif cores == 4:
-            return "Standard_B4ms"  # $0.166/hour
+        if os_type == "windows":
+            # Windows needs more resources
+            # Minimum for Windows: 2 cores, 8GB RAM
+            if cores <= 2 and memory_mb <= 8192:
+                return "Standard_D2s_v3"  # 2 vCPU, 8 GB RAM
+            elif cores <= 4:
+                return "Standard_D4s_v3"  # 4 vCPU, 16 GB RAM
+            else:
+                return "Standard_D8s_v3"  # 8 vCPU, 32 GB RAM
+        else:
+            # Linux - B-series (burstable, cheapest)
+            if cores == 1 and memory_mb <= 512:
+                return "Standard_B1ls"  # $0.0052/hour - cheapest!
+            elif cores == 1 and memory_mb <= 2048:
+                return "Standard_B1s"  # $0.0104/hour
+            elif cores == 1 and memory_mb <= 4096:
+                return "Standard_B1ms"  # $0.0208/hour
+            elif cores == 2:
+                return "Standard_B2s"  # $0.0416/hour
+            elif cores == 4:
+                return "Standard_B4ms"  # $0.166/hour
         
         # Default
-        return "Standard_B1s"
+        return "Standard_B1s" if os_type == "linux" else "Standard_D2s_v3"
     
     def _get_ubuntu_image(self, version: str) -> Dict[str, str]:
         """
@@ -385,6 +421,80 @@ class AzureClient(PlatformClient):
             'version': 'latest'
         }
     
+    def _get_windows_image(self, version: str) -> Dict[str, str]:
+        """
+        Get Windows image reference for Azure
+        
+        Args:
+            version: Windows version ("server2022" or "win11")
+        
+        Returns:
+            Image reference dict
+        """
+        # Microsoft Windows publisher
+        publisher = "MicrosoftWindowsServer"
+        
+        if version == "server2022":
+            offer = "WindowsServer"
+            sku = "2022-datacenter-azure-edition"
+        elif version == "win11":
+            # Windows 11 Enterprise
+            publisher = "MicrosoftWindowsDesktop"
+            offer = "Windows-11"
+            sku = "win11-22h2-ent"
+        else:
+            # Default to Server 2022
+            offer = "WindowsServer"
+            sku = "2022-datacenter-azure-edition"
+        
+        return {
+            'publisher': publisher,
+            'offer': offer,
+            'sku': sku,
+            'version': 'latest'
+        }
+    
+    def _build_windows_customdata(self, config: Dict[str, Any]) -> str:
+        """
+        Build Windows custom data script (PowerShell)
+        
+        Args:
+            config: VM configuration
+        
+        Returns:
+            Base64-encoded PowerShell script
+        """
+        import base64
+        
+        name = config.get("name", "glassdome-vm")
+        admin_password = config.get("admin_password", "Glassdome123!")
+        
+        # PowerShell script for Windows initialization
+        script = f"""#ps1_sysnative
+# Glassdome Windows Initialization
+
+# Set hostname (already set by Azure, but log it)
+$hostname = hostname
+Write-Host "Hostname: $hostname"
+
+# Enable RDP
+Set-ItemProperty -Path 'HKLM:\\System\\CurrentControlSet\\Control\\Terminal Server' -Name "fDenyTSConnections" -Value 0
+Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
+
+# Disable Windows Firewall for cyber range (allow all traffic)
+Set-NetFirewallProfile -Profile Domain,Public,Private -Enabled False
+
+# Create initialization log
+$logMessage = "Glassdome Windows initialization completed at $(Get-Date)"
+Add-Content -Path "C:\\glassdome-init.log" -Value $logMessage
+
+Write-Host "Glassdome initialization complete"
+"""
+        
+        # Azure expects base64-encoded custom data
+        encoded = base64.b64encode(script.encode('utf-8')).decode('utf-8')
+        return encoded
+    
     async def _ensure_resource_group(self):
         """Ensure resource group exists"""
         try:
@@ -403,9 +513,13 @@ class AzureClient(PlatformClient):
                 }
             )
     
-    async def _ensure_network(self, vm_name: str) -> tuple:
+    async def _ensure_network(self, vm_name: str, os_type: str = "linux") -> tuple:
         """
         Ensure virtual network, subnet, and NSG exist
+        
+        Args:
+            vm_name: VM name
+            os_type: "linux" or "windows" (adds RDP for Windows)
         
         Returns:
             (vnet_name, subnet_name, nsg_name)
@@ -414,30 +528,52 @@ class AzureClient(PlatformClient):
         subnet_name = "default"
         nsg_name = f"glassdome-nsg-{self.region}"
         
-        # Create/get NSG first
+        # Build security rules
+        security_rules = [
+            {
+                'name': 'AllowSSH',
+                'protocol': 'Tcp',
+                'source_port_range': '*',
+                'destination_port_range': '22',
+                'source_address_prefix': '*',
+                'destination_address_prefix': '*',
+                'access': 'Allow',
+                'priority': 300,
+                'direction': 'Inbound'
+            }
+        ]
+        
+        # Add RDP rule for Windows
+        if os_type == "windows":
+            security_rules.append({
+                'name': 'AllowRDP',
+                'protocol': 'Tcp',
+                'source_port_range': '*',
+                'destination_port_range': '3389',
+                'source_address_prefix': '*',
+                'destination_address_prefix': '*',
+                'access': 'Allow',
+                'priority': 310,
+                'direction': 'Inbound'
+            })
+        
+        # Create/get NSG
         try:
-            self.network_client.network_security_groups.get(
+            nsg = self.network_client.network_security_groups.get(
                 self.resource_group_name,
                 nsg_name
             )
             logger.info(f"Using existing NSG: {nsg_name}")
+            
+            # Ensure RDP rule exists if os_type is windows
+            if os_type == "windows":
+                await self._ensure_rdp_rule(nsg_name)
+            
         except ResourceNotFoundError:
             logger.info(f"Creating NSG: {nsg_name}")
             nsg_params = {
                 'location': self.region,
-                'security_rules': [
-                    {
-                        'name': 'AllowSSH',
-                        'protocol': 'Tcp',
-                        'source_port_range': '*',
-                        'destination_port_range': '22',
-                        'source_address_prefix': '*',
-                        'destination_address_prefix': '*',
-                        'access': 'Allow',
-                        'priority': 300,
-                        'direction': 'Inbound'
-                    }
-                ]
+                'security_rules': security_rules
             }
             operation = self.network_client.network_security_groups.begin_create_or_update(
                 self.resource_group_name,
@@ -473,6 +609,47 @@ class AzureClient(PlatformClient):
             operation.result()
         
         return (vnet_name, subnet_name, nsg_name)
+    
+    async def _ensure_rdp_rule(self, nsg_name: str):
+        """Ensure RDP port 3389 is open in NSG"""
+        try:
+            # Get current NSG
+            nsg = self.network_client.network_security_groups.get(
+                self.resource_group_name,
+                nsg_name
+            )
+            
+            # Check if RDP rule already exists
+            for rule in nsg.security_rules:
+                if rule.destination_port_range == '3389':
+                    logger.info(f"RDP rule already exists in NSG {nsg_name}")
+                    return
+            
+            # Add RDP rule
+            logger.info(f"Adding RDP rule to NSG {nsg_name}")
+            rdp_rule = {
+                'name': 'AllowRDP',
+                'protocol': 'Tcp',
+                'source_port_range': '*',
+                'destination_port_range': '3389',
+                'source_address_prefix': '*',
+                'destination_address_prefix': '*',
+                'access': 'Allow',
+                'priority': 310,
+                'direction': 'Inbound'
+            }
+            
+            operation = self.network_client.security_rules.begin_create_or_update(
+                self.resource_group_name,
+                nsg_name,
+                'AllowRDP',
+                rdp_rule
+            )
+            operation.result()
+            logger.info(f"RDP rule added to NSG {nsg_name}")
+            
+        except Exception as e:
+            logger.warning(f"Failed to ensure RDP rule: {e}")
     
     async def _create_public_ip(self, ip_name: str):
         """Create public IP address"""

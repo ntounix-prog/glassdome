@@ -97,12 +97,14 @@ class AWSClient(PlatformClient):
     
     async def create_vm(self, config: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Create and start an EC2 instance with cloud-init
+        Create and start an EC2 instance (Linux or Windows)
         
         Args:
             config: VM configuration with keys:
                 - name: VM name (required)
-                - os_version: Ubuntu version (default: "22.04")
+                - os_type: "linux" or "windows" (default: "linux")
+                - os_version: Ubuntu version (default: "22.04") or windows_version
+                - windows_version: "server2022" or "win11" (for Windows VMs)
                 - cores: CPU cores (maps to instance type)
                 - memory: RAM in MB (maps to instance type)
                 - ssh_user: SSH username (default: "ubuntu")
@@ -114,22 +116,30 @@ class AWSClient(PlatformClient):
             Dict with vm_id, ip_address, platform, status, ansible_connection
         """
         name = config.get("name", f"glassdome-vm-{int(time.time())}")
+        os_type = config.get("os_type", "linux")
         os_version = config.get("os_version", "22.04")
-        instance_type = config.get("instance_type") or self._map_instance_type(config)
+        instance_type = config.get("instance_type") or self._map_instance_type(config, os_type)
         
-        logger.info(f"Creating AWS EC2 instance: {name} ({instance_type}) in {self.region}")
+        logger.info(f"Creating AWS EC2 instance: {name} ({os_type}, {instance_type}) in {self.region}")
         
-        # 1. Get AMI
-        ami_id = await self._get_ubuntu_ami(os_version, instance_type)
+        # 1. Get AMI (Linux or Windows)
+        if os_type == "windows":
+            windows_version = config.get("windows_version", "server2022")
+            ami_id = await self._get_windows_ami(windows_version)
+        else:
+            ami_id = await self._get_ubuntu_ami(os_version, instance_type)
         
         # 2. Get/Create VPC and Subnet
         vpc_id, subnet_id = await self._get_vpc_and_subnet()
         
         # 3. Get/Create Security Group
-        sg_id = await self._get_or_create_security_group(vpc_id, name)
+        sg_id = await self._get_or_create_security_group(vpc_id, name, os_type)
         
-        # 4. Build cloud-init user-data
-        user_data = self._build_cloud_init(config)
+        # 4. Build user-data (cloud-init for Linux, EC2Launch for Windows)
+        if os_type == "windows":
+            user_data = self._build_windows_userdata(config)
+        else:
+            user_data = self._build_cloud_init(config)
         
         # 5. Launch instance
         try:
@@ -270,29 +280,42 @@ class AWSClient(PlatformClient):
     # HELPER METHODS
     # =========================================================================
     
-    def _map_instance_type(self, config: Dict[str, Any]) -> str:
+    def _map_instance_type(self, config: Dict[str, Any], os_type: str = "linux") -> str:
         """
         Map cores/memory to AWS instance type
         
-        Default: t4g.nano (cheapest ARM instance for testing!)
+        For Linux: Use t4g (ARM) instances (cheapest!)
+        For Windows: Use t3 (x86) instances (Windows needs more resources)
         """
         cores = config.get("cores", 1)
-        memory_mb = config.get("memory", 512)
+        memory_mb = config.get("memory", 4096 if os_type == "windows" else 512)
         
-        # t4g instances (ARM-based Graviton2) - cheapest!
-        if cores == 1 and memory_mb <= 512:
-            return "t4g.nano"  # $0.0042/hour
-        elif cores == 1 and memory_mb <= 1024:
-            return "t4g.micro"  # $0.0084/hour
-        elif cores == 1 and memory_mb <= 2048:
-            return "t4g.small"  # $0.0168/hour
-        elif cores == 2:
-            return "t4g.medium"  # $0.0336/hour
-        elif cores == 4:
-            return "t4g.large"  # $0.0672/hour
+        if os_type == "windows":
+            # Windows instances (x86-based, need more resources)
+            # Minimum for Windows: 2 cores, 4GB RAM
+            if cores <= 2 and memory_mb <= 4096:
+                return "t3.medium"  # 2 vCPU, 4 GB RAM
+            elif cores <= 2 and memory_mb <= 8192:
+                return "t3.large"  # 2 vCPU, 8 GB RAM
+            elif cores <= 4:
+                return "t3.xlarge"  # 4 vCPU, 16 GB RAM
+            else:
+                return "t3.2xlarge"  # 8 vCPU, 32 GB RAM
+        else:
+            # Linux instances (ARM-based Graviton2) - cheapest!
+            if cores == 1 and memory_mb <= 512:
+                return "t4g.nano"  # $0.0042/hour
+            elif cores == 1 and memory_mb <= 1024:
+                return "t4g.micro"  # $0.0084/hour
+            elif cores == 1 and memory_mb <= 2048:
+                return "t4g.small"  # $0.0168/hour
+            elif cores == 2:
+                return "t4g.medium"  # $0.0336/hour
+            elif cores == 4:
+                return "t4g.large"  # $0.0672/hour
         
-        # Default for testing
-        return "t4g.nano"
+        # Default
+        return "t4g.nano" if os_type == "linux" else "t3.medium"
     
     async def _get_ubuntu_ami(self, version: str, instance_type: str) -> str:
         """
@@ -343,6 +366,52 @@ class AWSClient(PlatformClient):
             logger.error(f"Failed to lookup AMI: {e}")
             raise
     
+    async def _get_windows_ami(self, version: str) -> str:
+        """
+        Get Windows AMI ID for the current region
+        
+        Args:
+            version: Windows version ("server2022" or "win11")
+        
+        Returns:
+            AMI ID
+        """
+        logger.info(f"Looking up Windows {version} AMI for {self.region}...")
+        
+        try:
+            # Amazon's Windows AMIs owner ID: 801119661308
+            if version == "server2022":
+                name_pattern = 'Windows_Server-2022-English-Full-Base-*'
+            elif version == "win11":
+                name_pattern = 'Windows_Server-2022-English-Core-Base-*'  # Win11 not in AWS, use Server Core
+            else:
+                raise ValueError(f"Unknown Windows version: {version}")
+            
+            filters = [
+                {'Name': 'owner-id', 'Values': ['801119661308']},  # Amazon
+                {'Name': 'name', 'Values': [name_pattern]},
+                {'Name': 'state', 'Values': ['available']},
+                {'Name': 'architecture', 'Values': ['x86_64']}
+            ]
+            
+            response = self.ec2_client.describe_images(Filters=filters)
+            
+            if not response['Images']:
+                logger.error(f"No Windows images found. Filters: {filters}")
+                raise ValueError(f"No Windows {version} AMI found in {self.region}")
+            
+            # Sort by creation date, get latest
+            images = sorted(response['Images'], key=lambda x: x['CreationDate'], reverse=True)
+            ami_id = images[0]['ImageId']
+            ami_name = images[0]['Name']
+            
+            logger.info(f"✅ Found Windows AMI {ami_id} ({ami_name})")
+            return ami_id
+            
+        except Exception as e:
+            logger.error(f"Failed to lookup Windows AMI: {e}")
+            raise
+    
     async def _get_vpc_and_subnet(self) -> tuple:
         """
         Get VPC and subnet for deployment
@@ -376,19 +445,20 @@ class AWSClient(PlatformClient):
             # TODO: Create custom VPC (Phase 2)
             raise NotImplementedError("Custom VPC creation not yet implemented")
     
-    async def _get_or_create_security_group(self, vpc_id: str, vm_name: str) -> str:
+    async def _get_or_create_security_group(self, vpc_id: str, vm_name: str, os_type: str = "linux") -> str:
         """
         Get existing or create new security group for Glassdome
         
         Args:
             vpc_id: VPC ID
             vm_name: VM name (for tagging)
+            os_type: "linux" or "windows" (adds RDP for Windows)
         
         Returns:
             Security group ID
         """
         sg_name = f"glassdome-{self.region}"
-        sg_description = "Glassdome cyber range security group - SSH access"
+        sg_description = "Glassdome cyber range security group - SSH/RDP access"
         
         try:
             # Check if security group already exists
@@ -402,6 +472,11 @@ class AWSClient(PlatformClient):
             if response['SecurityGroups']:
                 sg_id = response['SecurityGroups'][0]['GroupId']
                 logger.info(f"Using existing security group {sg_id}")
+                
+                # Ensure Windows RDP rule exists if os_type is windows
+                if os_type == "windows":
+                    await self._ensure_rdp_rule(sg_id)
+                
                 return sg_id
             
             # Create new security group
@@ -422,7 +497,7 @@ class AWSClient(PlatformClient):
             sg_id = response['GroupId']
             logger.info(f"Created security group {sg_id}")
             
-            # Add SSH ingress rule
+            # Add SSH ingress rule (always)
             self.ec2_client.authorize_security_group_ingress(
                 GroupId=sg_id,
                 IpPermissions=[{
@@ -432,13 +507,44 @@ class AWSClient(PlatformClient):
                     'IpRanges': [{'CidrIp': '0.0.0.0/0', 'Description': 'SSH access'}]
                 }]
             )
-            
             logger.info(f"Added SSH rule to security group {sg_id}")
+            
+            # Add RDP ingress rule for Windows
+            if os_type == "windows":
+                await self._ensure_rdp_rule(sg_id)
+            
             return sg_id
             
         except Exception as e:
             logger.error(f"Failed to get/create security group: {e}")
             raise
+    
+    async def _ensure_rdp_rule(self, sg_id: str):
+        """Ensure RDP port 3389 is open in security group"""
+        try:
+            # Check if RDP rule already exists
+            response = self.ec2_client.describe_security_groups(GroupIds=[sg_id])
+            sg = response['SecurityGroups'][0]
+            
+            for rule in sg['IpPermissions']:
+                if rule.get('FromPort') == 3389 and rule.get('ToPort') == 3389:
+                    logger.info(f"RDP rule already exists in security group {sg_id}")
+                    return
+            
+            # Add RDP rule
+            self.ec2_client.authorize_security_group_ingress(
+                GroupId=sg_id,
+                IpPermissions=[{
+                    'IpProtocol': 'tcp',
+                    'FromPort': 3389,
+                    'ToPort': 3389,
+                    'IpRanges': [{'CidrIp': '0.0.0.0/0', 'Description': 'RDP access'}]
+                }]
+            )
+            logger.info(f"Added RDP rule to security group {sg_id}")
+            
+        except Exception as e:
+            logger.warning(f"Failed to ensure RDP rule: {e}")
     
     def _build_cloud_init(self, config: Dict[str, Any]) -> str:
         """
@@ -486,6 +592,47 @@ disable_root: false
         user_data += """
 runcmd:
   - echo "Cloud-init completed at $(date)" > /var/log/glassdome-init.log
+"""
+        
+        return user_data
+    
+    def _build_windows_userdata(self, config: Dict[str, Any]) -> str:
+        """
+        Build Windows EC2Launch user-data script (PowerShell)
+        
+        Args:
+            config: VM configuration
+        
+        Returns:
+            Windows user-data string (PowerShell script)
+        """
+        name = config.get("name", "glassdome-vm")
+        admin_password = config.get("admin_password", "Glassdome123!")
+        
+        # EC2Launch user data (PowerShell)
+        user_data = f"""<powershell>
+# Set hostname
+Rename-Computer -NewName "{name}" -Force
+
+# Set Administrator password
+$Password = ConvertTo-SecureString "{admin_password}" -AsPlainText -Force
+Get-LocalUser -Name "Administrator" | Set-LocalUser -Password $Password
+
+# Enable RDP
+Set-ItemProperty -Path 'HKLM:\\System\\CurrentControlSet\\Control\\Terminal Server' -Name "fDenyTSConnections" -Value 0
+Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
+
+# Disable Windows Firewall (for cyber range testing)
+Set-NetFirewallProfile -Profile Domain,Public,Private -Enabled False
+
+# Create log
+$logMessage = "Glassdome Windows initialization completed at $(Get-Date)"
+Add-Content -Path "C:\\glassdome-init.log" -Value $logMessage
+
+# Restart to apply hostname change
+Restart-Computer -Force
+</powershell>
+<persist>true</persist>
 """
         
         return user_data

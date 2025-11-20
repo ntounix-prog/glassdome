@@ -76,3 +76,8 @@ yarn-error.log*
 *.temp
 .cache/
 
+# ISO files (large binaries, downloaded on-demand)
+isos/
+*.iso
+*.vmdk
+

@@ -13,8 +13,10 @@ import time
 import asyncio
 from typing import Dict, Any, List, Optional
 import logging
+from pathlib import Path
 
 from glassdome.platforms.base import PlatformClient, VMStatus
+from glassdome.utils.windows_autounattend import generate_autounattend_xml, create_autounattend_iso
 
 logger = logging.getLogger(__name__)
 
@@ -125,18 +127,25 @@ class ESXiClient(PlatformClient):
         Create a VM on ESXi (implements PlatformClient interface)
         
         Supports:
+        - Windows VMs from ISO (if os_type="windows")
         - Cloning from template (if template_id provided)
-        - Creating from scratch (if no template)
+        - Creating from scratch (Linux)
         - Custom hardware configuration
         - Network assignment
         """
         name = config.get("name", "glassdome-vm")
+        os_type = config.get("os_type", "linux")
         
-        logger.info(f"Creating VM on ESXi: {name}")
+        logger.info(f"Creating {os_type} VM on ESXi: {name}")
         
-        # Check if cloning from template
-        if config.get("template_id"):
+        # Windows deployment from ISO
+        if os_type == "windows":
+            result = await self.create_windows_vm_from_iso(config)
+            return result
+        # Clone from template
+        elif config.get("template_id"):
             vm = await self._clone_from_template(config)
+        # Create from scratch
         else:
             vm = await self._create_from_scratch(config)
         
@@ -681,4 +690,194 @@ class ESXiClient(PlatformClient):
         
         if task.info.state == vim.TaskInfo.State.error:
             raise Exception(f"Task failed: {task.info.error.msg}")
+    
+    async def create_windows_vm_from_iso(self, config: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Create a Windows VM from ISO with autounattend
+        
+        Args:
+            config: VM configuration
+        
+        Returns:
+            Dict with vm_id and ip_address
+        """
+        from glassdome.core.config import settings
+        from glassdome.utils.ip_pool import get_ip_pool_manager
+        
+        name = config.get("name", f"windows-vm-{int(time.time())}")
+        windows_version = config.get("windows_version", "server2022")
+        memory_mb = config.get("memory_mb", 4096)
+        cores = config.get("cpu_cores", 2)
+        disk_size_gb = config.get("disk_size_gb", 80)
+        admin_password = config.get("admin_password", "Glassdome123!")
+        network_cidr = config.get("network_cidr", "192.168.2.0/24")  # ESXi management network
+        
+        logger.info(f"Creating Windows VM {name} from ISO on ESXi")
+        
+        # Allocate static IP
+        ip_manager = get_ip_pool_manager()
+        ip_allocation = ip_manager.allocate_ip(network_cidr, name)
+        
+        if not ip_allocation:
+            raise Exception(f"Failed to allocate IP from network {network_cidr}")
+        
+        static_ip = ip_allocation["ip"]
+        gateway = ip_allocation["gateway"]
+        netmask = ip_allocation["netmask"]
+        dns_servers = ip_allocation["dns"]
+        
+        logger.info(f"Allocated IP {static_ip} to VM {name}")
+        
+        # Paths to ISOs (on ESXi datastore)
+        windows_iso = f"[{self.default_datastore_name}] ISO/windows-server-2022-eval.iso"
+        autounattend_iso = f"[{self.default_datastore_name}] ISO/autounattend-{name}.iso"
+        
+        # Generate autounattend.xml (no VirtIO for ESXi)
+        autounattend_config = {
+            "hostname": name,
+            "admin_password": admin_password,
+            "windows_version": windows_version,
+            "enable_rdp": True,
+            "virtio_drivers": False,  # ESXi uses VMware drivers, not VirtIO
+            "static_ip": static_ip,
+            "gateway": gateway,
+            "netmask": netmask,
+            "dns": dns_servers
+        }
+        autounattend_xml = generate_autounattend_xml(autounattend_config)
+        
+        # Create autounattend ISO locally
+        glassdome_root = Path(settings.glassdome_root) if hasattr(settings, 'glassdome_root') else Path.cwd()
+        autounattend_iso_path = glassdome_root / "isos" / "custom" / f"autounattend-{name}.iso"
+        autounattend_iso_path.parent.mkdir(parents=True, exist_ok=True)
+        create_autounattend_iso(autounattend_xml, autounattend_iso_path)
+        
+        logger.info(f"Created autounattend ISO: {autounattend_iso_path}")
+        logger.info(f"NOTE: Upload to ESXi manually or via upload script")
+        
+        # Create VM config spec
+        config_spec = vim.vm.ConfigSpec()
+        config_spec.name = name
+        config_spec.memoryMB = memory_mb
+        config_spec.numCPUs = cores
+        config_spec.guestId = "windows9Server64Guest"  # Windows Server 2016+
+        config_spec.version = "vmx-14"  # ESXi 6.7+
+        
+        # Set firmware to EFI
+        config_spec.firmware = "efi"
+        
+        # Files (VM location)
+        config_spec.files = vim.vm.FileInfo()
+        config_spec.files.vmPathName = f"[{self.default_datastore_name}] {name}/{name}.vmx"
+        
+        # Create device specs
+        device_changes = []
+        
+        # SCSI controller
+        scsi_spec = vim.vm.device.VirtualDeviceSpec()
+        scsi_spec.operation = vim.vm.device.VirtualDeviceSpec.Operation.add
+        scsi_spec.device = vim.vm.device.ParaVirtualSCSIController()
+        scsi_spec.device.key = 1000
+        scsi_spec.device.busNumber = 0
+        scsi_spec.device.sharedBus = vim.vm.device.VirtualSCSIController.Sharing.noSharing
+        device_changes.append(scsi_spec)
+        
+        # Disk
+        disk_spec = vim.vm.device.VirtualDeviceSpec()
+        disk_spec.operation = vim.vm.device.VirtualDeviceSpec.Operation.add
+        disk_spec.fileOperation = vim.vm.device.VirtualDeviceSpec.FileOperation.create
+        disk_spec.device = vim.vm.device.VirtualDisk()
+        disk_spec.device.key = 2000
+        disk_spec.device.controllerKey = 1000
+        disk_spec.device.unitNumber = 0
+        disk_spec.device.capacityInKB = disk_size_gb * 1024 * 1024
+        disk_spec.device.backing = vim.vm.device.VirtualDisk.FlatVer2BackingInfo()
+        disk_spec.device.backing.diskMode = 'persistent'
+        disk_spec.device.backing.fileName = f"[{self.default_datastore_name}] {name}/{name}.vmdk"
+        disk_spec.device.backing.thinProvisioned = True
+        device_changes.append(disk_spec)
+        
+        # Network
+        network = self._get_network(self.default_network_name)
+        if network:
+            nic_spec = vim.vm.device.VirtualDeviceSpec()
+            nic_spec.operation = vim.vm.device.VirtualDeviceSpec.Operation.add
+            nic_spec.device = vim.vm.device.VirtualVmxnet3()
+            nic_spec.device.key = 4000
+            nic_spec.device.backing = vim.vm.device.VirtualEthernetCard.NetworkBackingInfo()
+            nic_spec.device.backing.network = network
+            nic_spec.device.backing.deviceName = network.name
+            nic_spec.device.connectable = vim.vm.device.VirtualDevice.ConnectInfo()
+            nic_spec.device.connectable.startConnected = True
+            nic_spec.device.connectable.allowGuestControl = True
+            device_changes.append(nic_spec)
+        
+        # CD-ROM with Windows ISO
+        cdrom_spec = vim.vm.device.VirtualDeviceSpec()
+        cdrom_spec.operation = vim.vm.device.VirtualDeviceSpec.Operation.add
+        cdrom_spec.device = vim.vm.device.VirtualCdrom()
+        cdrom_spec.device.key = 3000
+        cdrom_spec.device.controllerKey = 200  # IDE controller
+        cdrom_spec.device.unitNumber = 0
+        cdrom_spec.device.backing = vim.vm.device.VirtualCdrom.IsoBackingInfo()
+        cdrom_spec.device.backing.fileName = windows_iso
+        cdrom_spec.device.connectable = vim.vm.device.VirtualDevice.ConnectInfo()
+        cdrom_spec.device.connectable.startConnected = True
+        cdrom_spec.device.connectable.allowGuestControl = True
+        device_changes.append(cdrom_spec)
+        
+        # Second CD-ROM with autounattend ISO
+        cdrom2_spec = vim.vm.device.VirtualDeviceSpec()
+        cdrom2_spec.operation = vim.vm.device.VirtualDeviceSpec.Operation.add
+        cdrom2_spec.device = vim.vm.device.VirtualCdrom()
+        cdrom2_spec.device.key = 3001
+        cdrom2_spec.device.controllerKey = 200  # IDE controller
+        cdrom2_spec.device.unitNumber = 1
+        cdrom2_spec.device.backing = vim.vm.device.VirtualCdrom.IsoBackingInfo()
+        cdrom2_spec.device.backing.fileName = autounattend_iso
+        cdrom2_spec.device.connectable = vim.vm.device.VirtualDevice.ConnectInfo()
+        cdrom2_spec.device.connectable.startConnected = True
+        cdrom2_spec.device.connectable.allowGuestControl = True
+        device_changes.append(cdrom2_spec)
+        
+        config_spec.deviceChange = device_changes
+        
+        # Create the VM
+        logger.info(f"Creating VM {name} on ESXi...")
+        task = self.datacenter.vmFolder.CreateVM_Task(
+            config=config_spec,
+            pool=self.resource_pool
+        )
+        
+        self._wait_for_task(task)
+        logger.info(f"VM {name} created")
+        
+        # Get the VM object
+        vm = self._get_vm_by_name(name)
+        
+        # Power on
+        logger.info(f"Starting Windows VM {name} (Windows will auto-install, ~15-20 minutes)")
+        await self._power_on_vm(vm)
+        
+        logger.info(f"Windows VM {name} is installing. Check ESXi console for progress.")
+        logger.info(f"After installation: RDP to {static_ip} with Administrator / {admin_password}")
+        
+        return {
+            "vm_id": name,
+            "ip_address": static_ip,
+            "platform": "esxi",
+            "status": "installing",
+            "ansible_connection": {
+                "host": static_ip,
+                "user": "Administrator",
+                "port": 3389
+            },
+            "platform_specific": {
+                "esxi_host": self.host,
+                "datastore": self.default_datastore_name,
+                "vm_name": name,
+                "vm_path": f"[{self.default_datastore_name}] {name}"
+            },
+            "notes": f"Windows is installing automatically. This takes 15-20 minutes. RDP: {static_ip}:3389, User: Administrator, Password: {admin_password}"
+        }
 
