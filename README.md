@@ -228,13 +228,54 @@ AWS_SECRET_ACCESS_KEY=...
 
 ## 📚 Documentation
 
-- **[INSTALL.md](INSTALL.md)** - Package installation guide
-- **[docs/PROJECT_VISION.md](docs/PROJECT_VISION.md)** - Vision and roadmap
-- **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** - System architecture
-- **[docs/API.md](docs/API.md)** - API documentation
-- **[docs/SETUP.md](docs/SETUP.md)** - Setup instructions
-- **[QUICKSTART.md](QUICKSTART.md)** - 5-minute quick start
-- **[IMPLEMENTATION_SUMMARY.md](IMPLEMENTATION_SUMMARY.md)** - Build details
+**All documentation is in the [`docs/`](docs/) directory:**
+
+### 🚀 Getting Started
+- **[QUICKSTART.md](docs/QUICKSTART.md)** - 5-minute quick start
+- **[GETTING_STARTED.md](docs/GETTING_STARTED.md)** - Complete setup walkthrough
+- **[INSTALL.md](docs/INSTALL.md)** - Package installation guide
+
+### 📖 Guides
+- **[SETUP.md](docs/SETUP.md)** - Detailed setup instructions
+- **[PACKAGE_GUIDE.md](docs/PACKAGE_GUIDE.md)** - How to use as a Python package
+- **[AGENT_QUICKSTART.md](docs/AGENT_QUICKSTART.md)** - Ubuntu Agent quick start
+
+### 🏗️ Architecture
+- **[COMPLETE_ARCHITECTURE.md](docs/COMPLETE_ARCHITECTURE.md)** - Full system architecture
+- **[ARCHITECTURE.md](docs/ARCHITECTURE.md)** - System design overview
+- **[AGENT_ARCHITECTURE.md](docs/AGENT_ARCHITECTURE.md)** - Agent design patterns
+
+### 🤖 Agents
+- **[RESEARCH_AGENT.md](docs/RESEARCH_AGENT.md)** - AI-powered CVE research
+- **[REAPER_AGENT.md](docs/REAPER_AGENT.md)** - Vulnerability injection
+- **[UBUNTU_AGENT.md](docs/UBUNTU_AGENT.md)** - Ubuntu VM deployment
+- **[SSH_AGENT_CAPABILITIES.md](docs/SSH_AGENT_CAPABILITIES.md)** - SSH automation
+
+### 🔧 Configuration
+- **[API_KEYS.md](docs/API_KEYS.md)** - API keys and LLM configuration
+- **[GET_CREDENTIALS.md](docs/GET_CREDENTIALS.md)** - How to get Proxmox credentials
+- **[PROXMOX_SETUP.md](docs/PROXMOX_SETUP.md)** - Proxmox template setup
+
+### 📊 Project Info
+- **[PROJECT_VISION.md](docs/PROJECT_VISION.md)** - Vision and roadmap
+- **[PROJECT_STATUS.md](docs/PROJECT_STATUS.md)** - Current status
+- **[PROJECT_SUMMARY.md](docs/PROJECT_SUMMARY.md)** - Project overview
+- **[VP_PRESENTATION_ROADMAP.md](docs/VP_PRESENTATION_ROADMAP.md)** - Roadmap to demo
+
+### 🔬 Development
+- **[IMPLEMENTATION_SUMMARY.md](docs/IMPLEMENTATION_SUMMARY.md)** - Build details
+- **[RESTRUCTURE_SUMMARY.md](docs/RESTRUCTURE_SUMMARY.md)** - Package restructuring
+- **[PROGRESS_JOURNAL.md](docs/PROGRESS_JOURNAL.md)** - Development journal
+- **[SESSION_SUMMARY.md](docs/SESSION_SUMMARY.md)** - Latest session notes
+
+### 📋 Additional
+- **[API.md](docs/API.md)** - API documentation
+- **[ORCHESTRATOR_GUIDE.md](docs/ORCHESTRATOR_GUIDE.md)** - Lab orchestration
+- **[REQUEST_FLOW.md](docs/REQUEST_FLOW.md)** - Request flow diagrams
+- **[FEATURES_TODO.md](docs/FEATURES_TODO.md)** - Planned features
+- **[GIT_SETUP.md](docs/GIT_SETUP.md)** - Git configuration
+
+**📁 All docs live in `/docs/` - that's the source of truth!**
 
 ## 🔧 Development
 
