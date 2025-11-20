@@ -140,41 +140,35 @@ glassdome deploy destroy deployment_id
 
 ## 🎨 Project Structure
 
-```
-glassdome/                     # Main Python package (renamed from backend)
-├── __init__.py               # Package exports - import from anywhere!
-├── cli.py                    # Command-line interface
-├── server.py                 # Server entry point
-├── main.py                   # FastAPI application
-├── agents/                   # Autonomous agent framework
-│   ├── base.py              # Base agent classes
-│   └── manager.py           # Agent coordination
-├── orchestration/           # Deployment orchestration
-│   └── engine.py           # Orchestration engine
-├── platforms/              # Platform integrations
-│   ├── proxmox_client.py  # Proxmox API
-│   ├── azure_client.py    # Azure API  
-│   └── aws_client.py      # AWS API
-├── models/                 # Database models
-│   ├── lab.py             # Lab configurations
-│   ├── deployment.py      # Deployment tracking
-│   └── platform.py        # Platform configs
-└── core/                  # Core configuration
-    ├── config.py          # Settings
-    └── database.py        # Database setup
+**See [STRUCTURE.md](STRUCTURE.md) for complete directory layout.**
 
-frontend/                   # React application
-├── src/
-│   ├── pages/
-│   │   ├── Dashboard.jsx   # Main dashboard
-│   │   ├── LabCanvas.jsx   # Drag-and-drop designer
-│   │   └── Deployments.jsx # Monitoring
-│   └── styles/            # Component styles
+### Quick Overview
 
-pyproject.toml             # Package configuration
-setup.py                   # Setup script
-INSTALL.md                # Installation guide
 ```
+glassdome/
+├── glassdome/              # Main Python package
+│   ├── agents/             # Autonomous agents
+│   ├── ai/                 # AI/LLM integration (Research Agent)
+│   ├── api/                # REST API routes
+│   ├── core/               # Core utilities
+│   ├── models/             # Data models
+│   ├── orchestration/      # Multi-VM coordination
+│   ├── platforms/          # Cloud/hypervisor clients
+│   ├── research/           # CVE research components
+│   └── vulnerabilities/    # Vulnerability injection library
+│
+├── frontend/               # React web application
+├── scripts/                # Organized utility scripts
+│   ├── setup/              # Setup scripts
+│   ├── testing/            # Test scripts
+│   └── deployment/         # Deployment automation
+├── examples/               # Usage examples
+├── tests/                  # Automated test suite
+├── docs/                   # Documentation (source of truth)
+└── configs/                # Lab templates and scenarios
+```
+
+**For detailed structure:** See [STRUCTURE.md](STRUCTURE.md)
 
 ## 🛠️ Tech Stack
 
