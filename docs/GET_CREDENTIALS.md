@@ -101,7 +101,7 @@ pveum user token add root@pam glassdome-token --privsep 0
 ### Method 1: Interactive Setup (Easiest)
 
 ```bash
-python3 setup_proxmox.py
+python scripts/setup/setup_proxmox.py
 ```
 
 This wizard will:
@@ -202,7 +202,7 @@ Proxmox API (your server)
 ### Quick Test:
 
 ```bash
-python3 test_vm_creation.py
+python scripts/testing/test_vm_creation.py
 ```
 
 This will:
@@ -268,7 +268,7 @@ curl -k -u root@pam:your-password \
      - Password: `<your password>`
 
 3. **Configuration**
-   - Run: `python3 setup_proxmox.py`
+   - Run: `python scripts/setup/setup_proxmox.py`
    - OR manually create `.env` file
 
 **That's it!** Once configured, Glassdome can deploy VMs to your Proxmox server.
@@ -279,10 +279,10 @@ curl -k -u root@pam:your-password \
 
 ```bash
 # 1. Run setup wizard
-python3 setup_proxmox.py
+python scripts/setup/setup_proxmox.py
 
 # 2. Test connection
-python3 test_vm_creation.py
+python scripts/testing/test_vm_creation.py
 
 # 3. Start API server
 glassdome serve
