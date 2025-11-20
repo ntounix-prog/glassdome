@@ -19,12 +19,15 @@ RUN apt-get update && apt-get install -y \
     gcc \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy Python requirements and install
+# Copy package files
+COPY pyproject.toml setup.py MANIFEST.in ./
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy backend code
-COPY backend/ ./backend/
+# Copy glassdome package (main Python package)
+COPY glassdome/ ./glassdome/
+
+# Install package
+RUN pip install --no-cache-dir -e .
 
 # Copy built frontend from previous stage
 COPY --from=frontend-builder /app/frontend/dist ./frontend/dist
@@ -33,5 +36,5 @@ COPY --from=frontend-builder /app/frontend/dist ./frontend/dist
 EXPOSE 8001
 
 # Run the application
-CMD ["uvicorn", "glassdome.main:app", "--host", "0.0.0.0", "--port", "8001"]
+CMD ["glassdome", "serve", "--host", "0.0.0.0", "--port", "8001"]
 

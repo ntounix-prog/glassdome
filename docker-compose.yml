@@ -11,9 +11,17 @@ services:
     environment:
       - ENVIRONMENT=development
       - PYTHONUNBUFFERED=1
+      # Pass environment variables for API keys
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - XAI_API_KEY=${XAI_API_KEY}
+      - PERPLEXITY_API_KEY=${PERPLEXITY_API_KEY}
+    env_file:
+      - .env
     volumes:
-      - ./backend:/app/backend
+      - ./glassdome:/app/glassdome
       - ./frontend/dist:/app/frontend/dist
+      - ./configs:/app/configs
     restart: unless-stopped
     networks:
       - glassdome-network
