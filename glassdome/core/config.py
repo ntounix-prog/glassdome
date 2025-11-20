@@ -51,6 +51,8 @@ class Settings(BaseSettings):
     esxi_datastore: Optional[str] = None
     esxi_network: str = "VM Network"
     esxi_verify_ssl: bool = False
+    esxi_ubuntu_template: Optional[str] = None
+    esxi_testing_enabled: bool = True
     
     # VM Template IDs
     ubuntu_2204_template_id: int = 9000

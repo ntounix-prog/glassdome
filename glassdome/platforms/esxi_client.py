@@ -61,6 +61,7 @@ class ESXiClient(PlatformClient):
         """
         self.host = host
         self.user = user
+        self.password = password  # Store for HTTP API access
         self.port = port
         self.datacenter_name = datacenter_name
         self.default_datastore_name = datastore_name
@@ -346,34 +347,172 @@ class ESXiClient(PlatformClient):
         if not template:
             raise Exception(f"Template not found: {template_name}")
         
-        # Clone spec
-        relocate_spec = vim.vm.RelocateSpec(
-            datastore=self.default_datastore,
-            pool=self.resource_pool
-        )
+        logger.debug(f"Template found: {template.name}, power state: {template.runtime.powerState}")
         
-        clone_spec = vim.vm.CloneSpec(
-            location=relocate_spec,
-            powerOn=False,
-            template=False
-        )
+        # ESXi standalone doesn't support cloning like vCenter does
+        # We'll use a simpler approach: Create a linked clone by copying the VM
+        try:
+            # Clone spec
+            relocate_spec = vim.vm.RelocateSpec(
+                datastore=self.default_datastore,
+                pool=self.resource_pool
+            )
+            
+            clone_spec = vim.vm.CloneSpec(
+                location=relocate_spec,
+                powerOn=False,
+                template=False
+            )
+            
+            # Clone
+            logger.debug(f"Starting clone task...")
+            task = template.Clone(
+                folder=self.datacenter.vmFolder,
+                name=vm_name,
+                spec=clone_spec
+            )
+            
+            self._wait_for_task(task)
+            
+            # Get cloned VM
+            vm = self._get_vm_by_name(vm_name)
+            logger.info(f"VM cloned successfully: {vm_name}")
+            
+            # Reconfigure if needed
+            if config.get("cores") or config.get("memory"):
+                await self._reconfigure_vm(vm, config)
+            
+            return vm
+            
+        except Exception as e:
+            logger.error(f"Clone failed, error: {str(e)}")
+            # If cloning is not supported, fall back to manual VMDK copy
+            if "not supported" in str(e).lower():
+                logger.warning(f"Cloning not supported on standalone ESXi, using VMDK copy method instead")
+                return await self._clone_via_vmdk_copy(template, vm_name, config)
+            else:
+                raise
+    
+    async def _clone_via_vmdk_copy(self, template: vim.VirtualMachine, vm_name: str, config: Dict[str, Any]) -> vim.VirtualMachine:
+        """
+        Clone a VM by copying its VMDK files (workaround for standalone ESXi)
+        This is slower than vCenter cloning but works on standalone hosts
+        """
+        logger.info(f"Cloning via VMDK copy: {vm_name}")
         
-        # Clone
-        task = template.Clone(
-            folder=self.datacenter.vmFolder,
+        # Get template's disk
+        template_disk = None
+        for device in template.config.hardware.device:
+            if isinstance(device, vim.vm.device.VirtualDisk):
+                template_disk = device
+                break
+        
+        if not template_disk:
+            raise Exception(f"Template {template.name} has no disk!")
+        
+        template_vmdk_path = template_disk.backing.fileName
+        logger.debug(f"Template VMDK: {template_vmdk_path}")
+        
+        # Create new VMDK path for cloned VM
+        new_vmdk_path = f"[{self.default_datastore_name}] {vm_name}/{vm_name}.vmdk"
+        
+        # Copy VMDK with format conversion using VirtualDiskManager
+        logger.info(f"Copying and converting VMDK from {template_vmdk_path} to {new_vmdk_path}...")
+        
+        try:
+            disk_manager = self.content.virtualDiskManager
+            
+            # Create destSpec to convert to thin-provisioned eagerzeroedthick format
+            dest_spec = vim.VirtualDiskManager.VirtualDiskSpec()
+            dest_spec.diskType = vim.VirtualDiskManager.VirtualDiskType.thin  # Thin provisioned
+            dest_spec.adapterType = vim.VirtualDiskManager.VirtualDiskAdapterType.lsiLogic
+            
+            logger.debug(f"Converting disk to thin format...")
+            
+            # Use CopyVirtualDisk_Task with format conversion
+            task = disk_manager.CopyVirtualDisk_Task(
+                sourceName=template_vmdk_path,
+                sourceDatacenter=self.datacenter,
+                destName=new_vmdk_path,
+                destDatacenter=self.datacenter,
+                destSpec=dest_spec,
+                force=True
+            )
+            
+            self._wait_for_task(task)
+            logger.info(f"VMDK copied and converted successfully")
+            
+        except Exception as e:
+            logger.error(f"Failed to copy VMDK: {str(e)}")
+            # If copy fails completely, fall back to creating empty VM
+            logger.warning(f"Falling back to creating empty VM (no OS installed)")
+            return await self._create_from_scratch(config)
+        
+        # Create VM using the copied VMDK
+        logger.info(f"Creating VM with copied VMDK...")
+        
+        vm_config_spec = vim.vm.ConfigSpec(
             name=vm_name,
-            spec=clone_spec
+            memoryMB=config.get("memory", template.config.hardware.memoryMB),
+            numCPUs=config.get("cores", template.config.hardware.numCPU),
+            guestId=template.config.guestId,
+            files=vim.vm.FileInfo(
+                vmPathName=f"[{self.default_datastore_name}] {vm_name}"
+            )
+        )
+        
+        # Add SCSI controller (same as template)
+        scsi_controller = vim.vm.device.VirtualDeviceSpec()
+        scsi_controller.operation = vim.vm.device.VirtualDeviceSpec.Operation.add
+        scsi_controller.device = vim.vm.device.ParaVirtualSCSIController()
+        scsi_controller.device.key = 1000
+        scsi_controller.device.sharedBus = vim.vm.device.VirtualSCSIController.Sharing.noSharing
+        scsi_controller.device.busNumber = 0
+        
+        # Attach the copied VMDK
+        disk_spec = vim.vm.device.VirtualDeviceSpec()
+        disk_spec.operation = vim.vm.device.VirtualDeviceSpec.Operation.add
+        disk_spec.device = vim.vm.device.VirtualDisk()
+        disk_spec.device.backing = vim.vm.device.VirtualDisk.FlatVer2BackingInfo()
+        disk_spec.device.backing.fileName = new_vmdk_path
+        disk_spec.device.backing.diskMode = 'persistent'
+        disk_spec.device.controllerKey = 1000
+        disk_spec.device.unitNumber = 0
+        
+        # Add network adapter
+        network = None
+        for net in self.compute_resource.network:
+            if net.name == config.get("network", self.default_network_name):
+                network = net
+                break
+        
+        device_changes = [scsi_controller, disk_spec]
+        
+        if network:
+            network_spec = vim.vm.device.VirtualDeviceSpec()
+            network_spec.operation = vim.vm.device.VirtualDeviceSpec.Operation.add
+            network_spec.device = vim.vm.device.VirtualVmxnet3()
+            network_spec.device.backing = vim.vm.device.VirtualEthernetCard.NetworkBackingInfo()
+            network_spec.device.backing.network = network
+            network_spec.device.backing.deviceName = network.name
+            network_spec.device.connectable = vim.vm.device.VirtualDevice.ConnectInfo()
+            network_spec.device.connectable.startConnected = True
+            network_spec.device.connectable.allowGuestControl = True
+            device_changes.append(network_spec)
+        
+        vm_config_spec.deviceChange = device_changes
+        
+        # Create the VM
+        task = self.datacenter.vmFolder.CreateVM_Task(
+            config=vm_config_spec,
+            pool=self.resource_pool
         )
         
         self._wait_for_task(task)
         
-        # Get cloned VM
+        # Get the created VM
         vm = self._get_vm_by_name(vm_name)
-        logger.info(f"VM cloned successfully: {vm_name}")
-        
-        # Reconfigure if needed
-        if config.get("cores") or config.get("memory"):
-            await self._reconfigure_vm(vm, config)
+        logger.info(f"VM created successfully from copied VMDK: {vm_name}")
         
         return vm
     
