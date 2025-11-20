@@ -227,6 +227,11 @@ class ESXiClient(PlatformClient):
                 logger.error(f"VM not found: {vm_id}")
                 return False
             
+            # SAFETY CHECK: Only delete VMs with glassdome prefix
+            if not vm.name.startswith("glassdome-"):
+                logger.error(f"SAFETY: Refusing to delete VM '{vm.name}' - not a glassdome VM!")
+                raise Exception(f"Safety check failed: VM name must start with 'glassdome-'")
+            
             # Power off if running
             if vm.runtime.powerState == vim.VirtualMachinePowerState.poweredOn:
                 await self.stop_vm(vm_id, force=True)
