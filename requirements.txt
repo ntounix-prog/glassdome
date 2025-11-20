@@ -37,8 +37,9 @@ azure-mgmt-network>=25.0.0  # Azure Networking
 azure-mgmt-resource>=23.0.0  # Azure Resource Groups
 azure-identity>=1.15.0  # Azure Auth
 
-# Proxmox API
-proxmoxer>=2.0.0
+# Virtualization Platform APIs
+proxmoxer>=2.0.0  # Proxmox VE
+pyvmomi>=8.0.0  # VMware vSphere/ESXi (no vCenter required)
 
 # WebSocket
 python-socketio>=5.10.0
