@@ -1,8 +1,15 @@
 """
-Glassdome - Agentic Cyber Range Deployment Framework
+Glassdome - Autonomous Cyber Range Deployment Framework
 
-A Python package for autonomous deployment of cybersecurity lab environments
-across Proxmox, Azure, and AWS platforms.
+A Python package for autonomous deployment and vulnerability research of
+cybersecurity lab environments across Proxmox, Azure, and AWS platforms.
+
+Key Features:
+- Autonomous VM deployment and orchestration
+- AI-powered CVE research and analysis (Research Agent)
+- Automated vulnerability injection for training (Reaper Agent)
+- Multi-platform support (Proxmox, Azure, AWS)
+- Real-time infrastructure monitoring (Overseer Agent)
 """
 
 __version__ = "0.1.0"
@@ -34,6 +41,12 @@ from glassdome.models.lab import Lab, LabTemplate, LabElement
 from glassdome.models.deployment import Deployment, DeploymentStatus
 from glassdome.models.platform import Platform, PlatformType
 
+# New package modules (structure ready for development)
+# These are importable but contain no implementations yet:
+# - glassdome.ai - AI/LLM integration for Research Agent
+# - glassdome.research - CVE research components
+# - glassdome.vulnerabilities - Vulnerability injection library
+
 __all__ = [
     # Version info
     "__version__",
@@ -62,6 +75,8 @@ __all__ = [
     "DeploymentStatus",
     "Platform",
     "PlatformType",
+    # Note: New packages (ai, research, vulnerabilities) are available
+    # via explicit imports: from glassdome.ai import ...
 ]
 
 
