@@ -2,12 +2,19 @@
 Lab Orchestrator
 Manages complex multi-VM lab deployments with full configuration
 
+INTEGRATED WITH ANSIBLE: This orchestrator now supports:
+- Platform-agnostic VM deployment (Proxmox, AWS, Azure)
+- Automatic Ansible inventory generation
+- Ansible playbook execution for vulnerability injection
+- Complete scenario deployment in one call
+
 The Orchestrator collects and manages:
 - VM specifications (disk, memory, CPU)
-- User account creation
-- Package installations
+- User account creation (via cloud-init or Ansible)
+- Package installations (via cloud-init or Ansible)
 - Network configuration
 - Post-deployment scripts
+- Ansible playbook execution
 - Dependencies between VMs
 """
 from typing import Dict, Any, List, Optional
@@ -15,6 +22,9 @@ import asyncio
 import logging
 from glassdome.orchestration.engine import OrchestrationEngine, TaskStatus
 from glassdome.agents.os_installer_factory import OSInstallerFactory
+from glassdome.platforms.base import PlatformClient
+from glassdome.integrations.ansible_bridge import AnsibleBridge
+from glassdome.integrations.ansible_executor import AnsibleExecutor
 
 logger = logging.getLogger(__name__)
 
@@ -206,52 +216,135 @@ class PostInstallConfiguration:
 
 class LabOrchestrator:
     """
-    Lab Orchestrator
+    Lab Orchestrator (Platform-Agnostic with Ansible Integration)
     
     Manages complex multi-VM lab deployments with:
+    - Platform-agnostic VM deployment (Proxmox, AWS, Azure, GCP, ESX)
     - Full VM configuration
-    - User account creation
-    - Package installation
+    - User account creation (cloud-init or Ansible)
+    - Package installation (cloud-init or Ansible)
     - Network setup
+    - Ansible playbook execution (vulnerability injection, configuration)
     - Post-deployment configuration
     - Dependency management
+    
+    ANSIBLE INTEGRATION:
+    After VMs are deployed, the orchestrator:
+    1. Generates Ansible inventory from deployed VMs
+    2. Runs specified Ansible playbooks (vulnerability injection, config, etc.)
+    3. Returns combined results (VM deployment + Ansible execution)
     """
     
-    def __init__(self, platform_client: Any):
+    def __init__(self, platform_client: PlatformClient, playbook_dir: Optional[str] = None):
+        """
+        Initialize Lab Orchestrator
+        
+        Args:
+            platform_client: Platform client (Proxmox, AWS, Azure, etc.)
+            playbook_dir: Optional custom directory for Ansible playbooks
+        """
         self.platform_client = platform_client
         self.engine = OrchestrationEngine()
         self.factory = OSInstallerFactory
         
+        # Ansible integration
+        self.ansible_executor = AnsibleExecutor(playbook_dir=playbook_dir)
+        
+        # Track deployed VMs for Ansible inventory
+        self.deployed_vms: List[Dict[str, Any]] = []
+        
     async def deploy_lab(self, lab_spec: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Deploy a complete lab with full configuration
+        Deploy a complete lab with full configuration + Ansible integration
+        
+        COMPLETE DEPLOYMENT FLOW:
+        1. Deploy VMs (platform-agnostic)
+        2. Wait for VMs to be ready
+        3. Generate Ansible inventory
+        4. Run Ansible playbooks (if specified)
+        5. Run post-deployment scripts
+        6. Return combined results
         
         Args:
-            lab_spec: Complete lab specification
-            
+            lab_spec: Complete lab specification with keys:
+                - name: Lab name
+                - vms: List of VM configurations
+                - networks: List of network configurations
+                - ansible_playbooks: List of Ansible playbooks to run (optional)
+                - post_deployment_scripts: Scripts to run after deployment
+                
         Returns:
-            Deployment result
+            Deployment result with VM details and Ansible results
         """
         logger.info(f"Starting lab deployment: {lab_spec.get('name')}")
+        
+        # Clear previous deployment tracking
+        self.deployed_vms = []
         
         # Parse configuration
         lab_config = LabConfiguration(lab_spec)
         
-        # Build orchestration tasks
+        # PHASE 1: Build orchestration tasks
         await self._build_tasks(lab_config)
         
-        # Execute orchestration
+        # PHASE 2: Execute orchestration (VM deployment)
         result = await self.engine.run(
             executor_func=self._execute_task,
             max_parallel=lab_spec.get("max_parallel", 3),
             fail_fast=lab_spec.get("fail_fast", False)
         )
         
-        # Post-deployment configuration
-        if result["success"] and lab_config.post_deployment_scripts:
+        if not result["success"]:
+            logger.error("Lab deployment failed during VM creation")
+            return result
+        
+        logger.info(f"✓ VM deployment successful: {len(self.deployed_vms)} VMs deployed")
+        
+        # PHASE 3: Ansible integration (if playbooks specified)
+        ansible_results = []
+        inventory_path = None
+        
+        if lab_spec.get("ansible_playbooks") and self.deployed_vms:
+            logger.info(f"Running Ansible playbooks: {len(lab_spec['ansible_playbooks'])} playbooks")
+            
+            # Generate Ansible inventory
+            inventory_path = AnsibleBridge.create_inventory(
+                vms=self.deployed_vms,
+                format=lab_spec.get("inventory_format", "ini")
+            )
+            
+            logger.info(f"✓ Generated Ansible inventory: {inventory_path}")
+            
+            # Run playbooks
+            ansible_results = await self.ansible_executor.run_playbooks(
+                playbooks=lab_spec["ansible_playbooks"],
+                inventory_path=inventory_path,
+                stop_on_failure=lab_spec.get("ansible_stop_on_failure", True)
+            )
+            
+            # Check for Ansible failures
+            failed_playbooks = [r for r in ansible_results if not r["success"]]
+            if failed_playbooks:
+                logger.warning(f"⚠ {len(failed_playbooks)} Ansible playbooks failed")
+        
+        # PHASE 4: Post-deployment configuration
+        if lab_config.post_deployment_scripts:
             await self._run_post_deployment(lab_config, result)
         
-        return result
+        # Return combined results
+        return {
+            **result,
+            "deployed_vms": self.deployed_vms,
+            "ansible_results": ansible_results,
+            "ansible_inventory": inventory_path,
+            "lab_name": lab_spec.get("name"),
+            "summary": {
+                "vms_deployed": len(self.deployed_vms),
+                "ansible_playbooks_run": len(ansible_results),
+                "ansible_playbooks_success": sum(1 for r in ansible_results if r["success"]),
+                "ansible_playbooks_failed": sum(1 for r in ansible_results if not r["success"])
+            }
+        }
     
     async def _build_tasks(self, lab_config: LabConfiguration) -> None:
         """
@@ -361,12 +454,12 @@ class LabOrchestrator:
         """
         Create VM with full configuration
         
-        This delegates to the appropriate OS agent but provides
-        complete configuration including cloud-init
+        This delegates to the appropriate OS agent (platform-agnostic)
+        and tracks the deployed VM for Ansible inventory generation.
         """
         logger.info(f"Creating VM: {vm_config.name}")
         
-        # Get appropriate agent
+        # Get appropriate agent (platform-agnostic)
         agent = self.factory.get_agent(vm_config.os_type, self.platform_client)
         
         # Build cloud-init configuration
@@ -378,8 +471,8 @@ class LabOrchestrator:
             "config": {
                 "name": vm_config.name,
                 "node": vm_config.node,
-                "version": vm_config.os_version,
-                "resources": vm_config.resources.to_dict(),
+                f"{vm_config.os_type}_version": vm_config.os_version,
+                **vm_config.resources.to_dict(),
                 "cloud_init": cloud_init,
                 "use_template": True
             }
@@ -387,6 +480,22 @@ class LabOrchestrator:
         
         # Execute via agent
         result = await agent.run(task)
+        
+        # Track deployed VM for Ansible inventory
+        if result.get("success"):
+            vm_info = {
+                "vm_id": result.get("resource_id"),
+                "name": vm_config.name,
+                "ip_address": result.get("ip_address"),
+                "platform": result.get("platform"),
+                "os_type": vm_config.os_type,
+                "os_version": vm_config.os_version,
+                "group": vm_config.purpose or "ungrouped",  # Ansible inventory group
+                "ansible_connection": result.get("ansible_connection"),
+                "status": result.get("status")
+            }
+            self.deployed_vms.append(vm_info)
+            logger.info(f"✓ VM tracked for Ansible: {vm_config.name} ({result.get('ip_address')})")
         
         return result
     

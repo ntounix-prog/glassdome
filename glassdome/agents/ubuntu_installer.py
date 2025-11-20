@@ -1,12 +1,15 @@
 """
 Ubuntu Installer Agent
 Autonomous agent for creating base Ubuntu installation images
+
+PLATFORM-AGNOSTIC: Works with any platform (Proxmox, AWS, Azure, etc.)
+This agent knows HOW to configure Ubuntu, not WHERE to deploy it.
 """
 import asyncio
 import logging
 from typing import Dict, Any, Optional
 from glassdome.agents.base import DeploymentAgent, AgentStatus
-from glassdome.platforms.proxmox_client import ProxmoxClient
+from glassdome.platforms.base import PlatformClient
 
 logger = logging.getLogger(__name__)
 
@@ -43,17 +46,20 @@ class UbuntuInstallerAgent(DeploymentAgent):
         "storage": "local-lvm",
     }
     
-    def __init__(self, agent_id: str, proxmox_client: ProxmoxClient):
+    def __init__(self, agent_id: str, platform_client: PlatformClient):
         """
         Initialize Ubuntu Installer Agent
         
+        This agent is PLATFORM-AGNOSTIC - it accepts any platform client
+        that implements the PlatformClient interface.
+        
         Args:
             agent_id: Unique agent identifier
-            proxmox_client: Configured Proxmox client
+            platform_client: Platform client (Proxmox, AWS, Azure, etc.)
         """
-        super().__init__(agent_id, proxmox_client)
-        self.proxmox = proxmox_client
-        logger.info(f"Ubuntu Installer Agent {agent_id} initialized")
+        super().__init__(agent_id, platform_client)
+        self.platform = platform_client
+        logger.info(f"Ubuntu Installer Agent {agent_id} initialized with platform: {platform_client.get_platform_name()}")
     
     async def validate(self, task: Dict[str, Any]) -> bool:
         """
@@ -86,54 +92,84 @@ class UbuntuInstallerAgent(DeploymentAgent):
     
     async def _deploy_element(self, element_type: str, config: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Deploy Ubuntu VM
+        Deploy Ubuntu VM (PLATFORM-AGNOSTIC)
+        
+        Uses standardized PlatformClient interface to deploy to any platform.
+        This method prepares Ubuntu-specific configuration and delegates deployment.
         
         Args:
             element_type: Should be "ubuntu_vm"
-            config: VM configuration
+            config: VM configuration with keys:
+                - name: VM name
+                - ubuntu_version: Ubuntu version (default: "22.04")
+                - cores: CPU cores (default: 2)
+                - memory: RAM in MB (default: 2048)
+                - disk_size: Disk size in GB (default: 20)
+                - network: Network identifier
+                - ssh_user: SSH username (default: "ubuntu")
+                - packages: List of packages to install
+                - users: List of user accounts
             
         Returns:
             Deployment result with VM details
         """
         logger.info(f"Starting Ubuntu VM deployment with config: {config}")
         
-        # Extract configuration
-        node = config.get("node")
+        # Extract Ubuntu-specific configuration
         ubuntu_version = config.get("ubuntu_version", "22.04")
-        vm_name = config.get("name", f"ubuntu-{ubuntu_version}-base")
-        use_template = config.get("use_template", True)
+        vm_name = config.get("name", f"ubuntu-{ubuntu_version}-{self.agent_id}")
         
-        # Merge with defaults
-        vm_config = {**self.DEFAULT_CONFIG, **config.get("resources", {})}
+        # Validate Ubuntu version
+        if ubuntu_version not in self.UBUNTU_VERSIONS:
+            raise ValueError(f"Unsupported Ubuntu version: {ubuntu_version}")
         
         ubuntu_info = self.UBUNTU_VERSIONS[ubuntu_version]
         
-        try:
-            if use_template:
-                # Clone from template (faster)
-                result = await self._clone_from_template(
-                    node, 
-                    ubuntu_info["template_id"],
-                    vm_name,
-                    vm_config
-                )
-            else:
-                # Create new VM from ISO
-                result = await self._create_from_iso(
-                    node,
-                    vm_name,
-                    ubuntu_info,
-                    vm_config
-                )
+        # Build platform-agnostic VM configuration
+        vm_config = {
+            "name": vm_name,
+            "cores": config.get("cores", self.DEFAULT_CONFIG["cores"]),
+            "memory": config.get("memory", self.DEFAULT_CONFIG["memory"]),
+            "disk_size": config.get("disk_size", self.DEFAULT_CONFIG["disk_size"]),
+            "network": config.get("network", self.DEFAULT_CONFIG["network"]),
+            "storage": config.get("storage", self.DEFAULT_CONFIG["storage"]),
             
+            # Ubuntu-specific metadata
+            "os_type": "ubuntu",
+            "os_version": ubuntu_version,
+            "os_name": ubuntu_info["name"],
+            
+            # SSH configuration
+            "ssh_user": config.get("ssh_user", "ubuntu"),
+            "ssh_key_path": config.get("ssh_key_path"),
+            
+            # Cloud-init / provisioning
+            "packages": config.get("packages", ["openssh-server", "qemu-guest-agent"]),
+            "users": config.get("users", [{"name": "ubuntu", "sudo": True}]),
+            
+            # Template or ISO
+            "template_id": config.get("template_id", ubuntu_info.get("template_id")),
+            "iso_path": ubuntu_info.get("iso"),
+            
+            # Platform-specific overrides (pass-through)
+            "node": config.get("node"),
+            "vmid": config.get("vmid"),
+        }
+        
+        try:
+            # Delegate to platform client (platform-agnostic!)
+            result = await self.platform.create_vm(vm_config)
+            
+            # Return standardized result
             return {
                 "success": True,
-                "resource_id": result["vmid"],
+                "resource_id": result["vm_id"],
                 "vm_name": vm_name,
-                "node": node,
                 "ubuntu_version": ubuntu_version,
                 "ip_address": result.get("ip_address"),
-                "status": "created",
+                "platform": result.get("platform"),
+                "status": result.get("status"),
+                "ansible_connection": result.get("ansible_connection"),
                 "details": result
             }
             
@@ -143,7 +179,7 @@ class UbuntuInstallerAgent(DeploymentAgent):
                 "success": False,
                 "error": str(e),
                 "vm_name": vm_name,
-                "node": node
+                "ubuntu_version": ubuntu_version
             }
     
     async def _clone_from_template(
