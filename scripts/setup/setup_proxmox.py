@@ -14,6 +14,10 @@ import os
 import asyncio
 from pathlib import Path
 
+# Add project root to path (scripts/setup -> root)
+PROJECT_ROOT = Path(__file__).parent.parent.parent.resolve()
+sys.path.insert(0, str(PROJECT_ROOT))
+
 
 def print_header(title):
     """Print a formatted header"""
@@ -76,8 +80,6 @@ async def test_connection(host, user, auth_method, credentials):
     print("\n🔌 Testing connection to Proxmox...")
     
     try:
-        # Add to path
-        sys.path.insert(0, os.path.dirname(__file__))
         from glassdome.platforms.proxmox_client import ProxmoxClient
         
         # Create client
@@ -162,7 +164,7 @@ async def check_templates(client, node):
 
 def save_env_file(config):
     """Save configuration to .env file"""
-    env_path = Path(__file__).parent / ".env"
+    env_path = PROJECT_ROOT / ".env"
     
     print(f"\n💾 Saving configuration to {env_path}")
     
@@ -330,7 +332,7 @@ async def main():
     print("\n✅ Setup complete!")
     print("\nWhat you can do now:")
     print("\n1. Test VM creation:")
-    print("   python3 test_vm_creation.py")
+    print("   python scripts/testing/test_vm_creation.py")
     print("\n2. Start the API server:")
     print("   glassdome serve")
     print("   # or: python -m glassdome.server")

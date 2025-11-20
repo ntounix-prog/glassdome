@@ -7,15 +7,18 @@ This script tests the ACTUAL implementation end-to-end
 import asyncio
 import os
 import sys
+from pathlib import Path
 from dotenv import load_dotenv
 
-# Add glassdome to path
-sys.path.insert(0, os.path.dirname(__file__))
+# Add project root to path (scripts/testing -> root)
+PROJECT_ROOT = Path(__file__).parent.parent.parent.resolve()
+sys.path.insert(0, str(PROJECT_ROOT))
 
 from glassdome.platforms.proxmox_client import ProxmoxClient
 from glassdome.agents.ubuntu_installer import UbuntuInstallerAgent
 
-load_dotenv()
+# Load .env from project root
+load_dotenv(PROJECT_ROOT / ".env")
 
 
 async def test_proxmox_connection():

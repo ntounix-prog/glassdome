@@ -8,10 +8,15 @@ No manual SSH required - the agent does it all!
 import asyncio
 import os
 import sys
+from pathlib import Path
 from dotenv import load_dotenv
 
-sys.path.insert(0, os.path.dirname(__file__))
-load_dotenv()
+# Add project root to path (scripts/deployment -> root)
+PROJECT_ROOT = Path(__file__).parent.parent.parent.resolve()
+sys.path.insert(0, str(PROJECT_ROOT))
+
+# Load .env from project root
+load_dotenv(PROJECT_ROOT / ".env")
 
 from glassdome.platforms.proxmox_gateway import ProxmoxGateway
 
@@ -184,7 +189,7 @@ async def main():
         print()
         print("Next steps:")
         print("  1. Update .env with template IDs (if different)")
-        print("  2. Run: python3 test_vm_creation.py")
+        print("  2. Run: python scripts/testing/test_vm_creation.py")
         print("  3. Deploy your first VM!")
     else:
         print("⚠️  No templates found - something went wrong")

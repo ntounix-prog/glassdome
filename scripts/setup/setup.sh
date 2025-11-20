@@ -5,11 +5,17 @@
 
 set -e  # Exit on error
 
+# Change to project root (scripts/setup -> root)
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+cd "$PROJECT_ROOT"
+
 VENV_DIR="venv"
 PYTHON_CMD="python3"
 
 echo "🔧 Glassdome Environment Setup"
 echo "================================"
+echo "Project root: $PROJECT_ROOT"
 
 # Check if Python 3 is installed
 if ! command -v $PYTHON_CMD &> /dev/null; then

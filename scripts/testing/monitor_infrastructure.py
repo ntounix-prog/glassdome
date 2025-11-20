@@ -6,8 +6,11 @@ Continuously monitors deployed VMs and alerts on issues
 import asyncio
 import sys
 import os
+from pathlib import Path
 
-sys.path.insert(0, '/home/nomad/glassdome')
+# Add project root to path (scripts/testing -> root)
+PROJECT_ROOT = Path(__file__).parent.parent.parent.resolve()
+sys.path.insert(0, str(PROJECT_ROOT))
 
 from glassdome.agents.overseer import OverseerAgent
 from glassdome.platforms.proxmox_client import ProxmoxClient
