@@ -50,7 +50,23 @@
 
 ## Phase 2: Enterprise Features (Week of Nov 27 - Dec 4)
 
-### Priority 4: Local LLM Integration ⭐⭐⭐
+### Priority 4: React Control Dashboard ⭐⭐⭐
+**Why:** Fortune 50 needs professional UI for scenario management  
+**What:**
+- [ ] Initialize React + TypeScript + Vite project
+- [ ] Create main dashboard layout (sidebar + header)
+- [ ] Home dashboard with stats (active scenarios, VMs, users)
+- [ ] Scenario library (card grid, deploy button)
+- [ ] Active deployments view (real-time status)
+- [ ] Connect to backend API (scenarios, deployments)
+- [ ] WebSocket integration (live updates)
+- [ ] Network topology viewer (React Flow)
+
+**Deliverable:** Professional control dashboard UI
+
+---
+
+### Priority 5: Local LLM Integration ⭐⭐⭐
 **Why:** Research Agent must work air-gapped  
 **What:**
 - [ ] Download Llama 3 70B model (40GB)
@@ -62,7 +78,7 @@
 
 ---
 
-### Priority 5: Vulnerability Packages ⭐⭐
+### Priority 6: Vulnerability Packages ⭐⭐
 **Why:** Fast, reliable vulnerability deployment  
 **What:**
 - [ ] Build .deb package creator
@@ -79,7 +95,7 @@
 
 ---
 
-### Priority 6: Custom Console VM ⭐⭐
+### Priority 7: Custom Console VM ⭐⭐
 **Why:** Branded, lighter than Kali (5GB vs 20GB)  
 **What:**
 - [ ] Ubuntu 22.04 base + minimal desktop
@@ -94,7 +110,7 @@
 
 ## Phase 3: Packaging & Polish (Week of Dec 4-8)
 
-### Priority 7: OVA/OVF Appliance ⭐⭐⭐
+### Priority 8: OVA/OVF Appliance ⭐⭐⭐
 **Why:** Easiest enterprise deployment method  
 **What:**
 - [ ] Create management VM (all services)
@@ -107,7 +123,7 @@
 
 ---
 
-### Priority 8: Compliance Documentation ⭐⭐
+### Priority 9: Compliance Documentation ⭐⭐
 **Why:** Saves buyers 6-12 months of compliance work  
 **What:**
 - [ ] System Security Plan (SSP)
@@ -120,7 +136,7 @@
 
 ---
 
-### Priority 9: Demo Scenario ⭐⭐⭐
+### Priority 10: Demo Scenario ⭐⭐⭐
 **Why:** VP needs to see it work live  
 **What:**
 - [ ] Build "Enterprise Web Application" scenario
@@ -138,7 +154,7 @@
 
 ## Phase 4: Documentation (Ongoing)
 
-### Priority 10: Enterprise Sales Materials ⭐⭐
+### Priority 11: Enterprise Sales Materials ⭐⭐
 **What:**
 - [ ] One-pager (PDF)
 - [ ] ROI calculator
@@ -175,20 +191,20 @@ These are important but not critical for the demo:
 | **Thu 11/21** | Multi-VM deploy | Deploy 9 VMs at once |
 | **Fri 11/22** | Scenario format | YAML parsing + validation |
 | **Sat 11/23** | Orchestration | End-to-end scenario deployment |
-| **Sun 11/24** | Offline bundle | Package dependencies |
-| **Mon 11/25** | Testing | Fix bugs, test scenarios |
-| **Tue 11/26** | Local LLM | Setup Llama 3 locally |
+| **Sun 11/24** | React dashboard | Initialize + basic layout |
+| **Mon 11/25** | React dashboard | Scenario library + deploy |
+| **Tue 11/26** | React dashboard | Live monitoring + WebSocket |
 
 ### Week 2: Enterprise Features (Nov 27 - Dec 4)
 | Day | Focus | Goal |
 |-----|-------|------|
-| **Wed 11/27** | Research Agent | Use local LLM |
-| **Thu 11/28** | **Thanksgiving** | (Optional: Vuln packages) |
-| **Fri 11/29** | Vuln packages | Build 5 .deb packages |
-| **Sat 11/30** | Console VM | Custom Ubuntu console |
-| **Sun 12/1** | APT repository | Local package repo |
+| **Wed 11/27** | Local LLM | Setup Llama 3 locally |
+| **Thu 11/28** | **Thanksgiving** | (Optional: Research Agent) |
+| **Fri 11/29** | Offline bundle | Package dependencies |
+| **Sat 11/30** | Vuln packages | Build 5 .deb packages |
+| **Sun 12/1** | Console VM | Custom Ubuntu console |
 | **Mon 12/2** | OVA creation | Package as appliance |
-| **Tue 12/3** | Testing | End-to-end test |
+| **Tue 12/3** | Dashboard polish | UI/UX refinements |
 
 ### Week 3: Demo Prep (Dec 4-8)
 | Day | Focus | Goal |
