@@ -59,12 +59,16 @@ async def test_platform(platform_name: str, platform_client, agent_name: str):
             "disk_size": 20
         }
         
-        # Proxmox: Use template if available
+        # Proxmox: Use template ID (numeric)
         if platform_name == "Proxmox" and os.getenv("UBUNTU_2204_TEMPLATE_ID"):
             vm_config["template_id"] = int(os.getenv("UBUNTU_2204_TEMPLATE_ID", "9000"))
-            print(f"  Using template: {vm_config['template_id']}")
+            print(f"  Using Proxmox template: {vm_config['template_id']}")
+        # ESXi: Use template name (string)
+        elif platform_name == "ESXi" and os.getenv("ESXI_UBUNTU_TEMPLATE"):
+            vm_config["template_id"] = os.getenv("ESXI_UBUNTU_TEMPLATE")
+            print(f"  Using ESXi template: {vm_config['template_id']}")
         else:
-            # ESXi and others: Create from scratch (no template)
+            # Create from scratch (no template) - will fail on most platforms
             vm_config["template_id"] = None
             print(f"  Creating from scratch (no template)")
         
