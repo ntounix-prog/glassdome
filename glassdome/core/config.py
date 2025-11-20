@@ -63,6 +63,8 @@ class Settings(BaseSettings):
     azure_tenant_id: Optional[str] = None
     azure_client_id: Optional[str] = None
     azure_client_secret: Optional[str] = None
+    azure_region: str = "eastus"
+    azure_resource_group: str = "glassdome-rg"
     
     # AWS
     aws_access_key_id: Optional[str] = None
