@@ -22,6 +22,7 @@ Scripts for initial system setup and configuration:
 
 - **`setup.sh`** - Create and configure Python virtual environment
 - **`setup_proxmox.py`** - Interactive Proxmox connection configuration
+- **`install_iac_tools.sh`** - Install Ansible and Terraform
 
 **Usage:**
 ```bash
@@ -30,6 +31,9 @@ Scripts for initial system setup and configuration:
 
 # Configure Proxmox
 python scripts/setup/setup_proxmox.py
+
+# Install IaC tools
+bash scripts/setup/install_iac_tools.sh
 ```
 
 ---
@@ -68,9 +72,15 @@ python scripts/deployment/create_template_auto.py
 
 ## Tools (`tools/`)
 
-General-purpose utility scripts:
+General-purpose utility and verification scripts:
 
-*(Future tools will go here)*
+- **`verify_iac_tools.py`** - Verify Ansible and Terraform installation
+
+**Usage:**
+```bash
+# Verify IaC tools installation
+python scripts/tools/verify_iac_tools.py
+```
 
 ---
 
