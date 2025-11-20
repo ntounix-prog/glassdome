@@ -97,12 +97,7 @@ Click **"Create policy"** → **JSON** tab → Paste this:
         "ec2:DescribeTags",
         "ec2:DescribeRegions"
       ],
-      "Resource": "*",
-      "Condition": {
-        "StringEquals": {
-          "aws:RequestedRegion": "us-east-1"
-        }
-      }
+      "Resource": "*"
     },
     {
       "Sid": "GlassdomeNetworkManagement",
@@ -116,12 +111,7 @@ Click **"Create policy"** → **JSON** tab → Paste this:
         "ec2:CreateRoute",
         "ec2:AssociateRouteTable"
       ],
-      "Resource": "*",
-      "Condition": {
-        "StringEquals": {
-          "aws:RequestedRegion": "us-east-1"
-        }
-      }
+      "Resource": "*"
     }
   ]
 }
@@ -129,8 +119,10 @@ Click **"Create policy"** → **JSON** tab → Paste this:
 
 **Policy name**: `GlassdomeEC2Policy`
 
-**Pros**: Least-privilege, secure, auditable  
+**Pros**: Least-privilege, secure, auditable, **works in ALL AWS regions**  
 **Cons**: Slightly more complex
+
+**Note**: This policy allows deployment to ANY AWS region (us-east-1, eu-west-1, ap-southeast-2, etc.) - perfect for demonstrating global reach!
 
 ### Step 5: Tags (Optional but Recommended)
 
@@ -400,6 +392,102 @@ Complete AWS integration in ~1 hour:
 - ✅ Security group management
 - ✅ Cloud-init support
 - ✅ Full VM lifecycle
+
+---
+
+## Multi-Region Deployment
+
+### Deploy to Any AWS Region! 🌍
+
+The IAM policy above allows deployment to **ALL AWS regions**, not just us-east-1!
+
+#### Available Regions
+
+```python
+# US Regions
+us-east-1      # Virginia (default)
+us-east-2      # Ohio
+us-west-1      # California
+us-west-2      # Oregon
+
+# Europe
+eu-west-1      # Ireland
+eu-west-2      # London
+eu-central-1   # Frankfurt
+
+# Asia Pacific
+ap-southeast-1 # Singapore
+ap-southeast-2 # Sydney
+ap-northeast-1 # Tokyo
+ap-south-1     # Mumbai
+
+# And many more...
+```
+
+#### Demo: Deploy to Multiple Regions
+
+```python
+# Deploy to US East (Virginia)
+client_us = AWSClient(
+    access_key_id=settings.aws_access_key_id,
+    secret_access_key=settings.aws_secret_access_key,
+    region='us-east-1'
+)
+
+# Deploy to Europe (Frankfurt)
+client_eu = AWSClient(
+    access_key_id=settings.aws_access_key_id,
+    secret_access_key=settings.aws_secret_access_key,
+    region='eu-central-1'
+)
+
+# Deploy to Asia (Tokyo)
+client_asia = AWSClient(
+    access_key_id=settings.aws_access_key_id,
+    secret_access_key=settings.aws_secret_access_key,
+    region='ap-northeast-1'
+)
+
+# Same code, different regions!
+vm_us = await client_us.create_vm(config)
+vm_eu = await client_eu.create_vm(config)
+vm_asia = await client_asia.create_vm(config)
+```
+
+#### For Your 12/8 Presentation
+
+**Perfect talking point**:
+
+> "Glassdome can deploy cyber ranges to ANY location:
+> - On-premise with Proxmox and ESXi
+> - AWS US East for domestic compliance
+> - AWS EU for GDPR compliance
+> - AWS Asia Pacific for regional teams
+> 
+> Same platform abstraction, same code, deployed globally!"
+
+#### Configuration Per Region
+
+Just change the region in config:
+
+```bash
+# .env for US deployment
+AWS_REGION=us-east-1
+
+# .env for EU deployment  
+AWS_REGION=eu-west-1
+
+# .env for Asia deployment
+AWS_REGION=ap-southeast-2
+```
+
+Or pass it dynamically:
+
+```python
+# From user input or scenario config
+region = scenario.get('aws_region', 'us-east-1')
+client = AWSClient(region=region, ...)
+```
 
 ---
 
