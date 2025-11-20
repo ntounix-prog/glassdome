@@ -49,15 +49,28 @@ async def test_platform(platform_name: str, platform_client, agent_name: str):
         
         # Deploy VM
         print(f"→ Deploying VM...")
+        
+        # Platform-specific configuration
+        vm_config = {
+            "name": f"glassdome-test-{platform_name.lower()}",
+            "ubuntu_version": "22.04",
+            "cores": 2,
+            "memory": 2048,
+            "disk_size": 20
+        }
+        
+        # Proxmox: Use template if available
+        if platform_name == "Proxmox" and os.getenv("UBUNTU_2204_TEMPLATE_ID"):
+            vm_config["template_id"] = int(os.getenv("UBUNTU_2204_TEMPLATE_ID", "9000"))
+            print(f"  Using template: {vm_config['template_id']}")
+        else:
+            # ESXi and others: Create from scratch (no template)
+            vm_config["template_id"] = None
+            print(f"  Creating from scratch (no template)")
+        
         result = await ubuntu_agent.run({
             "element_type": "ubuntu_vm",
-            "config": {
-                "name": f"glassdome-test-{platform_name.lower()}",
-                "ubuntu_version": "22.04",
-                "cores": 2,
-                "memory": 2048,
-                "disk_size": 20
-            }
+            "config": vm_config
         })
         
         if result.get("success"):

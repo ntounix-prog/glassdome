@@ -44,6 +44,14 @@ class Settings(BaseSettings):
     proxmox_verify_ssl: bool = False
     proxmox_node: str = "pve"
     
+    # ESXi
+    esxi_host: Optional[str] = None
+    esxi_user: Optional[str] = None
+    esxi_password: Optional[str] = None
+    esxi_datastore: Optional[str] = None
+    esxi_network: str = "VM Network"
+    esxi_verify_ssl: bool = False
+    
     # VM Template IDs
     ubuntu_2204_template_id: int = 9000
     ubuntu_2004_template_id: int = 9001

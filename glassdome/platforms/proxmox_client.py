@@ -72,8 +72,8 @@ class ProxmoxClient(PlatformClient):
         
         This is the standardized interface method that OS agents will call.
         """
-        node = config.get("node", self.default_node)
-        vmid = config.get("vmid") or await self.get_next_vmid(node)
+        node = config.get("node") or self.default_node
+        vmid = config.get("vmid") or await self.get_next_vmid()
         name = config.get("name", f"vm-{vmid}")
         
         # Build Proxmox-specific config
@@ -96,8 +96,9 @@ class ProxmoxClient(PlatformClient):
                 config=config
             )
         else:
-            # Create from scratch (ISO installation)
-            result = await self.create_vm_raw(node, vmid, vm_config)
+            # For now, we require a template for Proxmox
+            # Creating from scratch requires ISO setup which is complex
+            raise Exception(f"Proxmox requires template_id. Use UBUNTU_2204_TEMPLATE_ID from .env")
         
         # Start the VM
         await self.start_vm(str(vmid))
@@ -315,6 +316,7 @@ class ProxmoxClient(PlatformClient):
         name = config.get("name", f"vm-{new_vmid}")
         
         # Clone the template
+        logger.info(f"Cloning template {template_id} to {new_vmid} on node '{node}'")
         result = await self.clone_vm_raw(
             node=node,
             vmid=template_id,
@@ -350,6 +352,7 @@ class ProxmoxClient(PlatformClient):
             Task status
         """
         try:
+            logger.info(f"API call: nodes('{node}').qemu({vmid}).clone.post(newid={newid}, name='{name}', full={1 if full else 0})")
             task = self.client.nodes(node).qemu(vmid).clone.post(
                 newid=newid,
                 name=name,
@@ -361,8 +364,8 @@ class ProxmoxClient(PlatformClient):
             logger.error(f"Failed to clone VM {vmid}: {str(e)}")
             return {"success": False, "error": str(e)}
     
-    async def start_vm(self, node: str, vmid: int) -> Dict[str, Any]:
-        """Start a VM"""
+    async def start_vm_raw(self, node: str, vmid: int) -> Dict[str, Any]:
+        """Start a VM (Proxmox-specific, low-level)"""
         try:
             task = self.client.nodes(node).qemu(vmid).status.start.post()
             logger.info(f"VM {vmid} started on node {node}")
@@ -371,8 +374,8 @@ class ProxmoxClient(PlatformClient):
             logger.error(f"Failed to start VM {vmid}: {str(e)}")
             return {"success": False, "error": str(e)}
     
-    async def stop_vm(self, node: str, vmid: int) -> Dict[str, Any]:
-        """Stop a VM"""
+    async def stop_vm_raw(self, node: str, vmid: int) -> Dict[str, Any]:
+        """Stop a VM (Proxmox-specific, low-level)"""
         try:
             task = self.client.nodes(node).qemu(vmid).status.stop.post()
             logger.info(f"VM {vmid} stopped on node {node}")
@@ -381,8 +384,8 @@ class ProxmoxClient(PlatformClient):
             logger.error(f"Failed to stop VM {vmid}: {str(e)}")
             return {"success": False, "error": str(e)}
     
-    async def delete_vm(self, node: str, vmid: int) -> Dict[str, Any]:
-        """Delete a VM"""
+    async def delete_vm_raw(self, node: str, vmid: int) -> Dict[str, Any]:
+        """Delete a VM (Proxmox-specific, low-level)"""
         try:
             task = self.client.nodes(node).qemu(vmid).delete()
             logger.info(f"VM {vmid} deleted from node {node}")
@@ -391,8 +394,8 @@ class ProxmoxClient(PlatformClient):
             logger.error(f"Failed to delete VM {vmid}: {str(e)}")
             return {"success": False, "error": str(e)}
     
-    async def get_vm_status(self, node: str, vmid: int) -> Dict[str, Any]:
-        """Get VM status"""
+    async def get_vm_status_raw(self, node: str, vmid: int) -> Dict[str, Any]:
+        """Get VM status (Proxmox-specific, low-level)"""
         try:
             status = self.client.nodes(node).qemu(vmid).status.current.get()
             return {"success": True, "status": status}
@@ -456,7 +459,7 @@ class ProxmoxClient(PlatformClient):
             logger.error(f"Failed to wait for task {upid}: {str(e)}")
             return {"success": False, "error": str(e)}
     
-    async def get_vm_ip(self, node: str, vmid: int, timeout: int = 120) -> Optional[str]:
+    async def get_vm_ip_raw(self, node: str, vmid: int, timeout: int = 120) -> Optional[str]:
         """
         Get VM IP address (waits for QEMU guest agent)
         

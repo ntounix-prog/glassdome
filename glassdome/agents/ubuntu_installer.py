@@ -83,10 +83,8 @@ class UbuntuInstallerAgent(DeploymentAgent):
             logger.error(f"Unsupported Ubuntu version: {version}")
             return False
         
-        # Validate node
-        if not config.get("node"):
-            logger.error("No Proxmox node specified")
-            return False
+        # Platform-agnostic - no node validation needed
+        # (node is Proxmox-specific, ESXi/AWS don't have nodes)
         
         return True
     

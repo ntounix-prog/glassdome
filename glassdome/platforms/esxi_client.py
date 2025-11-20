@@ -510,6 +510,7 @@ class ESXiClient(PlatformClient):
         controller_spec = vim.vm.device.VirtualDeviceSpec()
         controller_spec.operation = vim.vm.device.VirtualDeviceSpec.Operation.add
         controller_spec.device = vim.vm.device.ParaVirtualSCSIController()
+        controller_spec.device.key = 1000  # Controller key
         controller_spec.device.sharedBus = vim.vm.device.VirtualSCSIController.Sharing.noSharing
         controller_spec.device.busNumber = 0
         specs.append(controller_spec)
