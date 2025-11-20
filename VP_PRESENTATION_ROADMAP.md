@@ -195,22 +195,28 @@
 ## Critical Features for VP Demo
 
 ### Must-Have (Blockers)
-1. ✅ **Multi-VM Lab Deployment**
+1. ✅ **REAPER AGENT - Vulnerability Injection**
+   - Why: THIS IS THE ENTIRE POINT! Cyber range, not just VM deployment!
+   - Status: 0% done (fully documented)
+   - Effort: 3 days
+   - **HIGHEST PRIORITY - THE DIFFERENTIATOR**
+
+2. ✅ **Multi-VM Lab Deployment**
    - Why: Core value proposition
    - Status: 75% done (orchestrator exists)
    - Effort: 2 days
 
-2. ✅ **Web UI**
+3. ✅ **Web UI**
    - Why: VPs want to see, not CLI
    - Status: 35% done (components exist)
    - Effort: 4 days
 
-3. ✅ **Cloud Integration (Azure)**
-   - Why: Differentiator from manual Proxmox
+4. ✅ **Cloud Integration (Azure)**
+   - Why: Shows multi-cloud capability
    - Status: 5% done (stub exists)
    - Effort: 3 days
 
-4. ✅ **Metrics Dashboard**
+5. ✅ **Metrics Dashboard**
    - Why: VPs love numbers
    - Status: 0% done
    - Effort: 2 days
