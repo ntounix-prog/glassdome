@@ -17,6 +17,7 @@ class Settings(BaseSettings):
     # API - Changed default port to avoid conflicts
     api_prefix: str = "/api"
     backend_port: int = 8001
+    vite_port: int = 5174
     backend_cors_origins: list = ["http://localhost:5174", "http://localhost:3000"]
     
     # Database
@@ -41,6 +42,11 @@ class Settings(BaseSettings):
     proxmox_token_name: Optional[str] = None
     proxmox_token_value: Optional[str] = None
     proxmox_verify_ssl: bool = False
+    proxmox_node: str = "pve"
+    
+    # VM Template IDs
+    ubuntu_2204_template_id: int = 9000
+    ubuntu_2004_template_id: int = 9001
     
     # Azure
     azure_subscription_id: Optional[str] = None
