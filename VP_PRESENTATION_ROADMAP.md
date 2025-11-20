@@ -26,14 +26,18 @@
 - Infrastructure monitoring (Overseer Agent)
 - Basic API endpoints
 - Agent framework
+- SSH automation
 
 ### ⏳ What's In Progress
 - Multi-VM lab deployment
 - User/package configuration
 - Cloud-init integration
 
-### ❌ What's Missing (Critical for VP Demo)
+### ❌ What's Missing (CRITICAL for VP Demo)
+- **Reaper Agent** - Vulnerability injection (THE DIFFERENTIATOR!)
 - Complete lab templates (Web Security, Network Defense, etc.)
+- Vulnerable training environments
+- Answer key generation
 - Cloud provider integration (Azure/AWS)
 - Web UI (React frontend)
 - User authentication
@@ -47,10 +51,10 @@
 
 ## Sprint Plan (3 Sprints × 6 Days)
 
-### Sprint 1: Nov 21-26 (6 days) - "Core Lab Capabilities"
-**Goal:** Deploy complete multi-VM labs with configuration
+### Sprint 1: Nov 21-26 (6 days) - "Core Lab Capabilities + Reaper Agent"
+**Goal:** Deploy vulnerable training environments with injected exploits
 
-**Priority:** CRITICAL
+**Priority:** CRITICAL (This is the differentiator!)
 
 #### Day 1-2: Multi-VM Orchestration
 - [ ] Test orchestrator with 2-VM lab
@@ -58,20 +62,23 @@
 - [ ] Parallel VM deployment
 - [ ] Network isolation setup
 
-#### Day 3-4: Cloud-Init & Configuration
-- [ ] Implement cloud-init user creation
-- [ ] Implement package installation
-- [ ] SSH post-deployment configuration
-- [ ] Template library (3-5 OS types)
+#### Day 3-4: **REAPER AGENT** (The Game Changer!)
+- [ ] Implement base ReaperAgent class
+- [ ] Create vulnerability library structure
+- [ ] Inject SQL injection vulnerability
+- [ ] Inject XSS vulnerability
+- [ ] Plant CTF flags
+- [ ] Generate basic answer key
 
-#### Day 5-6: Lab Templates
-- [ ] Web Security Lab (Kali + DVWA)
-- [ ] Network Defense Lab (Security Onion)
-- [ ] CTF Lab Template
-- [ ] Basic Windows VM support
+#### Day 5-6: Complete Training Lab
+- [ ] Web Security Lab with vulnerabilities
+- [ ] Test full pipeline: Deploy → Inject → Monitor
+- [ ] Instructor dashboard with answer key
+- [ ] Reset/cleanup functionality
 
 **Sprint 1 Deliverable:**
-✅ Deploy a complete 3-VM security lab in < 5 minutes
+✅ Deploy vulnerable web server with exploitable SQLi + XSS in < 5 minutes
+✅ Auto-generate instructor answer key
 
 ---
 
@@ -137,44 +144,51 @@
 **Demo Flow (15 minutes):**
 
 1. **Problem Statement** (2 min)
-   - Current manual lab setup takes hours
-   - Resource waste and inconsistency
-   - No visibility or tracking
+   - Current cyber range setup takes days
+   - Manual vulnerability configuration
+   - Inconsistent training environments
+   - Expensive proprietary platforms
 
 2. **Solution Overview** (2 min)
    - Show architecture diagram
    - Explain agentic framework
-   - Highlight autonomy
+   - Highlight **Reaper Agent** (vulnerability injection)
+   - Compare to Hack The Box, TryHackMe, Cyber Range
 
 3. **Live Demo** (8 min)
-   - **Scenario 1:** Deploy Web Security Lab (3 VMs)
-     * Show template selection
-     * Click deploy
-     * Watch 3 VMs spin up in parallel
-     * Show configured with users/tools
-     * Time: < 5 minutes
+   - **Scenario 1:** Deploy Vulnerable Web Lab
+     * Select "Web Security Training" template
+     * Click "Deploy with Vulnerabilities"
+     * Watch:
+       - Clean VM deploys (30 sec)
+       - Reaper Agent injects SQLi, XSS, weak passwords (2 min)
+       - Flags planted automatically
+       - Answer key generated
+     * Show live vulnerable web app
+     * Show instructor answer key
+     * Show student can exploit SQLi
+     * Time: < 3 minutes total!
    
-   - **Scenario 2:** Multi-Cloud
-     * Deploy same lab to Azure
-     * Show cloud cost estimate
-     * Compare Proxmox vs. Azure
+   - **Scenario 2:** Complete Training Pipeline
+     * Show Overseer monitoring students
+     * Track who found which flags
+     * Reset lab for next class (10 seconds)
    
-   - **Scenario 3:** Monitoring
-     * Show Overseer dashboard
-     * Real-time VM health
-     * Alert on issue
-     * Auto-remediation
+   - **Scenario 3:** Multi-Cloud Deployment
+     * Deploy same vulnerable lab to Azure
+     * Show cost comparison
 
 4. **Metrics & ROI** (2 min)
-   - Deployment speed: 95% faster
-   - Cost savings: 80% less overhead
-   - User satisfaction: Self-service
+   - Lab creation: Days → Minutes (99% faster)
+   - Cost: $50K/year → $5K/year (90% savings)
+   - Training capacity: 10x increase
+   - Student satisfaction: Hands-on practice
 
 5. **Roadmap** (1 min)
-   - AI-powered lab design
-   - AWS integration
-   - Advanced networking
-   - Community templates
+   - AI-generated vulnerability scenarios
+   - Advanced attack chains
+   - Red team vs Blue team competitions
+   - Community scenario marketplace
 
 ---
 
@@ -393,28 +407,28 @@
 ### For VP Audience
 
 **Business Value:**
-- "Reduces lab setup time from 4 hours to 4 minutes"
-- "Self-service model eliminates IT bottleneck"
-- "Real-time visibility into resource usage"
-- "Multi-cloud flexibility prevents vendor lock-in"
+- "Reduces cyber range setup from DAYS to MINUTES"
+- "Automated vulnerability injection - no manual configuration"
+- "Self-service for instructors - no IT bottleneck"
+- "Replaces $50K/year proprietary platforms"
 
 **Technical Innovation:**
-- "Agentic framework - infrastructure that deploys itself"
-- "Built from ground up in 2 weeks"
-- "Production-ready architecture"
-- "Scales to hundreds of concurrent labs"
+- "Reaper Agent automatically injects training vulnerabilities"
+- "From clean VM to exploitable environment in 3 minutes"
+- "Auto-generates instructor answer keys and student materials"
+- "Complete ethical hacking training pipeline"
 
 **Competitive Advantage:**
-- "No comparable solution exists today"
-- "First-mover advantage in agentic infrastructure"
-- "Enables capabilities competitors can't match"
-- "Strategic differentiator for institution"
+- "Hack The Box charges per seat - we're self-hosted"
+- "Cyber Range costs $50K+ annually - we're open source"
+- "TryHackMe is curated only - we're customizable"
+- "First automated vulnerability injection platform"
 
 **ROI:**
-- "80% reduction in infrastructure management costs"
-- "10x increase in lab deployment capacity"
-- "Enables new revenue streams (lab-as-a-service)"
-- "Pays for itself in 3 months"
+- "Replace $50K proprietary platform with $5K self-hosted"
+- "Train 10x more students with same infrastructure"
+- "Create custom scenarios in minutes vs. weeks"
+- "ROI in first month"
 
 ---
 
