@@ -65,6 +65,10 @@ anthropic>=0.7.0
 langchain>=0.1.0
 langgraph>=0.0.20
 
+# Infrastructure as Code (IaC)
+ansible>=8.0.0
+python-terraform>=0.10.1
+
 # Data Processing
 pandas>=2.0.0
 pydantic>=2.5.0
