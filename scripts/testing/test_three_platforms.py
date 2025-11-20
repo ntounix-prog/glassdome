@@ -140,30 +140,23 @@ async def main():
     # 2. ESXi
     # ===================================================
     if os.getenv("ESXI_HOST"):
-        print("\n[2/3] Skipping ESXi (SAFETY: Testing disabled on production host)")
-        print("   ⚠️  ESXi is the host we're running on - not safe to test!")
-        print("   Platform abstraction already proven with Proxmox ✅")
-        results["ESXi"] = None
-        
-        # If you really want to test ESXi, set ESXI_TESTING_ENABLED=true
-        # But be VERY careful!
-        if os.getenv("ESXI_TESTING_ENABLED", "false").lower() == "true":
-            print("   ⚠️  ESXI_TESTING_ENABLED=true detected - proceeding carefully...")
-            try:
-                esxi = ESXiClient(
-                    host=os.getenv("ESXI_HOST"),
-                    user=os.getenv("ESXI_USER", "root"),
-                    password=os.getenv("ESXI_PASSWORD"),
-                    verify_ssl=os.getenv("ESXI_VERIFY_SSL", "false").lower() == "true",
-                    datastore_name=os.getenv("ESXI_DATASTORE"),
-                    network_name=os.getenv("ESXI_NETWORK", "VM Network")
-                )
-                
-                results["ESXi"] = await test_platform("ESXi", esxi, "ubuntu_esxi")
-            except Exception as e:
-                print(f"❌ ESXi: Failed to initialize client")
-                print(f"   Error: {str(e)}")
-                results["ESXi"] = False
+        print("\n[2/3] Testing ESXi...")
+        print("   ⚠️  SAFETY: Only VMs named 'glassdome-*' will be manageable")
+        try:
+            esxi = ESXiClient(
+                host=os.getenv("ESXI_HOST"),
+                user=os.getenv("ESXI_USER", "root"),
+                password=os.getenv("ESXI_PASSWORD"),
+                verify_ssl=os.getenv("ESXI_VERIFY_SSL", "false").lower() == "true",
+                datastore_name=os.getenv("ESXI_DATASTORE"),
+                network_name=os.getenv("ESXI_NETWORK", "VM Network")
+            )
+            
+            results["ESXi"] = await test_platform("ESXi", esxi, "ubuntu_esxi")
+        except Exception as e:
+            print(f"❌ ESXi: Failed to initialize client")
+            print(f"   Error: {str(e)}")
+            results["ESXi"] = False
         except Exception as e:
             print(f"❌ ESXi: Failed to initialize client")
             print(f"   Error: {str(e)}")
