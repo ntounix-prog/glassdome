@@ -241,3 +241,23 @@ This is operational resilience. Every deployment should use this pattern to ensu
 
 **Key Insight:** This pattern transforms "failed unreachable deployments" into "deployments with recovery access." Critical for demo reliability on 12/8.
 
+
+## 9. Proxmox VLAN Configuration for Multi-Network Deployments
+- **Mistake:** Deployed VM to vmbr0 without VLAN tag, expected to reach 192.168.3.x network but VM was on 192.168.2.x.
+- **Lesson:** Proxmox bridge `vmbr0` (192.168.2.77/24) uses VLAN subinterfaces for additional networks. To reach 192.168.3.x (vmbr0.2), VMs MUST have VLAN tag 2 on their network interface.
+- **Action:** Always set VLAN tag when deploying to non-primary networks: `qm set <vmid> --net0 virtio,bridge=vmbr0,tag=2`
+- **RAG Context:** Check `/etc/network/interfaces` on Proxmox host to identify VLAN tagging requirements. If network has `vmbr0.X` subinterface, VMs need `tag=X`.
+- **Impact:** Without correct VLAN tag, VMs will be on wrong network and unreachable at expected IP addresses.
+
+## 10. Minecraft Bedrock Server Deployment Success Pattern
+- **Challenge:** Deploy existing Minecraft world to new powerful VM, including server binary and world data.
+- **Solution:** Transfer full server backup (2.6GB with binaries), extract world data separately, configure server.properties, create systemd service.
+- **Success:** Server running on 192.168.3.50:19132 (UDP), auto-starts on boot, HebeWorld loaded successfully.
+- **Key Steps:** 
+  1. Transfer full server backup with binaries
+  2. Extract world data to `worlds/<worldname>/` 
+  3. Update `level-name` in server.properties
+  4. Make `bedrock_server` executable
+  5. Create systemd service for persistence
+  6. Verify UDP port listening (ss -ulnp | grep 19132)
+- **RAG Context:** For game server migrations, always get full backup including binaries due to potential network download restrictions.
