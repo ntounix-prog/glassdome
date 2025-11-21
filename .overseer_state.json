@@ -1,0 +1,42 @@
+{
+  "vms": {
+    "114": {
+      "id": "114",
+      "name": "ubuntu-powerhouse",
+      "platform": "proxmox",
+      "status": "running",
+      "ip": "192.168.3.50",
+      "specs": {
+        "cpu": 16,
+        "memory": "32GB",
+        "disk": "1TB"
+      },
+      "services": [
+        "minecraft"
+      ],
+      "is_production": true,
+      "deployed_at": "2025-11-21T07:40:34.876171",
+      "deployed_by": null,
+      "last_checked": null
+    }
+  },
+  "hosts": {
+    "proxmox:192.168.3.2": {
+      "platform": "proxmox",
+      "identifier": "192.168.3.2",
+      "status": "healthy",
+      "resources": {
+        "cpu_total": 32,
+        "cpu_available": 16,
+        "memory_total": "128GB"
+      },
+      "vms": [
+        "114"
+      ],
+      "last_checked": null
+    }
+  },
+  "services": {},
+  "requests": {},
+  "last_saved": "2025-11-21T07:40:34.876713"
+}

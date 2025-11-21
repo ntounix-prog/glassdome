@@ -1,0 +1,33 @@
+version: '3.8'
+
+services:
+  overseer:
+    build:
+      context: .
+      dockerfile: Dockerfile.overseer
+    container_name: glassdome-overseer
+    ports:
+      - "8001:8001"
+    volumes:
+      # Mount state file for persistence
+      - ./.overseer_state.json:/app/.overseer_state.json
+      # Mount RAG index for knowledge base
+      - ./.rag_index:/app/.rag_index:ro
+      # Mount .env for credentials
+      - ./.env:/app/.env:ro
+    environment:
+      - PYTHONUNBUFFERED=1
+    restart: unless-stopped
+    networks:
+      - glassdome
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+networks:
+  glassdome:
+    name: glassdome-network
+
