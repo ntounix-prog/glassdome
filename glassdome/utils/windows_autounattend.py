@@ -316,6 +316,70 @@ def create_autounattend_iso(autounattend_xml: str, output_path: Path) -> Path:
     return output_path
 
 
+def create_autounattend_floppy(autounattend_xml: str, output_path: Path) -> Path:
+    """
+    Create a floppy image containing autounattend.xml
+    Windows Setup RELIABLY checks A:\ for autounattend.xml
+    
+    Args:
+        autounattend_xml: The XML content
+        output_path: Path where floppy image should be created (.img)
+    
+    Returns:
+        Path to created floppy image
+    """
+    import tempfile
+    import subprocess
+    
+    # Create temporary directory
+    with tempfile.TemporaryDirectory() as temp_dir:
+        temp_path = Path(temp_dir)
+        
+        # Write autounattend.xml
+        xml_file = temp_path / "autounattend.xml"
+        with open(xml_file, 'w', encoding='utf-8') as f:
+            f.write(autounattend_xml)
+        
+        # Ensure output directory exists
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        
+        # Create 1.44MB floppy image
+        subprocess.run([
+            'dd', 'if=/dev/zero', f'of={output_path}',
+            'bs=1024', 'count=1440'
+        ], check=True, capture_output=True)
+        
+        # Format as FAT12 (floppy filesystem)
+        subprocess.run([
+            'mkfs.vfat', '-F', '12', '-n', 'AUTOUNATT',  # Max 11 chars for FAT label
+            str(output_path)
+        ], check=True, capture_output=True)
+        
+        # Mount and copy file
+        mount_point = temp_path / "mount"
+        mount_point.mkdir()
+        
+        try:
+            subprocess.run([
+                'sudo', 'mount', '-o', 'loop',
+                str(output_path), str(mount_point)
+            ], check=True, capture_output=True)
+            
+            # Copy autounattend.xml
+            subprocess.run([
+                'sudo', 'cp', str(xml_file),
+                str(mount_point / 'autounattend.xml')
+            ], check=True, capture_output=True)
+            
+        finally:
+            # Unmount
+            subprocess.run([
+                'sudo', 'umount', str(mount_point)
+            ], check=True, capture_output=True)
+    
+    return output_path
+
+
 if __name__ == "__main__":
     # Test generation
     config = {

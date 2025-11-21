@@ -7,10 +7,11 @@ from typing import Dict, Any, List, Optional
 import logging
 import asyncio
 import time
+import os
 from pathlib import Path
 
 from glassdome.platforms.base import PlatformClient, VMStatus
-from glassdome.utils.windows_autounattend import generate_autounattend_xml, create_autounattend_iso
+from glassdome.utils.windows_autounattend import generate_autounattend_xml, create_autounattend_floppy
 
 logger = logging.getLogger(__name__)
 
@@ -40,6 +41,7 @@ class ProxmoxClient(PlatformClient):
         """
         self.host = host
         self.user = user
+        self.password = password
         self.default_node = default_node
         self.default_storage = default_storage
         
@@ -591,12 +593,12 @@ class ProxmoxClient(PlatformClient):
         }
         autounattend_xml = generate_autounattend_xml(autounattend_config)
         
-        # Create autounattend ISO
-        autounattend_iso_path = glassdome_root / "isos" / "custom" / f"autounattend-{vmid}.iso"
-        autounattend_iso_path.parent.mkdir(parents=True, exist_ok=True)
-        create_autounattend_iso(autounattend_xml, autounattend_iso_path)
+        # Create autounattend floppy image (Windows Setup reliably checks A:\)
+        autounattend_floppy_path = glassdome_root / "isos" / "custom" / f"autounattend-{vmid}.img"
+        autounattend_floppy_path.parent.mkdir(parents=True, exist_ok=True)
+        create_autounattend_floppy(autounattend_xml, autounattend_floppy_path)
         
-        logger.info(f"Created autounattend ISO: {autounattend_iso_path}")
+        logger.info(f"Created autounattend floppy: {autounattend_floppy_path}")
         
         # Create VM with Windows-optimized settings
         vm_config = {
@@ -626,13 +628,13 @@ class ProxmoxClient(PlatformClient):
         # Wait a moment for VM to be fully created
         await asyncio.sleep(2)
         
-        # Add disk
+        # Add disk - use SATA for Windows (native support, no drivers needed)
         try:
             disk_config = {
-                "scsi0": f"{self.default_storage}:{disk_size_gb},cache=writeback,discard=on"
+                "sata0": f"{self.default_storage}:{disk_size_gb},cache=writeback,discard=on"
             }
             self.client.nodes(node).qemu(vmid).config.put(**disk_config)
-            logger.info(f"Added {disk_size_gb}GB disk to VM {vmid}")
+            logger.info(f"Added {disk_size_gb}GB SATA disk to VM {vmid}")
         except Exception as e:
             logger.error(f"Failed to add disk: {e}")
             raise
@@ -644,11 +646,9 @@ class ProxmoxClient(PlatformClient):
         try:
             # Windows ISO as IDE2 (primary CD-ROM)
             # VirtIO drivers as IDE0 (secondary CD-ROM)
-            # Autounattend as IDE1 (third CD-ROM)
             iso_config = {
                 "ide2": f"local:iso/{windows_iso_path.name},media=cdrom",
                 "ide0": f"local:iso/{virtio_iso_path.name},media=cdrom",
-                "ide1": f"local:iso/{autounattend_iso_path.name},media=cdrom"
             }
             self.client.nodes(node).qemu(vmid).config.put(**iso_config)
             logger.info(f"Attached ISOs to VM {vmid}")
@@ -658,13 +658,39 @@ class ProxmoxClient(PlatformClient):
             logger.info(f"Please upload ISOs to Proxmox:")
             logger.info(f"  1. {windows_iso_path}")
             logger.info(f"  2. {virtio_iso_path}")
-            logger.info(f"  3. {autounattend_iso_path}")
         
-        # Set boot order (CD-ROM first for installation)
+        # Upload floppy to Proxmox and attach via QEMU args
+        # Windows Setup reliably checks A:\ for autounattend.xml
+        try:
+            import paramiko
+            ssh = paramiko.SSHClient()
+            ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+            ssh.connect(self.host, username='root', password=self.password or os.getenv('PROXMOX_ROOT_PASSWORD', ''))
+            
+            # Upload floppy to Proxmox
+            sftp = ssh.open_sftp()
+            remote_floppy_path = f"/var/lib/vz/images/{vmid}/autounattend.img"
+            ssh.exec_command(f"mkdir -p /var/lib/vz/images/{vmid}")
+            sftp.put(str(autounattend_floppy_path), remote_floppy_path)
+            sftp.close()
+            
+            # Attach floppy via QEMU args
+            args_config = {
+                "args": f"-drive file={remote_floppy_path},if=floppy,format=raw"
+            }
+            self.client.nodes(node).qemu(vmid).config.put(**args_config)
+            logger.info(f"Attached autounattend floppy via QEMU args")
+            
+            ssh.close()
+        except Exception as e:
+            logger.warning(f"Failed to attach floppy: {e}")
+            logger.info(f"Autounattend floppy created locally: {autounattend_floppy_path}")
+            logger.info(f"Upload manually to Proxmox if needed")
+        
+        # Set boot order (CD-ROM first for installation, then SATA disk)
         try:
             boot_config = {
-                "boot": "order=ide2;scsi0",
-                "bootdisk": "scsi0"
+                "boot": "order=ide2;sata0"
             }
             self.client.nodes(node).qemu(vmid).config.put(**boot_config)
             logger.info(f"Set boot order for VM {vmid}")
