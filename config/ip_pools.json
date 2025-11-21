@@ -25,7 +25,9 @@
       ],
       "range_start": "192.168.2.30",
       "range_end": "192.168.2.40",
-      "allocated": {}
+      "allocated": {
+        "glassdome-win-esxi-test": "192.168.2.30"
+      }
     }
   }
 }
