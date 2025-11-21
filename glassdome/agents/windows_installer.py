@@ -108,6 +108,19 @@ class WindowsInstallerAgent(BaseAgent):
                 "enable_rdp": config.get("enable_rdp", True),
             }
             
+            # Use template-based deployment if template_id provided (RECOMMENDED)
+            # Otherwise fall back to ISO-based (unreliable)
+            if not windows_config.get("template_id"):
+                # Try to get from config if available
+                from glassdome.core.config import Settings
+                settings = Settings()
+                if settings.windows_server2022_template_id:
+                    windows_config["template_id"] = settings.windows_server2022_template_id
+                    logger.info(f"Using Windows template ID from config: {settings.windows_server2022_template_id}")
+                else:
+                    logger.warning("No Windows template_id provided. Will attempt ISO-based deployment (unreliable).")
+                    logger.warning("RECOMMENDED: Create Windows template and set WINDOWS_SERVER2022_TEMPLATE_ID in .env")
+            
             # Create VM using platform client
             result = await self.platform_client.create_vm(windows_config)
             

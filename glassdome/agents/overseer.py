@@ -18,6 +18,7 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
 from glassdome.agents.base import DeploymentAgent, AgentStatus, AgentType
 from glassdome.platforms.proxmox_client import ProxmoxClient
+from glassdome.agents.guest_agent_fixer import GuestAgentFixer
 
 logger = logging.getLogger(__name__)
 
@@ -52,6 +53,7 @@ class OverseerAgent(DeploymentAgent):
         """
         super().__init__(agent_id, proxmox_client)
         self.proxmox = proxmox_client
+        self.guest_agent_fixer = GuestAgentFixer(proxmox_client)
         self.inventory: Dict[str, Any] = {}
         self.metrics: List[Dict[str, Any]] = []
         self.alerts: List[Dict[str, Any]] = []

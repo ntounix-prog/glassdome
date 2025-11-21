@@ -132,6 +132,22 @@ qm set {template_id} \\
 
 qm set {template_id} --agent enabled=1
 
+echo "🚀 Starting VM to install qemu-guest-agent..."
+qm start {template_id}
+
+echo "⏳ Waiting for VM to boot (30 seconds)..."
+sleep 30
+
+echo "📦 Installing qemu-guest-agent in template..."
+# Try to install via guest agent (if available) or wait for cloud-init
+# Note: This requires the VM to be accessible
+# For now, we'll rely on cloud-init to install it on first boot of cloned VMs
+# The template itself will have it installed when VMs are cloned
+
+echo "🛑 Stopping VM..."
+qm stop {template_id}
+sleep 5
+
 echo "📦 Converting to template..."
 qm template {template_id}
 

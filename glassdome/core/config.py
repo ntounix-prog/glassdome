@@ -57,6 +57,7 @@ class Settings(BaseSettings):
     # VM Template IDs
     ubuntu_2204_template_id: int = 9000
     ubuntu_2004_template_id: int = 9001
+    windows_server2022_template_id: Optional[int] = None  # Set after template creation
     
     # Azure
     azure_subscription_id: Optional[str] = None
