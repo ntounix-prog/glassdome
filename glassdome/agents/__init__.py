@@ -15,6 +15,7 @@ from glassdome.agents.manager import AgentManager
 from glassdome.agents.ubuntu_installer import UbuntuInstallerAgent
 from glassdome.agents.windows_installer import WindowsInstallerAgent
 from glassdome.agents.overseer import OverseerAgent
+from glassdome.agents.mailcow_agent import MailcowAgent
 
 __all__ = [
     # Base classes
@@ -30,5 +31,6 @@ __all__ = [
     "UbuntuInstallerAgent",
     "WindowsInstallerAgent",
     "OverseerAgent",
+    "MailcowAgent",
 ]
 

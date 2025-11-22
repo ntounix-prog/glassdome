@@ -78,6 +78,15 @@ class Settings(BaseSettings):
     # Anthropic
     anthropic_api_key: Optional[str] = None
     
+    # Mailcow
+    mail_api: Optional[str] = None  # Mailcow API Bearer token (from .env: MAIL_API)
+    mailcow_api_url: Optional[str] = None  # Mailcow API URL (e.g., https://mail.xisx.org)
+    mailcow_domain: str = "xisx.org"
+    mailcow_imap_host: Optional[str] = None  # Defaults to mail.{domain}
+    mailcow_smtp_host: Optional[str] = None  # Defaults to mail.{domain}
+    mailcow_smtp_port: int = 587
+    mailcow_verify_ssl: bool = False  # Disable SSL verification for self-signed certs
+    
     class Config:
         env_file = ".env"
         case_sensitive = False
