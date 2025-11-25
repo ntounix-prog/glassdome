@@ -74,6 +74,10 @@ python-terraform>=0.10.1
 pandas>=2.0.0
 pydantic>=2.5.0
 
+# RAG/Knowledge System
+sentence-transformers>=2.2.0  # Embeddings for RAG
+faiss-cpu>=1.7.4  # Vector similarity search
+
 # CLI
 click>=8.1.0
 

@@ -3,12 +3,14 @@ RAG Index Builder
 
 Indexes all project knowledge:
 - Documentation (markdown files)
-- Code (Python files with docstrings)
+- Code (ALL Python files - full implementations)
+- Configuration files (YAML, JSON, TOML, etc.)
 - Session logs
 - Git commit messages
-- Configuration examples
 
 Uses sentence-transformers for embeddings + FAISS for vector storage.
+
+Security: Excludes .env files and other sensitive files.
 """
 
 import os
@@ -49,7 +51,37 @@ class IndexBuilder:
         
         self.documents = []  # Store doc metadata
         self.embeddings = []  # Store vectors
+    
+    def _should_exclude_file(self, file_path: Path) -> bool:
+        """Check if file should be excluded from indexing"""
+        path_str = str(file_path)
         
+        # Exclude sensitive files
+        if '.env' in path_str or file_path.name == '.env':
+            return True
+        
+        # Exclude common sensitive patterns
+        sensitive_patterns = [
+            '.env',
+            '.env.local',
+            'secrets',
+            'credentials',
+            'password',
+            'private_key',
+            '__pycache__',
+            '.pyc',
+            '.git',
+            'venv/',
+            'node_modules/',
+            '.rag_index/',  # Don't index the index itself
+        ]
+        
+        for pattern in sensitive_patterns:
+            if pattern in path_str:
+                return True
+        
+        return False
+    
     def index_all(self):
         """Index all knowledge sources"""
         print("\n" + "="*70)
@@ -59,6 +91,7 @@ class IndexBuilder:
         # Index different knowledge sources
         self._index_markdown_docs()
         self._index_python_code()
+        self._index_config_files()
         self._index_session_logs()
         self._index_git_history()
         
@@ -143,22 +176,29 @@ class IndexBuilder:
         return chunks
     
     def _index_python_code(self):
-        """Index Python code with docstrings"""
+        """Index ALL Python code (full implementations, not just docstrings)"""
         print("\n🐍 Indexing Python code...")
         
-        py_files = list(self.project_root.rglob("glassdome/**/*.py"))
+        # Find all Python files
+        py_files = list(self.project_root.rglob("*.py"))
+        
+        # Also include scripts directory
+        scripts_dir = self.project_root / "scripts"
+        if scripts_dir.exists():
+            py_files.extend(scripts_dir.rglob("*.py"))
+        
+        # Filter out excluded files
+        py_files = [f for f in py_files if not self._should_exclude_file(f)]
+        
         print(f"   Found {len(py_files)} Python files")
         
         for py_file in py_files:
-            if '__pycache__' in str(py_file):
-                continue
-                
             try:
                 with open(py_file, 'r', encoding='utf-8') as f:
                     content = f.read()
                 
-                # Extract classes and functions with docstrings
-                chunks = self._extract_code_chunks(content, py_file.name)
+                # Chunk by functions/classes (full implementation, not just docstrings)
+                chunks = self._chunk_python_code(content, py_file.name)
                 
                 for chunk in chunks:
                     self._add_document(
@@ -173,8 +213,8 @@ class IndexBuilder:
         
         print(f"   ✅ Indexed {len([d for d in self.documents if d['type'] == 'code'])} code chunks")
     
-    def _extract_code_chunks(self, content: str, filename: str) -> List[Dict]:
-        """Extract functions/classes with docstrings"""
+    def _chunk_python_code(self, content: str, filename: str) -> List[Dict]:
+        """Chunk Python code by functions and classes (full implementation)"""
         chunks = []
         lines = content.split('\n')
         
@@ -184,35 +224,102 @@ class IndexBuilder:
             
             # Look for class or function definitions
             if line.strip().startswith('class ') or line.strip().startswith('def '):
-                # Extract definition + docstring
-                chunk_lines = [line]
+                # Extract full definition (not just docstring)
+                chunk_lines = []
+                indent_level = len(line) - len(line.lstrip())
+                
+                # Add the definition line
+                chunk_lines.append(line)
                 i += 1
                 
-                # Get docstring if exists
-                in_docstring = False
+                # Collect all lines at same or deeper indentation
                 while i < len(lines):
-                    if '"""' in lines[i] or "'''" in lines[i]:
-                        chunk_lines.append(lines[i])
-                        if in_docstring:
-                            i += 1
-                            break
-                        in_docstring = True
-                    elif in_docstring:
-                        chunk_lines.append(lines[i])
-                    else:
+                    current_line = lines[i]
+                    
+                    # Empty line - include it
+                    if not current_line.strip():
+                        chunk_lines.append(current_line)
+                        i += 1
+                        continue
+                    
+                    # Check indentation
+                    current_indent = len(current_line) - len(current_line.lstrip())
+                    
+                    # If we hit a line at same or less indentation (and not empty), we're done
+                    if current_indent <= indent_level and current_line.strip():
                         break
+                    
+                    chunk_lines.append(current_line)
                     i += 1
                 
-                if len(chunk_lines) > 1:  # Has docstring
+                # Only add if chunk has content
+                if len(chunk_lines) > 1:
                     chunks.append({
                         'content': '\n'.join(chunk_lines),
                         'metadata': {
                             'filename': filename,
-                            'type': 'class' if 'class ' in chunk_lines[0] else 'function'
+                            'type': 'class' if 'class ' in chunk_lines[0] else 'function',
+                            'name': self._extract_name(chunk_lines[0])
                         }
                     })
             else:
                 i += 1
+        
+        # If no functions/classes found, chunk by logical blocks (imports, module-level code)
+        if not chunks:
+            # Chunk by logical sections
+            chunks = self._chunk_by_sections(content, filename)
+        
+        return chunks
+    
+    def _extract_name(self, definition_line: str) -> str:
+        """Extract function/class name from definition line"""
+        if 'class ' in definition_line:
+            name = definition_line.split('class ')[1].split('(')[0].split(':')[0].strip()
+        elif 'def ' in definition_line:
+            name = definition_line.split('def ')[1].split('(')[0].strip()
+        else:
+            name = "unknown"
+        return name
+    
+    def _chunk_by_sections(self, content: str, filename: str) -> List[Dict]:
+        """Chunk code by logical sections (imports, constants, etc.)"""
+        chunks = []
+        lines = content.split('\n')
+        
+        current_chunk = []
+        current_section = "module"
+        
+        for line in lines:
+            stripped = line.strip()
+            
+            # Detect section boundaries
+            if stripped.startswith('import ') or stripped.startswith('from '):
+                if current_chunk and current_section != "imports":
+                    chunks.append({
+                        'content': '\n'.join(current_chunk),
+                        'metadata': {'filename': filename, 'section': current_section}
+                    })
+                    current_chunk = []
+                current_section = "imports"
+            elif stripped.startswith('#'):
+                # Comment block
+                if current_chunk and not current_chunk[0].strip().startswith('#'):
+                    chunks.append({
+                        'content': '\n'.join(current_chunk),
+                        'metadata': {'filename': filename, 'section': current_section}
+                    })
+                    current_chunk = []
+                current_section = "comments"
+            
+            current_chunk.append(line)
+        
+        # Add last chunk
+        if current_chunk:
+            chunks.append({
+                'content': '\n'.join(current_chunk),
+                'metadata': {'filename': filename, 'section': current_section}
+            })
         
         return chunks
     
@@ -248,6 +355,56 @@ class IndexBuilder:
                 print(f"   ⚠️  Error indexing {log_file.name}: {e}")
         
         print(f"   ✅ Indexed {len([d for d in self.documents if d['type'] == 'session_log'])} session log chunks")
+    
+    def _index_config_files(self):
+        """Index configuration files (YAML, JSON, TOML)"""
+        print("\n⚙️  Indexing configuration files...")
+        
+        config_extensions = ['.yaml', '.yml', '.json', '.toml', '.ini', '.conf']
+        config_files = []
+        
+        for ext in config_extensions:
+            config_files.extend(self.project_root.rglob(f"*{ext}"))
+        
+        # Filter out excluded files
+        config_files = [f for f in config_files if not self._should_exclude_file(f)]
+        
+        # Exclude node_modules, venv, etc.
+        config_files = [
+            f for f in config_files 
+            if 'node_modules' not in str(f) 
+            and 'venv' not in str(f)
+            and '.git' not in str(f)
+        ]
+        
+        print(f"   Found {len(config_files)} config files")
+        
+        for config_file in config_files:
+            try:
+                with open(config_file, 'r', encoding='utf-8') as f:
+                    content = f.read()
+                
+                # Skip if looks like it contains secrets
+                if any(keyword in content.lower() for keyword in ['password', 'secret', 'api_key', 'token']):
+                    # Check if it's a template/example file
+                    if 'example' not in config_file.name.lower() and 'template' not in config_file.name.lower():
+                        print(f"   ⚠️  Skipping {config_file.name} (may contain secrets)")
+                        continue
+                
+                self._add_document(
+                    content=content,
+                    source=str(config_file.relative_to(self.project_root)),
+                    doc_type="config",
+                    metadata={
+                        'filename': config_file.name,
+                        'extension': config_file.suffix
+                    }
+                )
+                
+            except Exception as e:
+                print(f"   ⚠️  Error indexing {config_file.name}: {e}")
+        
+        print(f"   ✅ Indexed {len([d for d in self.documents if d['type'] == 'config'])} config chunks")
     
     def _index_git_history(self):
         """Index git commit messages for context"""

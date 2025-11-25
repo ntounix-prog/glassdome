@@ -61,6 +61,8 @@ dependencies = [
     "langchain>=0.1.0",
     "langgraph>=0.0.20",
     "pandas>=2.0.0",
+    "sentence-transformers>=2.2.0",
+    "faiss-cpu>=1.7.4",
 ]
 
 [project.optional-dependencies]
