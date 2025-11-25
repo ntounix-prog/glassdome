@@ -20,7 +20,7 @@ class Settings(BaseSettings):
     
     # Application
     app_name: str = "Glassdome"
-    app_version: str = "0.1.0"
+    app_version: str = "0.2.0"
     environment: str = "development"
     debug: bool = True
     
