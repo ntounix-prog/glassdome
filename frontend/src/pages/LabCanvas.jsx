@@ -33,6 +33,8 @@ function LabCanvas() {
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges)
   const [selectedElement, setSelectedElement] = useState(null)
   const [labName, setLabName] = useState('New Cyber Range Lab')
+  const [platform, setPlatform] = useState('2') // Default to AWS
+  const [isDeploying, setIsDeploying] = useState(false)
   const nodeIdCounter = useRef(1)
 
   const onConnect = useCallback(
@@ -113,26 +115,34 @@ function LabCanvas() {
       return
     }
 
+    const platformName = platform === '2' ? 'AWS' : 'Proxmox'
     const confirmed = window.confirm(
-      `Deploy "${labName}" to Proxmox? This will create ${nodes.length} resources.`
+      `Deploy "${labName}" to ${platformName}? This will create ${nodes.length} resources.`
     )
     
     if (confirmed) {
+      setIsDeploying(true)
       try {
         const response = await fetch('/api/deployments', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             lab_id: 'current',
-            platform_id: '1', // Proxmox
+            platform_id: platform,
             lab_data: { nodes, edges }
           })
         })
         const result = await response.json()
-        alert(`Deployment initiated! ID: ${result.deployment_id}`)
+        if (result.success) {
+          alert(`✅ Deployment initiated!\n\nID: ${result.deployment_id}\nVMs: ${result.vms?.length || 0}\nStatus: ${result.status}`)
+        } else {
+          alert(`❌ Deployment failed: ${result.message}\n\nErrors: ${result.errors?.join(', ') || 'Unknown error'}`)
+        }
       } catch (error) {
         console.error('Error deploying lab:', error)
-        alert('Failed to deploy lab')
+        alert('Failed to deploy lab: ' + error.message)
+      } finally {
+        setIsDeploying(false)
       }
     }
   }
@@ -189,11 +199,23 @@ function LabCanvas() {
             placeholder="Lab Name"
           />
           <div className="canvas-actions">
+            <select 
+              className="platform-select"
+              value={platform}
+              onChange={(e) => setPlatform(e.target.value)}
+            >
+              <option value="2">☁️ AWS</option>
+              <option value="1">🖥️ Proxmox</option>
+            </select>
             <button className="btn-secondary" onClick={saveLab}>
               💾 Save Lab
             </button>
-            <button className="btn-primary" onClick={deployLab}>
-              🚀 Deploy
+            <button 
+              className="btn-primary" 
+              onClick={deployLab}
+              disabled={isDeploying || nodes.length === 0}
+            >
+              {isDeploying ? '⏳ Deploying...' : '🚀 Deploy'}
             </button>
           </div>
         </div>

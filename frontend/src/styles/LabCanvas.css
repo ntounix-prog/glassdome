@@ -100,6 +100,27 @@
 .canvas-actions {
   display: flex;
   gap: 1rem;
+  align-items: center;
+}
+
+.platform-select {
+  padding: 0.5rem 1rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 6px;
+  color: #fff;
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+
+.platform-select:focus {
+  outline: none;
+  border-color: #00d4ff;
+}
+
+.platform-select option {
+  background: #1a1f36;
+  color: #fff;
 }
 
 .canvas-area {

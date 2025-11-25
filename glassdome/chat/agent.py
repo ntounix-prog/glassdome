@@ -412,6 +412,7 @@ class OverseerChatAgent:
             "deploy_lab": self._tool_deploy_lab,
             "deploy_vm": self._tool_deploy_vm,
             "terminate_vm": self._tool_terminate_vm,
+            "send_email": self._tool_send_email,
             "create_reaper_mission": self._tool_create_mission,
             "get_status": self._tool_get_status,
             "list_resources": self._tool_list_resources,
@@ -427,6 +428,53 @@ class OverseerChatAgent:
             return await handler(conversation, arguments)
         
         return {"error": f"No handler for tool: {tool_name}"}
+    
+    async def _tool_send_email(
+        self,
+        conversation: Conversation,
+        args: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """Handle send_email tool call"""
+        logger.info(f"Send email requested: {args}")
+        
+        to_addresses = args.get("to", [])
+        subject = args.get("subject", "")
+        body = args.get("body", "")
+        from_address = args.get("from_address", "overseer@xisx.org")
+        
+        if not to_addresses or not subject or not body:
+            return {
+                "status": "error",
+                "error": "Missing required fields: to, subject, and body are required"
+            }
+        
+        # Create action request for confirmation
+        action = ActionRequest(
+            action_id=f"action-{uuid.uuid4().hex[:8]}",
+            action_type="send_email",
+            summary=f"📧 Send email to {', '.join(to_addresses)}",
+            details={
+                "from": from_address,
+                "to": to_addresses,
+                "cc": args.get("cc"),
+                "subject": subject,
+                "body": body,
+                "html_body": args.get("html_body")
+            },
+            warnings=[]
+        )
+        conversation.pending_action = action
+        
+        return {
+            "status": "awaiting_confirmation",
+            "action": action.summary,
+            "details": {
+                "to": to_addresses,
+                "subject": subject,
+                "preview": body[:100] + "..." if len(body) > 100 else body
+            },
+            "message": f"Ready to send email to {', '.join(to_addresses)}. Please confirm."
+        }
     
     async def _tool_terminate_vm(
         self,
@@ -975,6 +1023,8 @@ class OverseerChatAgent:
             return await self._execute_vm_deployment(action.details)
         elif action.action_type == "terminate_vm":
             return await self._execute_terminate_vm(action.details)
+        elif action.action_type == "send_email":
+            return await self._execute_send_email(action.details)
         elif action.action_type == "create_mission":
             return await self._execute_mission_creation(action.details)
         elif action.action_type == "stop_resource":
@@ -1098,6 +1148,73 @@ class OverseerChatAgent:
             "success": False,
             "error": "Proxmox VM termination not yet implemented"
         }
+    
+    async def _execute_send_email(self, details: Dict[str, Any]) -> Dict[str, Any]:
+        """Send an email via Mailcow"""
+        from glassdome.core.session import get_session
+        from glassdome.integrations.mailcow_client import MailcowClient
+        
+        logger.info(f"Sending email: {details}")
+        
+        try:
+            session = get_session()
+            
+            # Get Mailcow credentials from session
+            mailcow_api_key = session.secrets.get('mailcow_api_key')
+            mailcow_url = session.secrets.get('mailcow_url', 'https://mail.xisx.org')
+            
+            if not mailcow_api_key:
+                return {
+                    "success": False,
+                    "error": "Mailcow API key not configured in secrets"
+                }
+            
+            # Initialize client
+            client = MailcowClient(
+                api_url=mailcow_url,
+                api_key=mailcow_api_key
+            )
+            
+            # Send the email
+            from_address = details.get("from", "overseer@xisx.org")
+            to_addresses = details.get("to", [])
+            subject = details.get("subject", "")
+            body = details.get("body", "")
+            html_body = details.get("html_body")
+            cc = details.get("cc")
+            
+            result = client.send_email(
+                mailbox=from_address,
+                to_addresses=to_addresses,
+                subject=subject,
+                body=body,
+                html_body=html_body,
+                cc=cc,
+                use_api=True
+            )
+            
+            if result.get("success"):
+                logger.info(f"Email sent successfully to {to_addresses}")
+                return {
+                    "success": True,
+                    "message": f"✅ Email sent to {', '.join(to_addresses)}",
+                    "subject": subject,
+                    "recipients": to_addresses
+                }
+            else:
+                logger.error(f"Failed to send email: {result.get('error')}")
+                return {
+                    "success": False,
+                    "error": result.get("error", "Unknown error sending email")
+                }
+                
+        except Exception as e:
+            logger.error(f"Email send failed: {e}", exc_info=True)
+            return {
+                "success": False,
+                "error": str(e),
+                "message": f"❌ Failed to send email: {e}"
+            }
     
     async def _execute_lab_deployment(self, details: Dict[str, Any]) -> Dict[str, Any]:
         """Execute lab deployment - actually creates VMs on the target platform"""

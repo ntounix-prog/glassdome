@@ -152,18 +152,113 @@ async def create_deployment(deployment_data: Dict[str, Any]):
     Create a new deployment from a lab configuration
     This triggers the agentic deployment process
     """
+    import uuid
+    import logging
+    from glassdome.core.session import get_session
+    from glassdome.platforms.aws_client import AWSClient
+    
+    logger = logging.getLogger(__name__)
+    
     lab_id = deployment_data.get("lab_id")
     platform_id = deployment_data.get("platform_id")
+    lab_data = deployment_data.get("lab_data", {})
     
     if not lab_id or not platform_id:
         raise HTTPException(status_code=400, detail="lab_id and platform_id required")
     
-    # TODO: Implement deployment creation and orchestration
+    nodes = lab_data.get("nodes", [])
+    deployment_id = f"deploy-{uuid.uuid4().hex[:8]}"
+    
+    logger.info(f"Creating deployment {deployment_id} with {len(nodes)} nodes on platform {platform_id}")
+    
+    # Count VMs to deploy - check both type and data.elementType
+    vm_nodes = [n for n in nodes if n.get("type") == "vm" or 
+                n.get("data", {}).get("elementType") in ["attack", "vulnerable", "base"]]
+    network_nodes = [n for n in nodes if n.get("type") == "network" or
+                     n.get("data", {}).get("elementId") in ["isolated", "nat"]]
+    
+    if not vm_nodes and not network_nodes:
+        return {
+            "success": False,
+            "deployment_id": deployment_id,
+            "status": "failed",
+            "message": "No VMs or networks found in lab configuration"
+        }
+    
+    # For now, deploy to AWS if platform_id indicates AWS, otherwise Proxmox
+    deployed_vms = []
+    errors = []
+    
+    try:
+        session = get_session()
+        
+        # Platform 1 = Proxmox, 2 = AWS (based on typical ordering)
+        if platform_id == "2" or "aws" in str(platform_id).lower():
+            aws_key = session.secrets.get('aws_access_key_id')
+            aws_secret = session.secrets.get('aws_secret_access_key')
+            
+            if aws_key and aws_secret:
+                aws_client = AWSClient(
+                    access_key_id=aws_key,
+                    secret_access_key=aws_secret,
+                    region="us-east-1"
+                )
+                
+                for vm_node in vm_nodes:
+                    # Get VM name from elementId or generate one
+                    data = vm_node.get("data", {})
+                    element_id = data.get("elementId", "ubuntu")
+                    vm_name = f"{deployment_id}-{element_id}-{uuid.uuid4().hex[:4]}"
+                    vm_config = {
+                        "name": vm_name,
+                        "os_type": "ubuntu",
+                        "os_version": "22.04",
+                        "instance_type": "t2.micro",
+                        "disk_size_gb": 8,
+                        "tags": {
+                            "Name": vm_name,
+                            "CreatedBy": "Glassdome-LabCanvas",
+                            "DeploymentId": deployment_id
+                        }
+                    }
+                    
+                    try:
+                        result = await aws_client.create_vm(vm_config)
+                        deployed_vms.append({
+                            "name": vm_name,
+                            "instance_id": result.get("instance_id"),
+                            "status": "deploying"
+                        })
+                        logger.info(f"Deployed VM: {vm_name} -> {result.get('instance_id')}")
+                    except Exception as e:
+                        errors.append(f"Failed to deploy {vm_name}: {e}")
+                        logger.error(f"Failed to deploy {vm_name}: {e}")
+            else:
+                errors.append("AWS credentials not configured")
+        else:
+            # Proxmox deployment - placeholder for now
+            for vm_node in vm_nodes:
+                data = vm_node.get("data", {})
+                element_id = data.get("elementId", "ubuntu")
+                vm_name = f"{deployment_id}-{element_id}-{uuid.uuid4().hex[:4]}"
+                deployed_vms.append({
+                    "name": vm_name,
+                    "vmid": f"proxmox-{uuid.uuid4().hex[:6]}",
+                    "status": "pending",
+                    "note": "Proxmox deployment not yet implemented"
+                })
+    
+    except Exception as e:
+        logger.error(f"Deployment error: {e}")
+        errors.append(str(e))
+    
     return {
-        "success": True,
-        "deployment_id": "deploy_123",
-        "status": "pending",
-        "message": "Deployment initiated"
+        "success": len(deployed_vms) > 0,
+        "deployment_id": deployment_id,
+        "status": "deploying" if deployed_vms else "failed",
+        "message": f"Deploying {len(deployed_vms)} VMs" if deployed_vms else "Deployment failed",
+        "vms": deployed_vms,
+        "errors": errors if errors else None
     }
 
 

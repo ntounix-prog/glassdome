@@ -286,6 +286,39 @@ DEPLOY_VM_PARAMS = {
     "required": ["name", "platform"]
 }
 
+SEND_EMAIL_PARAMS = {
+    "type": "object",
+    "properties": {
+        "to": {
+            "type": "array",
+            "items": {"type": "string"},
+            "description": "List of recipient email addresses"
+        },
+        "subject": {
+            "type": "string",
+            "description": "Email subject line"
+        },
+        "body": {
+            "type": "string",
+            "description": "Email body content (plain text)"
+        },
+        "from_address": {
+            "type": "string",
+            "description": "Sender email address (defaults to overseer@xisx.org)"
+        },
+        "cc": {
+            "type": "array",
+            "items": {"type": "string"},
+            "description": "Optional CC recipients"
+        },
+        "html_body": {
+            "type": "string",
+            "description": "Optional HTML version of the email body"
+        }
+    },
+    "required": ["to", "subject", "body"]
+}
+
 TERMINATE_VM_PARAMS = {
     "type": "object",
     "properties": {
@@ -467,6 +500,19 @@ OVERSEER_TOOLS: List[ToolDefinition] = [
         parameters=TERMINATE_VM_PARAMS,
         requires_confirmation=True,
         category="control"
+    ),
+    
+    # Send Email Tool
+    ToolDefinition(
+        name="send_email",
+        description=(
+            "Send an email notification or status update. Use this when the operator asks to "
+            "send an email, notify someone, or send status updates. Emails are sent from "
+            "the Glassdome mail server (xisx.org domain)."
+        ),
+        parameters=SEND_EMAIL_PARAMS,
+        requires_confirmation=True,
+        category="communication"
     ),
     
     # Platform Status Tool
