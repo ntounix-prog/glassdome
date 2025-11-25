@@ -124,9 +124,9 @@ class WindowsInstallerAgent(BaseAgent):
             # Use template-based deployment if template_id provided (RECOMMENDED)
             # Otherwise fall back to ISO-based (unreliable)
             if not windows_config.get("template_id"):
-                # Try to get from config if available
-                from glassdome.core.config import Settings
-                settings = Settings()
+                # Try to get from session-aware config if available
+                from glassdome.core.security import get_secure_settings
+                settings = get_secure_settings()
                 if settings.windows_server2022_template_id:
                     windows_config["template_id"] = settings.windows_server2022_template_id
                     logger.info(f"Using Windows template ID from config: {settings.windows_server2022_template_id}")

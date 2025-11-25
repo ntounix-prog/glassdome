@@ -15,7 +15,7 @@ import asyncio
 from contextlib import asynccontextmanager
 
 from glassdome.overseer.entity import OverseerEntity
-from glassdome.core.config import Settings
+from glassdome.core.security import get_secure_settings
 
 
 # Pydantic models for API
@@ -56,7 +56,9 @@ async def lifespan(app: FastAPI):
     global overseer
     
     print("\n🚀 Starting Overseer Service...")
-    overseer = OverseerEntity(Settings())
+    # Ensure security context and get Settings from authenticated session
+    settings = get_secure_settings()
+    overseer = OverseerEntity(settings)
     
     # Start overseer in background
     overseer_task = asyncio.create_task(overseer.run())

@@ -14,7 +14,9 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 try:
-    from glassdome.core.config import settings
+    from glassdome.core.security import ensure_security_context, get_secure_settings
+ensure_security_context()
+settings = get_secure_settings()
     from glassdome.platforms.proxmox_factory import get_proxmox_client
 except ImportError as e:
     print(f"❌ Import error: {e}")

@@ -701,7 +701,6 @@ class ESXiClient(PlatformClient):
         Returns:
             Dict with vm_id and ip_address
         """
-        from glassdome.core.config import settings
         from glassdome.utils.ip_pool import get_ip_pool_manager
         
         name = config.get("name", f"windows-vm-{int(time.time())}")
@@ -747,7 +746,7 @@ class ESXiClient(PlatformClient):
         autounattend_xml = generate_autounattend_xml(autounattend_config)
         
         # Create autounattend ISO locally
-        glassdome_root = Path(settings.glassdome_root) if hasattr(settings, 'glassdome_root') else Path.cwd()
+        glassdome_root = Path.cwd()  # Use current working directory
         autounattend_iso_path = glassdome_root / "isos" / "custom" / f"autounattend-{name}.iso"
         autounattend_iso_path.parent.mkdir(parents=True, exist_ok=True)
         create_autounattend_iso(autounattend_xml, autounattend_iso_path)

@@ -43,7 +43,7 @@ class SecretsManager:
         except Exception:
             return False
     
-    def _get_master_key(self) -> bytes:
+    def _get_master_key(self, password: Optional[str] = None) -> bytes:
         """Get or prompt for master key."""
         if self._master_key:
             return self._master_key
@@ -64,8 +64,9 @@ class SecretsManager:
             # Master key is stored encrypted with a derived key from user input
             master_key_encrypted_path = self.FALLBACK_STORE_PATH.parent / "master_key.enc"
             if master_key_encrypted_path.exists():
-                # Prompt for password to decrypt master key
-                password = getpass.getpass("Enter master password for secrets: ")
+                # Use provided password or prompt
+                if password is None:
+                    password = getpass.getpass("Enter master password for secrets: ")
                 try:
                     with open(master_key_encrypted_path, 'rb') as f:
                         salt = f.read(16)
@@ -183,7 +184,22 @@ class SecretsManager:
             return None
         
         try:
-            self._get_master_key()
+            # Only get master key if not already loaded
+            # If master key is not loaded, return None (don't prompt here - let session handle it)
+            if not self._master_key:
+                # Check if we can get it from keyring without prompting
+                if self._use_keyring:
+                    stored_key = keyring.get_password(self.SERVICE_NAME, self.MASTER_KEY_NAME)
+                    if stored_key:
+                        try:
+                            self._master_key = base64.b64decode(stored_key)
+                        except Exception:
+                            return None
+                    else:
+                        return None  # No master key in keyring, return None
+                else:
+                    return None  # Master key not loaded and not in keyring, return None (don't prompt)
+            
             secrets = self._load_fallback_secrets()
             if key not in secrets:
                 return None
@@ -267,76 +283,144 @@ class SecretsManager:
         with open(registry_path, 'w') as f:
             json.dump(list(secrets.keys()), f, indent=2)
     
-    def migrate_from_env(self, env_file: Path) -> Dict[str, bool]:
+    def migrate_from_env(self, env_file: Path = None, include_bashrc: bool = True, include_environment: bool = True) -> Dict[str, bool]:
         """
-        Migrate secrets from .env file to secure store.
+        Migrate secrets from .env file, .bashrc, and environment variables to secure store.
         
         Args:
-            env_file: Path to .env file
+            env_file: Path to .env file (optional, defaults to .env in current directory)
+            include_bashrc: Whether to check ~/.bashrc for API keys
+            include_environment: Whether to check os.environ for API keys
             
         Returns:
             Dictionary mapping secret keys to migration success status
         """
-        if not env_file.exists():
-            return {}
+        import os
+        import re
         
-        # Define which .env keys are secrets
-        secret_keys = {
+        # Define which keys are secrets (both .env and environment variable names)
+        secret_key_mappings = {
+            # Proxmox
             'PROXMOX_PASSWORD': 'proxmox_password',
             'PROXMOX_TOKEN_VALUE': 'proxmox_token_value',
-            'PROXMOX_ADMIN_PASSWD': 'proxmox_admin_passwd',
-            'PROXMOX_TOKEN_VALUE_02': 'proxmox_token_value_02',
-            'PROXMOX_TOKEN_VALUE_03': 'proxmox_token_value_03',
+            'PROXMOX_ADMIN_PASSWD': 'proxmox_password',  # Map to proxmox_password for consistency
+            # ESXi
             'ESXI_PASSWORD': 'esxi_password',
+            # Azure
             'AZURE_CLIENT_SECRET': 'azure_client_secret',
+            # AWS
             'AWS_SECRET_ACCESS_KEY': 'aws_secret_access_key',
+            # AI Model API Keys
             'OPENAI_API_KEY': 'openai_api_key',
             'ANTHROPIC_API_KEY': 'anthropic_api_key',
+            'XAI_API_KEY': 'xai_api_key',
+            'PERPLEXITY_API_KEY': 'perplexity_api_key',
+            'RAPIDAPI_KEY': 'rapidapi_key',
+            'GOOGLE_SEARCH_API_KEY': 'google_search_api_key',
+            'GOOGLE_SEARCH_API': 'google_search_api_key',  # Alternative name in .bashrc
+            'GOOGLE_ENGINE_ID': 'google_engine_id',
+            # Mailcow
             'MAIL_API': 'mail_api',
+            # JWT
             'SECRET_KEY': 'secret_key',
         }
         
-        # Also match any PROXMOX_TOKEN_VALUE_XX pattern
-        import re
+        # Pattern for PROXMOX_TOKEN_VALUE_XX
         token_pattern = re.compile(r'^PROXMOX_TOKEN_VALUE_(\d+)$')
         
         results = {}
-        env_secrets = {}
+        all_secrets = {}
         
-        # Parse .env file
-        with open(env_file) as f:
-            for line in f:
-                line = line.strip()
-                if not line or line.startswith('#'):
-                    continue
-                if '=' in line:
-                    key, value = line.split('=', 1)
-                    key = key.strip()
-                    value = value.strip().strip('"').strip("'")
-                    
-                    # Check if it's a known secret
-                    if key in secret_keys:
-                        env_secrets[secret_keys[key]] = value
-                    # Check for PROXMOX_TOKEN_VALUE_XX pattern
-                    elif token_pattern.match(key):
-                        match = token_pattern.match(key)
-                        instance_id = match.group(1)
-                        env_secrets[f'proxmox_token_value_{instance_id}'] = value
-                    # Check for database password in DATABASE_URL
-                    elif key == 'DATABASE_URL' and ':' in value and '@' in value:
-                        # Extract password from postgresql://user:password@host/db
-                        try:
-                            parts = value.split('@')[0].split('://')[1]
-                            if ':' in parts:
-                                password = parts.split(':')[1]
-                                if password:
-                                    env_secrets['database_password'] = password
-                        except Exception:
-                            pass
+        # 1. Parse .env file if it exists
+        if env_file is None:
+            env_file = Path(".env")
+        
+        if env_file.exists():
+            with open(env_file) as f:
+                for line in f:
+                    line = line.strip()
+                    if not line or line.startswith('#'):
+                        continue
+                    if '=' in line:
+                        key, value = line.split('=', 1)
+                        key = key.strip()
+                        value = value.strip().strip('"').strip("'")
+                        
+                        # Check if it's a known secret
+                        if key in secret_key_mappings:
+                            all_secrets[secret_key_mappings[key]] = value
+                        # Check for PROXMOX_TOKEN_VALUE_XX pattern
+                        elif token_pattern.match(key):
+                            match = token_pattern.match(key)
+                            instance_id = match.group(1)
+                            all_secrets[f'proxmox_token_value_{instance_id}'] = value
+                        # Check for database password in DATABASE_URL
+                        elif key == 'DATABASE_URL' and ':' in value and '@' in value:
+                            try:
+                                parts = value.split('@')[0].split('://')[1]
+                                if ':' in parts:
+                                    password = parts.split(':')[1]
+                                    if password and password not in ['glassdome', '']:
+                                        all_secrets['database_password'] = password
+                            except Exception:
+                                pass
+        
+        # 2. Check environment variables (os.environ)
+        if include_environment:
+            for env_key, secret_key in secret_key_mappings.items():
+                env_value = os.getenv(env_key)
+                if env_value and env_value not in ['', 'your-key-here-replace-this']:
+                    # Only add if not already found in .env (env vars take precedence)
+                    if secret_key not in all_secrets or not all_secrets[secret_key]:
+                        all_secrets[secret_key] = env_value
+            
+            # Check for PROXMOX_TOKEN_VALUE_XX in environment
+            for key in os.environ.keys():
+                match = token_pattern.match(key)
+                if match:
+                    instance_id = match.group(1)
+                    secret_key = f'proxmox_token_value_{instance_id}'
+                    value = os.getenv(key)
+                    if value and (secret_key not in all_secrets or not all_secrets[secret_key]):
+                        all_secrets[secret_key] = value
+        
+        # 3. Check .bashrc for API keys
+        if include_bashrc:
+            bashrc_path = Path.home() / ".bashrc"
+            if bashrc_path.exists():
+                with open(bashrc_path) as f:
+                    for line in f:
+                        line = line.strip()
+                        if not line or line.startswith('#'):
+                            continue
+                        # Look for export KEY="value" or export KEY='value' or export KEY=value
+                        if line.startswith('export ') and '=' in line:
+                            # Remove 'export ' prefix
+                            line = line[7:].strip()
+                            if '=' in line:
+                                key, value = line.split('=', 1)
+                                key = key.strip()
+                                value = value.strip().strip('"').strip("'")
+                                
+                                # Check if it's a known secret
+                                if key in secret_key_mappings:
+                                    secret_key = secret_key_mappings[key]
+                                    # Only add if not already found (.env takes precedence)
+                                    if secret_key not in all_secrets or not all_secrets[secret_key]:
+                                        if value and value not in ['', 'your-key-here-replace-this']:
+                                            all_secrets[secret_key] = value
+                                # Check for PROXMOX_TOKEN_VALUE_XX pattern
+                                elif token_pattern.match(key):
+                                    match = token_pattern.match(key)
+                                    instance_id = match.group(1)
+                                    secret_key = f'proxmox_token_value_{instance_id}'
+                                    if secret_key not in all_secrets or not all_secrets[secret_key]:
+                                        if value:
+                                            all_secrets[secret_key] = value
         
         # Migrate each secret
-        for secret_key, secret_value in env_secrets.items():
-            if secret_value:
+        for secret_key, secret_value in all_secrets.items():
+            if secret_value and secret_value not in ['', 'your-key-here-replace-this']:
                 try:
                     success = self.set_secret(secret_key, secret_value)
                     results[secret_key] = success

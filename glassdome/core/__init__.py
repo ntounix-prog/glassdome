@@ -1,7 +1,15 @@
 """
-Core utilities and configuration for Glassdome
-
-This package contains core functionality used across the application.
+Core Glassdome modules
 """
+from glassdome.core.session import get_session, require_session, GlassdomeSession
+from glassdome.core.config import settings, Settings
+from glassdome.core.secrets import get_secrets_manager
 
-__all__ = []  # Core utilities are imported directly, not exported as a group
+__all__ = [
+    'get_session',
+    'require_session',
+    'GlassdomeSession',
+    'settings',
+    'Settings',
+    'get_secrets_manager',
+]

@@ -1,0 +1,11 @@
+#!/bin/bash
+#
+# Glassdome Quick Start (from project root)
+#
+# Usage: 
+#   ./glassdome_start          # Initialize session only
+#   ./glassdome_start --serve  # Initialize and start API server
+#
+
+exec "$(dirname "$0")/scripts/start_glassdome.sh" "$@"
+

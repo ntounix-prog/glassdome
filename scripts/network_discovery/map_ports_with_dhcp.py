@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """
 Map switch ports to devices using MAC address tables and DHCP leases
+
+Uses secure secrets management for credentials.
 """
 
 import sys
@@ -11,24 +13,21 @@ import requests
 from datetime import datetime
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../..'))
 
-def read_env_config():
-    """Read configuration from .env file"""
-    env_file = '/home/nomad/glassdome/.env'
-    config = {}
-    if os.path.exists(env_file):
-        with open(env_file) as f:
-            for line in f:
-                line = line.strip()
-                if line and not line.startswith('#') and '=' in line:
-                    key, value = line.split('=', 1)
-                    config[key.strip()] = value.strip()
-    return config
+from glassdome.core.security import ensure_security_context, get_secure_settings
+
+
+def get_ubiquiti_config():
+    """Get Ubiquiti configuration from secure settings."""
+    ensure_security_context()
+    settings = get_secure_settings()
+    return settings.get_ubiquiti_config()
+
 
 def get_unifi_clients():
     """Get active clients from UniFi gateway"""
-    config = read_env_config()
-    base_url = "https://192.168.2.1"
-    api_key = config.get('UBIQUITY_KEY', '')
+    config = get_ubiquiti_config()
+    base_url = f"https://{config.get('host', '192.168.2.1')}"
+    api_key = config.get('api_key', '')
     site_id = "default"
     
     session = requests.Session()

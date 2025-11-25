@@ -16,7 +16,9 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from glassdome.core.config import settings
+from glassdome.core.security import ensure_security_context, get_secure_settings
+ensure_security_context()
+settings = get_secure_settings()
 from glassdome.platforms.proxmox_client import ProxmoxClient
 from glassdome.utils.windows_autounattend import generate_autounattend_xml, create_autounattend_floppy
 from glassdome.utils.ip_pool import get_ip_pool_manager

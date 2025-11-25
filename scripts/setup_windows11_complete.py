@@ -11,7 +11,9 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from glassdome.core.config import settings
+from glassdome.core.security import ensure_security_context, get_secure_settings
+ensure_security_context()
+settings = get_secure_settings()
 from glassdome.core.ssh_client import SSHClient
 from glassdome.platforms.proxmox_client import ProxmoxClient
 from glassdome.utils.windows_autounattend import generate_autounattend_xml, create_autounattend_floppy
@@ -131,10 +133,12 @@ async def upload_iso_to_proxmox(local_path, proxmox_client, proxmox_host, passwo
     # SSH always uses root, not the API user
     ssh_username = "root"
     
-    # Use password from parameter, settings, or environment variable
+    # Use password from parameter, settings (secrets manager), or environment variable
     import os
+    root_password = settings.proxmox_root_password or settings.proxmox_password
     ssh_password = (
         password or 
+        root_password or
         settings.proxmox_password or 
         os.getenv('PROXMOX_PASSWORD') or 
         os.getenv('PROXMOX_ROOT_PASSWORD') or

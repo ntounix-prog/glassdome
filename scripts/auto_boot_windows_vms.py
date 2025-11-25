@@ -10,7 +10,9 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from glassdome.core.config import settings
+from glassdome.core.security import ensure_security_context, get_secure_settings
+ensure_security_context()
+settings = get_secure_settings()
 
 
 def get_vnc_info(proxmox_host: str, vmid: int):
@@ -73,7 +75,9 @@ def send_key_via_vnc(vmid: int, wait_time: int = 8):
         
         # Check if we have SSH access
         import os
-        ssh_password = os.getenv('PROXMOX_PASSWORD') or os.getenv('PROXMOX_ROOT_PASSWORD')
+        # Use session-aware settings (automatically uses secrets manager)
+        proxmox_config = settings.get_proxmox_config("01")
+        ssh_password = proxmox_config.get("password") or settings.proxmox_root_password
         
         if ssh_password:
             cmd = f"sshpass -p '{ssh_password}' ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null root@{settings.proxmox_host} 'qm monitor {vmid} --command \"sendkey ret\"'"

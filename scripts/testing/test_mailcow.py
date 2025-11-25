@@ -13,8 +13,10 @@ from datetime import datetime
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
+from glassdome.core.security import ensure_security_context, get_secure_settings
+ensure_security_context()
+
 from glassdome.agents.mailcow_agent import MailcowAgent
-from glassdome.core.config import Settings
 
 logging.basicConfig(
     level=logging.INFO,
@@ -26,8 +28,8 @@ logger = logging.getLogger(__name__)
 async def test_mailcow_agent():
     """Test Mailcow agent operations"""
     
-    # Load settings
-    settings = Settings()
+    # Load session-aware settings
+    settings = get_secure_settings()
     
     if not settings.mail_api:
         logger.error("❌ Mailcow API token not configured. Check .env file.")

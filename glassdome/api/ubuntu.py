@@ -10,7 +10,6 @@ import logging
 from glassdome.agents.ubuntu_installer import UbuntuInstallerAgent
 from glassdome.agents.manager import agent_manager
 from glassdome.platforms.proxmox_client import ProxmoxClient
-from glassdome.core.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -83,7 +82,9 @@ def get_ubuntu_agent(proxmox_instance: str = "01") -> UbuntuInstallerAgent:
     global _ubuntu_agent
     
     # For now, create agent per call (can be optimized with caching per instance)
-    # Check if Proxmox is configured
+    # Check if Proxmox is configured (using session-aware settings)
+    from glassdome.core.security import get_secure_settings
+    settings = get_secure_settings()
     config = settings.get_proxmox_config(proxmox_instance)
     if not config.get("host"):
         raise HTTPException(

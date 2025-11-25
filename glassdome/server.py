@@ -1,9 +1,13 @@
 """
 Glassdome Server - FastAPI Application Entry Point
-Separated from main.py to allow package imports
+
+Separated from main.py to allow package imports and to perform
+security bootstrap before running the app.
 """
+
 from glassdome.main import app
 from glassdome.core.config import settings
+from glassdome.core.security import ensure_security_context
 
 
 def run(host: str = "0.0.0.0", port: int = None):
@@ -12,17 +16,22 @@ def run(host: str = "0.0.0.0", port: int = None):
     
     Args:
         host: Host to bind to
-        port: Port to bind to (defaults to settings.backend_port or 8001)
+        port: Port to bind to (defaults to settings.backend_port or 8010)
     """
     import uvicorn
+
+    # Ensure this process has a valid security context (no prompts here).
+    # If the session hasn't been initialized on this host/user, this will
+    # raise with guidance to run ./glassdome_start or login via API.
+    ensure_security_context()
     
-    port = port or getattr(settings, 'backend_port', 8001)
+    port = port or getattr(settings, "backend_port", 8010)
     
     uvicorn.run(
         app,
         host=host,
         port=port,
-        log_level="info"
+        log_level="info",
     )
 
 

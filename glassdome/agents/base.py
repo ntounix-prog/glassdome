@@ -36,6 +36,7 @@ class BaseAgent(ABC):
         self.status = AgentStatus.IDLE
         self.context: Dict[str, Any] = {}
         self.error: Optional[str] = None
+        self._session_checked = False
         
     @abstractmethod
     async def execute(self, task: Dict[str, Any]) -> Dict[str, Any]:
@@ -76,6 +77,27 @@ class BaseAgent(ABC):
             self.status = AgentStatus.FAILED
             self.error = result.get("error")
         logger.info(f"Agent {self.agent_id} completed with status {self.status}")
+    
+    def _check_session(self) -> None:
+        """
+        Check if Glassdome session is authenticated before agent execution.
+        
+        This check is fast and only validates the session exists and is valid.
+        No password prompt - session must be initialized once per day.
+        """
+        # Check session validity (fast check, no password prompt)
+        try:
+            from glassdome.core.session import require_session
+            require_session()  # Just checks if authenticated, doesn't prompt
+            self._session_checked = True
+        except RuntimeError as e:
+            raise RuntimeError(
+                f"Agent {self.agent_id} cannot execute: Session not authenticated.\n"
+                "Please initialize Glassdome session first:\n"
+                "  python scripts/glassdome_init.py\n"
+                "  OR\n"
+                "  session = get_session(); session.initialize()"
+            )
     
     async def run(self, task: Dict[str, Any]) -> Dict[str, Any]:
         """

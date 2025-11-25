@@ -5,11 +5,16 @@ Creates ProxmoxClient instances for specific Proxmox instances.
 Supports multiple Proxmox platforms with instance selection.
 """
 from typing import Optional
-from glassdome.core.config import settings
 from glassdome.platforms.proxmox_client import ProxmoxClient
 import logging
 
 logger = logging.getLogger(__name__)
+
+
+def _get_settings():
+    """Get settings from session (lazy load to avoid premature initialization)."""
+    from glassdome.core.security import get_secure_settings
+    return get_secure_settings()
 
 
 def get_proxmox_client(instance_id: str = "01", default_node: Optional[str] = None, default_storage: str = "local-lvm") -> ProxmoxClient:
@@ -28,7 +33,8 @@ def get_proxmox_client(instance_id: str = "01", default_node: Optional[str] = No
     Raises:
         ValueError: If instance is not configured or missing required credentials
     """
-    # Get configuration for this instance
+    # Get configuration for this instance (using session-aware settings)
+    settings = _get_settings()
     config = settings.get_proxmox_config(instance_id)
     
     # Validate required fields
@@ -72,5 +78,6 @@ def list_available_proxmox_instances() -> list[str]:
     Returns:
         List of instance IDs (e.g., ["01", "02"])
     """
+    settings = _get_settings()
     return settings.list_proxmox_instances()
 

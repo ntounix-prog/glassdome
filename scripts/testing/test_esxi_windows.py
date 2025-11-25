@@ -9,7 +9,9 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
 
 from glassdome.agents.windows_installer import WindowsInstallerAgent
 from glassdome.platforms.esxi_client import ESXiClient
-from glassdome.core.config import settings
+from glassdome.core.security import ensure_security_context, get_secure_settings
+ensure_security_context()
+settings = get_secure_settings()
 import logging
 
 logging.basicConfig(level=logging.INFO)

@@ -2,6 +2,8 @@
 """
 Discover network topology and configuration on Nexus 3064 switch
 Uses legacy SSH algorithms (ssh-rsa) required by older Nexus devices
+
+Uses secure secrets management for credentials.
 """
 
 import sys
@@ -12,18 +14,14 @@ import subprocess
 from datetime import datetime
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../..'))
 
-def read_env_config():
-    """Read configuration from .env file"""
-    env_file = '/home/nomad/glassdome/.env'
-    config = {}
-    if os.path.exists(env_file):
-        with open(env_file) as f:
-            for line in f:
-                line = line.strip()
-                if line and not line.startswith('#') and '=' in line:
-                    key, value = line.split('=', 1)
-                    config[key.strip()] = value.strip()
-    return config
+from glassdome.core.security import ensure_security_context, get_secure_settings
+
+
+def get_nexus_3064_config():
+    """Get Nexus 3064 configuration from secure settings."""
+    ensure_security_context()
+    settings = get_secure_settings()
+    return settings.get_nexus_3064_config()
 
 async def execute_nexus_command(host: str, username: str, password: str, command: str, description: str):
     """Execute a command on Nexus switch using SSH with legacy algorithms"""
@@ -66,11 +64,17 @@ async def discover_nexus_3064():
     print("Nexus 3064 Network Discovery")
     print("="*60)
     
-    config = read_env_config()
+    # Get secure configuration
+    config = get_nexus_3064_config()
     
-    host = config.get('NEXUS_3064_HOST', '192.168.2.244')
-    username = config.get('NEXUS_3064_USER', 'admin')
-    password = config.get('NEXUS_3064_PASSWORD', '')
+    if not config.get('host') or not config.get('password'):
+        print("❌ Nexus 3064 not configured or credentials missing")
+        print("   Ensure nexus_3064_host and nexus_3064_password are set")
+        return None
+    
+    host = config['host']
+    username = config.get('user', 'admin')
+    password = config['password']
     
     discovery_data = {
         "timestamp": datetime.now().isoformat(),

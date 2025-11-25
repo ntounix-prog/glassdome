@@ -11,6 +11,7 @@ from typing import List, Dict, Any
 import os
 
 from glassdome.core.config import settings
+from glassdome.core.session import get_session
 from glassdome.core.database import get_db, init_db
 from glassdome.agents.manager import agent_manager
 from glassdome.orchestration import OrchestrationEngine
@@ -19,6 +20,7 @@ from glassdome.orchestration import OrchestrationEngine
 from glassdome.api.ubuntu import router as ubuntu_router
 from glassdome.api.labs import router as labs_router
 from glassdome.api.ansible import router as ansible_router
+from glassdome.api import auth
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -40,6 +42,7 @@ app.add_middleware(
 app.include_router(ubuntu_router, prefix=settings.api_prefix)
 app.include_router(labs_router)
 app.include_router(ansible_router)
+app.include_router(auth.router)
 
 
 # Startup and shutdown events
@@ -100,7 +103,7 @@ async def list_labs():
     }
 
 
-@app.get(f"{settings.api_prefix}/labs/{lab_id}")
+@app.get(settings.api_prefix + "/labs/{lab_id}")
 async def get_lab(lab_id: str):
     """Get lab configuration by ID"""
     # TODO: Implement lab retrieval
@@ -111,7 +114,7 @@ async def get_lab(lab_id: str):
     }
 
 
-@app.put(f"{settings.api_prefix}/labs/{lab_id}")
+@app.put(settings.api_prefix + "/labs/{lab_id}")
 async def update_lab(lab_id: str, lab_data: Dict[str, Any]):
     """Update lab configuration"""
     # TODO: Implement lab update
@@ -121,7 +124,7 @@ async def update_lab(lab_id: str, lab_data: Dict[str, Any]):
     }
 
 
-@app.delete(f"{settings.api_prefix}/labs/{lab_id}")
+@app.delete(settings.api_prefix + "/labs/{lab_id}")
 async def delete_lab(lab_id: str):
     """Delete a lab configuration"""
     # TODO: Implement lab deletion
@@ -163,7 +166,7 @@ async def list_deployments():
     }
 
 
-@app.get(f"{settings.api_prefix}/deployments/{deployment_id}")
+@app.get(settings.api_prefix + "/deployments/{deployment_id}")
 async def get_deployment(deployment_id: str):
     """Get deployment status and details"""
     # TODO: Implement deployment retrieval
@@ -175,7 +178,7 @@ async def get_deployment(deployment_id: str):
     }
 
 
-@app.post(f"{settings.api_prefix}/deployments/{deployment_id}/stop")
+@app.post(settings.api_prefix + "/deployments/{deployment_id}/stop")
 async def stop_deployment(deployment_id: str):
     """Stop all resources in a deployment"""
     # TODO: Implement deployment stop
@@ -185,7 +188,7 @@ async def stop_deployment(deployment_id: str):
     }
 
 
-@app.delete(f"{settings.api_prefix}/deployments/{deployment_id}")
+@app.delete(settings.api_prefix + "/deployments/{deployment_id}")
 async def destroy_deployment(deployment_id: str):
     """Destroy a deployment and all its resources"""
     # TODO: Implement deployment destruction
@@ -219,7 +222,7 @@ async def add_platform(platform_data: Dict[str, Any]):
     }
 
 
-@app.post(f"{settings.api_prefix}/platforms/{platform_id}/test")
+@app.post(settings.api_prefix + "/platforms/{platform_id}/test")
 async def test_platform(platform_id: str):
     """Test connection to a platform"""
     # TODO: Implement platform testing
@@ -253,7 +256,7 @@ async def list_templates():
     }
 
 
-@app.get(f"{settings.api_prefix}/templates/{template_id}")
+@app.get(settings.api_prefix + "/templates/{template_id}")
 async def get_template(template_id: str):
     """Get template details"""
     # TODO: Implement template retrieval
@@ -282,7 +285,7 @@ async def get_agents_status():
     return status
 
 
-@app.get(f"{settings.api_prefix}/agents/{agent_id}")
+@app.get(settings.api_prefix + "/agents/{agent_id}")
 async def get_agent(agent_id: str):
     """Get specific agent details"""
     agent = agent_manager.get_agent(agent_id)

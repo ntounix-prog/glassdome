@@ -18,9 +18,11 @@ from pathlib import Path
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
+from glassdome.core.security import ensure_security_context
+ensure_security_context()
+
 from glassdome.overseer.entity import OverseerEntity
 from glassdome.overseer.state import SystemState, VM, VMStatus
-from glassdome.core.config import Settings
 
 
 async def test_request_gating():
@@ -29,7 +31,7 @@ async def test_request_gating():
     print("TEST 1: Request Gating")
     print("="*70)
     
-    overseer = OverseerEntity(Settings())
+    overseer = OverseerEntity()
     
     # Test 1: Valid deploy request
     print("\n📥 Submitting valid deploy_vm request...")
@@ -88,7 +90,7 @@ async def test_state_management():
     print("TEST 2: State Management")
     print("="*70)
     
-    overseer = OverseerEntity(Settings())
+    overseer = OverseerEntity()
     
     # Add a VM
     test_vm = VM(
@@ -129,7 +131,7 @@ async def test_execution_flow():
     print("TEST 3: Execution Flow")
     print("="*70)
     
-    overseer = OverseerEntity(Settings())
+    overseer = OverseerEntity()
     
     # Submit a request
     result = await overseer.receive_request(
@@ -174,7 +176,7 @@ async def test_api_compatibility():
     print("TEST 4: API Compatibility")
     print("="*70)
     
-    overseer = OverseerEntity(Settings())
+    overseer = OverseerEntity()
     
     # Simulate API request format
     api_request = {
@@ -217,7 +219,7 @@ async def test_missing_implementation():
     print("TEST 5: Implementation Gaps")
     print("="*70)
     
-    overseer = OverseerEntity(Settings())
+    overseer = OverseerEntity()
     
     gaps = []
     

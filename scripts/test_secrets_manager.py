@@ -79,7 +79,9 @@ def test_settings_integration():
     print("  Testing Settings Integration")
     print("=" * 70 + "\n")
     
-    from glassdome.core.config import settings
+    from glassdome.core.security import ensure_security_context, get_secure_settings
+ensure_security_context()
+settings = get_secure_settings()
     from glassdome.core.secrets import get_secrets_manager
     
     try:
@@ -116,7 +118,9 @@ def test_backward_compatibility():
     print("  Testing Backward Compatibility")
     print("=" * 70 + "\n")
     
-    from glassdome.core.config import settings
+    from glassdome.core.security import ensure_security_context, get_secure_settings
+ensure_security_context()
+settings = get_secure_settings()
     
     try:
         # Settings should still work even if secrets manager is empty

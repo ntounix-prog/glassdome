@@ -26,7 +26,7 @@ class Settings(BaseSettings):
     
     # API - Changed default port to avoid conflicts
     api_prefix: str = "/api"
-    backend_port: int = 8001
+    backend_port: int = 8010
     vite_port: int = 5174
     backend_cors_origins: list = ["http://localhost:5174", "http://localhost:3000"]
     
@@ -57,6 +57,7 @@ class Settings(BaseSettings):
     # Legacy/alternative Proxmox variable names (for compatibility)
     proxmox_admin: Optional[str] = None  # Alternative to proxmox_user
     proxmox_admin_passwd: Optional[str] = None  # Alternative to proxmox_password
+    proxmox_root_password: Optional[str] = None  # Root password for SSH access to Proxmox host
     
     @model_validator(mode='after')
     def _load_secrets_from_manager(self):
@@ -71,21 +72,56 @@ class Settings(BaseSettings):
         
         # Override with secrets manager values if available
         secret_mappings = {
+            # Core security
             'secret_key': 'secret_key',
+            
+            # Proxmox
             'proxmox_password': 'proxmox_password',
             'proxmox_token_value': 'proxmox_token_value',
+            'proxmox_root_password': 'proxmox_root_password',
+            
+            # ESXi
             'esxi_password': 'esxi_password',
+            
+            # Cloud providers
             'azure_client_secret': 'azure_client_secret',
+            'aws_access_key_id': 'aws_access_key_id',
             'aws_secret_access_key': 'aws_secret_access_key',
+            
+            # AI/LLM API keys
             'openai_api_key': 'openai_api_key',
             'anthropic_api_key': 'anthropic_api_key',
+            'xai_api_key': 'xai_api_key',
+            'perplexity_api_key': 'perplexity_api_key',
+            'rapidapi_key': 'rapidapi_key',
+            'google_search_api_key': 'google_search_api_key',
+            'google_engine_id': 'google_engine_id',
+            
+            # Mailcow
             'mail_api': 'mail_api',
+            
+            # Network devices - Cisco
+            'nexus_3064_password': 'nexus_3064_password',
+            'cisco_3850_password': 'cisco_3850_password',
+            
+            # Network devices - Ubiquiti
+            'ubiquiti_gateway_password': 'ubiquiti_gateway_password',
+            'ubiquiti_api_key': 'ubiquiti_api_key',
+            
+            # Default machine credentials
+            'windows_default_password': 'windows_default_password',
+            'linux_default_password': 'linux_default_password',
         }
         
         for field_name, secret_key in secret_mappings.items():
             secret_value = secrets.get_secret(secret_key)
             if secret_value:
                 setattr(self, field_name, secret_value)
+        
+        # Handle legacy proxmox_admin_passwd -> proxmox_password mapping
+        proxmox_admin_passwd = secrets.get_secret('proxmox_admin_passwd')
+        if proxmox_admin_passwd and not self.proxmox_password:
+            self.proxmox_password = proxmox_admin_passwd
         
         return self
     
@@ -160,16 +196,20 @@ class Settings(BaseSettings):
                 if "token_value" not in env_vars:
                     env_vars["token_value"] = value
         
-        # Check secrets manager for token_value
+        # Check secrets manager for token_value and password
         secrets = get_secrets_manager()
         token_secret_key = f"proxmox_token_value_{instance_id}"
         token_from_secrets = secrets.get_secret(token_secret_key)
         
-        # Build config dict
+        # Get password from secrets manager for this instance (if multi-instance)
+        password_secret_key = f"proxmox_password_{instance_id}" if instance_id != "01" else "proxmox_password"
+        password_from_secrets = secrets.get_secret(password_secret_key)
+        
+        # Build config dict (secrets manager takes priority)
         config = {
             "host": env_vars.get("host") or os.getenv(f"PROXMOX_{instance_id}_HOST"),
             "user": env_vars.get("user") or os.getenv(f"PROXMOX_{instance_id}_USER"),
-            "password": env_vars.get("password") or os.getenv(f"PROXMOX_{instance_id}_PASSWORD"),
+            "password": password_from_secrets or env_vars.get("password") or os.getenv(f"PROXMOX_{instance_id}_PASSWORD"),
             "token_name": env_vars.get("token_name") or os.getenv(f"PROXMOX_{instance_id}_TOKEN_NAME") or self.proxmox_token_name,
             "token_value": token_from_secrets or env_vars.get("token_value") or os.getenv(f"PROXMOX_TOKEN_VALUE_{instance_id}"),
             "verify_ssl": env_vars.get("verify_ssl", "false").lower() == "true" if env_vars.get("verify_ssl") else self.proxmox_verify_ssl,
@@ -241,6 +281,19 @@ class Settings(BaseSettings):
     # Anthropic
     anthropic_api_key: Optional[str] = None
     
+    # XAI (Grok)
+    xai_api_key: Optional[str] = None
+    
+    # Perplexity
+    perplexity_api_key: Optional[str] = None
+    
+    # RapidAPI
+    rapidapi_key: Optional[str] = None
+    
+    # Google Search API
+    google_search_api_key: Optional[str] = None
+    google_engine_id: Optional[str] = None
+    
     # Mailcow
     mail_api: Optional[str] = None  # Mailcow API Bearer token (from .env: MAIL_API)
     mailcow_api_url: Optional[str] = None  # Mailcow API URL (e.g., https://mail.xisx.org)
@@ -249,6 +302,143 @@ class Settings(BaseSettings):
     mailcow_smtp_host: Optional[str] = None  # Defaults to mail.{domain}
     mailcow_smtp_port: int = 587
     mailcow_verify_ssl: bool = False  # Disable SSL verification for self-signed certs
+    
+    # ===================================================
+    # Network Device Configuration
+    # ===================================================
+    
+    # Cisco Nexus 3064 (Datacenter Switch)
+    nexus_3064_host: Optional[str] = None
+    nexus_3064_user: Optional[str] = None
+    nexus_3064_password: Optional[str] = None
+    nexus_3064_ssh_port: int = 22
+    
+    # Cisco 3850-48 (POE Switch)
+    cisco_3850_host: Optional[str] = None
+    cisco_3850_user: Optional[str] = None
+    cisco_3850_password: Optional[str] = None
+    cisco_3850_ssh_port: int = 22
+    
+    # Ubiquiti Gateway
+    ubiquiti_gateway_host: Optional[str] = None
+    ubiquiti_gateway_user: Optional[str] = None
+    ubiquiti_gateway_password: Optional[str] = None
+    ubiquiti_access_method: str = "ssh"
+    ubiquiti_ssh_port: int = 22
+    ubiquiti_api_name: Optional[str] = None
+    ubiquiti_api_key: Optional[str] = None
+    
+    # ===================================================
+    # Machine Credentials (WinRM/SSH for deployed VMs)
+    # ===================================================
+    # These are default credentials for accessing deployed VMs
+    # Individual VM credentials can be stored with machine_cred_{hostname} pattern
+    
+    # Default Windows credentials (WinRM)
+    windows_default_user: str = "Administrator"
+    windows_default_password: Optional[str] = None
+    winrm_port: int = 5985
+    winrm_ssl_port: int = 5986
+    
+    # Default Linux credentials (SSH)
+    linux_default_user: str = "root"
+    linux_default_password: Optional[str] = None
+    linux_ssh_port: int = 22
+    
+    def get_cisco_3850_config(self) -> Dict[str, Any]:
+        """Get Cisco 3850 switch configuration."""
+        return {
+            "host": self.cisco_3850_host,
+            "user": self.cisco_3850_user,
+            "password": self.cisco_3850_password,
+            "port": self.cisco_3850_ssh_port,
+        }
+    
+    def get_nexus_3064_config(self) -> Dict[str, Any]:
+        """Get Cisco Nexus 3064 switch configuration."""
+        return {
+            "host": self.nexus_3064_host,
+            "user": self.nexus_3064_user,
+            "password": self.nexus_3064_password,
+            "port": self.nexus_3064_ssh_port,
+        }
+    
+    def get_ubiquiti_config(self) -> Dict[str, Any]:
+        """Get Ubiquiti gateway configuration."""
+        return {
+            "host": self.ubiquiti_gateway_host,
+            "user": self.ubiquiti_gateway_user,
+            "password": self.ubiquiti_gateway_password,
+            "access_method": self.ubiquiti_access_method,
+            "ssh_port": self.ubiquiti_ssh_port,
+            "api_name": self.ubiquiti_api_name,
+            "api_key": self.ubiquiti_api_key,
+        }
+    
+    def get_machine_credential(self, hostname: str, os_type: str = "linux") -> Dict[str, Any]:
+        """
+        Get credentials for a specific machine.
+        
+        First checks for machine-specific credentials (machine_cred_{hostname}),
+        then falls back to OS-specific defaults.
+        
+        Args:
+            hostname: Machine hostname or identifier
+            os_type: "linux" or "windows"
+            
+        Returns:
+            Dictionary with user, password, port
+        """
+        secrets = get_secrets_manager()
+        
+        # Try machine-specific credential first
+        machine_user_key = f"machine_cred_{hostname}_user"
+        machine_pass_key = f"machine_cred_{hostname}_password"
+        
+        machine_user = secrets.get_secret(machine_user_key)
+        machine_pass = secrets.get_secret(machine_pass_key)
+        
+        if machine_user and machine_pass:
+            port = self.winrm_port if os_type == "windows" else self.linux_ssh_port
+            return {
+                "user": machine_user,
+                "password": machine_pass,
+                "port": port,
+                "source": "machine_specific"
+            }
+        
+        # Fall back to OS defaults
+        if os_type == "windows":
+            return {
+                "user": self.windows_default_user,
+                "password": self.windows_default_password,
+                "port": self.winrm_port,
+                "source": "windows_default"
+            }
+        else:
+            return {
+                "user": self.linux_default_user,
+                "password": self.linux_default_password,
+                "port": self.linux_ssh_port,
+                "source": "linux_default"
+            }
+    
+    def set_machine_credential(self, hostname: str, user: str, password: str) -> bool:
+        """
+        Store credentials for a specific machine.
+        
+        Args:
+            hostname: Machine hostname or identifier
+            user: Username
+            password: Password
+            
+        Returns:
+            True if stored successfully
+        """
+        secrets = get_secrets_manager()
+        user_result = secrets.set_secret(f"machine_cred_{hostname}_user", user)
+        pass_result = secrets.set_secret(f"machine_cred_{hostname}_password", password)
+        return user_result and pass_result
 
 
 settings = Settings()

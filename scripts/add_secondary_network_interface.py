@@ -18,8 +18,9 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 # Import with error handling to avoid config validation issues
 try:
+    from glassdome.core.security import ensure_security_context, get_secure_settings
+    ensure_security_context()
     from glassdome.platforms.proxmox_factory import get_proxmox_client
-    from glassdome.core.config import Settings
 except Exception as e:
     # Fallback: direct Proxmox API import
     import os
@@ -289,7 +290,10 @@ async def verify_connectivity(source_ip: str, target_ip: str) -> bool:
 
 async def main():
     """Main configuration process"""
-    settings = Settings()
+    # Use session-aware settings
+    from glassdome.core.security import get_secure_settings
+    settings = get_secure_settings()
+    
     dry_run = "--execute" not in sys.argv
     
     if dry_run:
@@ -307,24 +311,17 @@ async def main():
     logger.info("")
     
     # Get Proxmox client (current Proxmox)
-    # Read config directly from .env to avoid validation issues
-    env_file = Path(__file__).parent.parent / ".env"
-    config = {}
-    if env_file.exists():
-        with open(env_file) as f:
-            for line in f:
-                if '=' in line and not line.strip().startswith('#'):
-                    key, value = line.split('=', 1)
-                    config[key.strip()] = value.strip()
+    # Use session-aware settings (automatically uses secrets manager)
+    proxmox_config = settings.get_proxmox_config("01")
     
     # Get Proxmox credentials - use instance 01 (current Proxmox at 10.0.0.1)
-    proxmox_host = config.get("PROXMOX_HOST", "10.0.0.1")
-    proxmox_user = config.get("PROXMOX_USER", "apex@pve")
-    proxmox_token_name = config.get("PROXMOX_TOKEN_NAME", "glassdome-token")
-    proxmox_token_value = config.get("PROXMOX_TOKEN_VALUE")
+    proxmox_host = proxmox_config.get("host", "10.0.0.1")
+    proxmox_user = proxmox_config.get("user", "apex@pve")
+    proxmox_token_name = proxmox_config.get("token_name", "glassdome-token")
+    proxmox_token_value = proxmox_config.get("token_value")
     
     # If token not found, try password
-    proxmox_password = config.get("PROXMOX_PASSWORD") or config.get("PROXMOX_ADMIN_PASSWD")
+    proxmox_password = proxmox_config.get("password")
     
     if not proxmox_host:
         logger.error("❌ Missing PROXMOX_HOST in .env")

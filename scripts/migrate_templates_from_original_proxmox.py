@@ -17,8 +17,10 @@ import time
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+from glassdome.core.security import ensure_security_context, get_secure_settings
+ensure_security_context()
+
 from glassdome.platforms.proxmox_factory import get_proxmox_client
-from glassdome.core.config import Settings
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -361,7 +363,7 @@ async def verify_template(target_proxmox, vm_id: int, node: str = "pve") -> Dict
 
 async def main():
     """Main migration process"""
-    settings = Settings()
+    settings = get_secure_settings()
     
     # Parse arguments
     dry_run = "--execute" not in sys.argv
@@ -410,7 +412,9 @@ async def main():
     try:
         original_proxmox = get_proxmox_client(instance_id=original_proxmox_instance)
         # Get node name from config
-        from glassdome.core.config import settings
+        from glassdome.core.security import ensure_security_context, get_secure_settings
+ensure_security_context()
+settings = get_secure_settings()
         original_config = settings.get_proxmox_config(original_proxmox_instance)
         original_node = original_config.get("node", "pve01")
         logger.info(f"✅ Connected to original Proxmox (node: {original_node})")
@@ -481,7 +485,9 @@ async def main():
     try:
         current_proxmox = get_proxmox_client(instance_id=current_proxmox_instance)
         # Get node name from config
-        from glassdome.core.config import settings
+        from glassdome.core.security import ensure_security_context, get_secure_settings
+ensure_security_context()
+settings = get_secure_settings()
         current_config = settings.get_proxmox_config(current_proxmox_instance)
         current_node = current_config.get("node", "pve02")
         logger.info(f"✅ Connected to current Proxmox (node: {current_node})")

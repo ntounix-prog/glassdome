@@ -10,7 +10,9 @@ from pathlib import Path
 # Add glassdome to path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from glassdome.core.config import settings
+from glassdome.core.security import ensure_security_context, get_secure_settings
+ensure_security_context()
+settings = get_secure_settings()
 from glassdome.agents.windows_installer import WindowsInstallerAgent
 from glassdome.platforms.aws_client import AWSClient
 from glassdome.platforms.azure_client import AzureClient

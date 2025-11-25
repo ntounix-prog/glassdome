@@ -813,7 +813,6 @@ class ProxmoxClient(PlatformClient):
         Returns:
             Dict with vm_id and ip_address
         """
-        from glassdome.core.config import settings
         from glassdome.utils.ip_pool import get_ip_pool_manager
         
         name = config.get("name", f"windows-vm-{vmid}")
@@ -1002,7 +1001,11 @@ class ProxmoxClient(PlatformClient):
             import paramiko
             ssh = paramiko.SSHClient()
             ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-            ssh.connect(self.host, username='root', password=self.password or os.getenv('PROXMOX_ROOT_PASSWORD', ''))
+            # Get root password from session-aware settings (secrets manager)
+            from glassdome.core.security import get_secure_settings
+            settings = get_secure_settings()
+            root_password = settings.proxmox_root_password or os.getenv('PROXMOX_ROOT_PASSWORD', '')
+            ssh.connect(self.host, username='root', password=self.password or root_password)
             
             # Upload floppy to Proxmox
             sftp = ssh.open_sftp()

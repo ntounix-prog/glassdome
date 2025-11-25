@@ -13,9 +13,11 @@ import subprocess
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+from glassdome.core.security import ensure_security_context, get_secure_settings
+ensure_security_context()
+
 from glassdome.agents.ubuntu_installer import UbuntuInstallerAgent
 from glassdome.platforms.proxmox_client import ProxmoxClient
-from glassdome.core.config import Settings
 import paramiko
 from typing import Optional
 
@@ -29,8 +31,8 @@ logger = logging.getLogger(__name__)
 async def deploy_redis_vulnerable():
     """Deploy Redis 8.2.1 vulnerable server"""
     
-    # Load settings
-    settings = Settings()
+    # Load session-aware settings
+    settings = get_secure_settings()
     
     if not settings.proxmox_host:
         logger.error("Proxmox credentials not configured. Check .env file.")

@@ -4,6 +4,8 @@ Configure default gateway on Cisco switches to enable routing back to agentX net
 
 This script sets the default gateway on both switches to 192.168.2.1 (UniFi gateway)
 so they can route traffic back to 192.168.3.0/24.
+
+Uses secure secrets management for credentials.
 """
 
 import sys
@@ -12,7 +14,7 @@ import asyncio
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../..'))
 
 from glassdome.core.ssh_client import SSHClient
-from glassdome.core.config import get_settings
+from glassdome.core.security import ensure_security_context, get_secure_settings
 
 async def configure_nexus_gateway(host: str, username: str, password: str, gateway: str = "192.168.2.1"):
     """Configure default gateway on Nexus 3064 (NX-OS)"""
@@ -142,16 +144,21 @@ async def configure_cisco3850_gateway(host: str, username: str, password: str, g
 
 async def main():
     """Main function"""
-    settings = get_settings()
+    # Initialize security context
+    ensure_security_context()
+    settings = get_secure_settings()
     
-    # Read switch credentials from environment
-    nexus_host = os.getenv('NEXUS_3064_HOST', '192.168.2.224')
-    nexus_user = os.getenv('NEXUS_3064_USER', 'admin')
-    nexus_password = os.getenv('NEXUS_3064_PASSWORD', '')
+    # Get switch credentials from secure settings
+    nexus_config = settings.get_nexus_3064_config()
+    cisco_config = settings.get_cisco_3850_config()
     
-    cisco_host = os.getenv('CISCO_3850_HOST', '192.168.2.253')
-    cisco_user = os.getenv('CISCO_3850_USER', 'admin')
-    cisco_password = os.getenv('CISCO_3850_PASSWORD', '')
+    nexus_host = nexus_config.get('host', '192.168.2.224')
+    nexus_user = nexus_config.get('user', 'admin')
+    nexus_password = nexus_config.get('password', '')
+    
+    cisco_host = cisco_config.get('host', '192.168.2.253')
+    cisco_user = cisco_config.get('user', 'admin')
+    cisco_password = cisco_config.get('password', '')
     
     gateway = "192.168.2.1"  # UniFi gateway
     

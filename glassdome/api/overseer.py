@@ -9,7 +9,6 @@ import logging
 
 from glassdome.agents.overseer import OverseerAgent
 from glassdome.platforms.proxmox_client import ProxmoxClient
-from glassdome.core.config import settings
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/overseer", tags=["overseer"])
@@ -23,6 +22,10 @@ def get_overseer() -> OverseerAgent:
     global overseer_instance
     
     if overseer_instance is None:
+        # Use session-aware settings for secrets
+        from glassdome.core.security import get_secure_settings
+        settings = get_secure_settings()
+        
         proxmox = ProxmoxClient(
             host=settings.proxmox_host,
             user=settings.proxmox_user,

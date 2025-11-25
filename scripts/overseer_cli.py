@@ -20,9 +20,11 @@ from pathlib import Path
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+from glassdome.core.security import ensure_security_context, get_secure_settings
+ensure_security_context()
+
 from glassdome.overseer import OverseerEntity
 from glassdome.overseer.state import SystemState, VM, VMStatus
-from glassdome.core.config import Settings
 
 
 def print_json(data):
@@ -92,7 +94,7 @@ async def cmd_vm(args):
 
 async def cmd_deploy(args):
     """Request VM deployment"""
-    overseer = OverseerEntity(Settings())
+    overseer = OverseerEntity()
     
     result = await overseer.receive_request(
         action='deploy_vm',
@@ -115,7 +117,7 @@ async def cmd_deploy(args):
 
 async def cmd_destroy(args):
     """Request VM destruction"""
-    overseer = OverseerEntity(Settings())
+    overseer = OverseerEntity()
     
     result = await overseer.receive_request(
         action='destroy_vm',

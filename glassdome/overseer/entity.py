@@ -21,7 +21,6 @@ from pathlib import Path
 from glassdome.overseer.state import SystemState, VM, Host, Service, PendingRequest, VMStatus, HostStatus
 from glassdome.knowledge import RAGHelper
 from glassdome.platforms import ProxmoxClient, ESXiClient, AWSClient, AzureClient
-from glassdome.core.config import Settings
 
 
 class OverseerEntity:
@@ -35,8 +34,11 @@ class OverseerEntity:
     - Learns from history
     """
     
-    def __init__(self, settings: Settings = None):
-        self.settings = settings or Settings()
+    def __init__(self, settings = None):
+        if settings is None:
+            from glassdome.core.security import get_secure_settings
+            settings = get_secure_settings()
+        self.settings = settings
         self.state = SystemState()
         self.rag = RAGHelper()
         

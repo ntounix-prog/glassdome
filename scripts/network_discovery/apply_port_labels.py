@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """
 Apply port labels to Cisco 3850 switch
+
+Uses secure secrets management for credentials.
 """
 
 import sys
@@ -9,33 +11,34 @@ import asyncio
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../..'))
 
 from glassdome.core.ssh_client import SSHClient
+from glassdome.core.security import ensure_security_context, get_secure_settings
 
-def read_env_config():
-    """Read configuration from .env file"""
-    env_file = '/home/nomad/glassdome/.env'
-    config = {}
-    if os.path.exists(env_file):
-        with open(env_file) as f:
-            for line in f:
-                line = line.strip()
-                if line and not line.startswith('#') and '=' in line:
-                    key, value = line.split('=', 1)
-                    config[key.strip()] = value.strip()
-    return config
+
+def get_cisco_3850_config():
+    """Get Cisco 3850 configuration from secure settings."""
+    ensure_security_context()
+    settings = get_secure_settings()
+    return settings.get_cisco_3850_config()
+
 
 async def apply_port_labels():
     """Apply port labels to Cisco 3850"""
-    config = read_env_config()
+    # Get secure configuration
+    config = get_cisco_3850_config()
     
     print("="*60)
     print("Applying Port Labels to Cisco 3850")
     print("="*60)
     
+    if not config.get('host') or not config.get('password'):
+        print("❌ Cisco 3850 not configured or credentials missing")
+        return {'success': False, 'labeled': [], 'failed': [('N/A', 'N/A', 'Missing credentials')]}
+    
     ssh = SSHClient(
-        host=config.get('CISCO_3850_HOST', '192.168.2.253'),
-        port=int(config.get('CISCO_3850_SSH_PORT', '22')),
-        username=config.get('CISCO_3850_USER', 'admin'),
-        password=config.get('CISCO_3850_PASSWORD', ''),
+        host=config['host'],
+        port=config.get('port', 22),
+        username=config.get('user', 'admin'),
+        password=config['password'],
         timeout=15
     )
     
