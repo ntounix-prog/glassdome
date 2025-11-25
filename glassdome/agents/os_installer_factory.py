@@ -5,8 +5,11 @@ Routes requests to the appropriate specialized agent
 from typing import Dict, Any, Optional
 import logging
 from glassdome.agents.ubuntu_installer import UbuntuInstallerAgent
-# from glassdome.agents.kali_installer import KaliInstallerAgent  # Future
-# from glassdome.agents.windows_installer import WindowsInstallerAgent  # Future
+from glassdome.agents.windows_installer import WindowsInstallerAgent
+from glassdome.agents.rocky_installer import RockyInstallerAgent
+from glassdome.agents.kali_installer import KaliInstallerAgent
+from glassdome.agents.parrot_installer import ParrotInstallerAgent
+from glassdome.agents.rhel_installer import RHELInstallerAgent
 
 logger = logging.getLogger(__name__)
 
@@ -27,10 +30,11 @@ class OSInstallerFactory:
     # Registry of OS types to agent classes
     _agent_registry: Dict[str, type] = {
         "ubuntu": UbuntuInstallerAgent,
-        # "kali": KaliInstallerAgent,
-        # "windows": WindowsInstallerAgent,
-        # "debian": DebianInstallerAgent,
-        # "centos": CentOSInstallerAgent,
+        "windows": WindowsInstallerAgent,
+        "rocky": RockyInstallerAgent,
+        "kali": KaliInstallerAgent,
+        "parrot": ParrotInstallerAgent,
+        "rhel": RHELInstallerAgent,
     }
     
     # Cached agent instances

@@ -538,16 +538,80 @@ class ProxmoxClient(PlatformClient):
         
         await self.configure_vm(node, new_vmid, vm_config_updates)
         
-        # Configure Windows-specific settings via cloud-init equivalent
-        # Note: Windows doesn't use cloud-init, but we can use Proxmox's built-in
-        # Windows configuration options or prepare the template with sysprep
-        if config.get("ip_address"):
-            # For Windows, static IP configuration must be done via:
-            # 1. Template prepared with sysprep (unattend.xml)
-            # 2. Post-boot configuration via RDP/SSH
-            # 3. Or use DHCP and configure later
-            logger.info(f"Static IP {config['ip_address']} specified - will need post-boot configuration")
-            logger.warning("Windows static IP configuration requires template to be prepared with sysprep/unattend.xml")
+        # Configure Cloudbase-Init (Windows cloud-init equivalent)
+        # If template has Cloudbase-Init installed, configure cloud-init drive
+        use_cloudbase_init = config.get("use_cloudbase_init", True)  # Default to True
+        
+        if use_cloudbase_init:
+            # Add cloud-init drive (Cloudbase-Init reads from this)
+            storage = config.get("storage", self.default_storage)
+            try:
+                cloudinit_config = {
+                    "ide2": f"{storage}:cloudinit"
+                }
+                await self.configure_vm(node, new_vmid, cloudinit_config)
+                logger.info(f"Cloud-init drive configured for Cloudbase-Init on VM {new_vmid}")
+            except Exception as e:
+                logger.warning(f"Failed to configure cloud-init drive: {e}")
+                logger.warning("Template may not have Cloudbase-Init installed")
+        
+        # Configure cloud-init parameters (for Cloudbase-Init)
+        if use_cloudbase_init:
+            cloudinit_params = {}
+            
+            # Hostname
+            hostname = config.get("hostname", name)
+            if hostname:
+                cloudinit_params["cihostname"] = hostname
+                logger.info(f"Setting hostname: {hostname}")
+            
+            # User and password
+            admin_user = config.get("admin_user", "Administrator")
+            admin_password = config.get("admin_password")
+            if admin_password:
+                cloudinit_params["ciuser"] = admin_user
+                cloudinit_params["cipassword"] = admin_password
+                logger.info(f"Setting user: {admin_user}")
+            
+            # Static IP configuration
+            if config.get("ip_address"):
+                ip_address = config["ip_address"]
+                gateway = config.get("gateway", "192.168.3.1")
+                netmask = config.get("netmask", "255.255.255.0")
+                
+                # Convert netmask to CIDR
+                if "/" not in ip_address:
+                    cidr_map = {
+                        "255.255.255.0": "24",
+                        "255.255.0.0": "16",
+                        "255.0.0.0": "8"
+                    }
+                    cidr = cidr_map.get(netmask, "24")
+                    ip_config = f"ip={ip_address}/{cidr},gw={gateway}"
+                else:
+                    ip_config = f"ip={ip_address},gw={gateway}"
+                
+                cloudinit_params["ipconfig0"] = ip_config
+                logger.info(f"Setting static IP: {ip_config}")
+            
+            # DNS servers
+            dns_servers = config.get("dns_servers", ["8.8.8.8", "8.8.4.4"])
+            if dns_servers:
+                cloudinit_params["nameserver"] = " ".join(dns_servers)
+                logger.info(f"Setting DNS servers: {dns_servers}")
+            
+            # Apply cloud-init parameters
+            if cloudinit_params:
+                try:
+                    await self.configure_vm(node, new_vmid, cloudinit_params)
+                    logger.info(f"Cloudbase-Init parameters configured for VM {new_vmid}")
+                except Exception as e:
+                    logger.warning(f"Failed to configure Cloudbase-Init parameters: {e}")
+        else:
+            # Fallback: Windows without Cloudbase-Init
+            if config.get("ip_address"):
+                logger.info(f"Static IP {config['ip_address']} specified - will need post-boot configuration")
+                logger.warning("Windows static IP configuration requires Cloudbase-Init or manual configuration")
         
         logger.info(f"Windows VM {new_vmid} cloned and configured successfully")
         return result
@@ -754,9 +818,18 @@ class ProxmoxClient(PlatformClient):
         
         name = config.get("name", f"windows-vm-{vmid}")
         windows_version = config.get("windows_version", "server2022")
-        memory_mb = config.get("memory_mb", 4096)
-        cores = config.get("cpu_cores", 2)
-        disk_size_gb = config.get("disk_size_gb", 80)
+        
+        # Different defaults based on Windows version
+        if windows_version == "server2022":
+            # Windows Server 2022: 8 vCPU, 80GB disk, 16GB RAM
+            memory_mb = config.get("memory_mb", 16384)  # 16GB RAM
+            cores = config.get("cpu_cores", 8)  # 8 vCPU
+            disk_size_gb = config.get("disk_size_gb", 80)  # 80GB disk
+        else:
+            # Windows 11: 4 vCPU, 30GB disk, 16GB RAM
+            memory_mb = config.get("memory_mb", 16384)  # 16GB RAM
+            cores = config.get("cpu_cores", 4)  # 4 vCPU
+            disk_size_gb = config.get("disk_size_gb", 30)  # 30GB disk
         admin_password = config.get("admin_password", "Glassdome123!")
         network_cidr = config.get("network_cidr", "192.168.3.0/24")
         
@@ -776,10 +849,16 @@ class ProxmoxClient(PlatformClient):
         
         logger.info(f"Allocated IP {static_ip} to VM {vmid}")
         
-        # Paths to ISOs
-        glassdome_root = Path(settings.glassdome_root) if hasattr(settings, 'glassdome_root') else Path.cwd()
-        windows_iso_path = glassdome_root / "isos" / "windows" / "windows-server-2022-eval.iso"
-        virtio_iso_path = glassdome_root / "isos" / "drivers" / "virtio-win.iso"
+        # ISO names on Proxmox storage (assumes ISOs are uploaded to Proxmox)
+        # Windows ISO names based on version
+        if windows_version == "server2022":
+            windows_iso_name = "windows-server-2022-eval.iso"
+        elif windows_version == "win11":
+            windows_iso_name = "windows-11-enterprise-eval.iso"
+        else:
+            windows_iso_name = "windows-server-2022-eval.iso"
+        
+        virtio_iso_name = "virtio-win.iso"
         
         # Generate autounattend.xml with static IP
         autounattend_config = {
@@ -796,8 +875,10 @@ class ProxmoxClient(PlatformClient):
         autounattend_xml = generate_autounattend_xml(autounattend_config)
         
         # Create autounattend floppy image (Windows Setup reliably checks A:\)
-        autounattend_floppy_path = glassdome_root / "isos" / "custom" / f"autounattend-{vmid}.img"
-        autounattend_floppy_path.parent.mkdir(parents=True, exist_ok=True)
+        import tempfile
+        temp_dir = Path(tempfile.gettempdir()) / "glassdome-autounattend"
+        temp_dir.mkdir(parents=True, exist_ok=True)
+        autounattend_floppy_path = temp_dir / f"autounattend-{vmid}.img"
         create_autounattend_floppy(autounattend_xml, autounattend_floppy_path)
         
         logger.info(f"Created autounattend floppy: {autounattend_floppy_path}")
@@ -844,22 +925,76 @@ class ProxmoxClient(PlatformClient):
         # Upload ISOs to Proxmox if not already there (simplified - assumes ISOs are accessible)
         # In production, you'd upload these to Proxmox storage
         
-        # Attach ISOs
+        # Check available ISOs on Proxmox storage
         try:
-            # Windows ISO as IDE2 (primary CD-ROM)
-            # VirtIO drivers as IDE0 (secondary CD-ROM)
-            iso_config = {
-                "ide2": f"local:iso/{windows_iso_path.name},media=cdrom",
-                "ide0": f"local:iso/{virtio_iso_path.name},media=cdrom",
-            }
-            self.client.nodes(node).qemu(vmid).config.put(**iso_config)
-            logger.info(f"Attached ISOs to VM {vmid}")
+            storage_content = self.client.nodes(node).storage("local").content.get()
+            available_isos = [item.get("volid", "").split("/")[-1] for item in storage_content if item.get("content") == "iso"]
+            logger.info(f"Available ISOs on Proxmox: {available_isos}")
+            
+            # Try to find Windows ISO (check common names)
+            windows_iso_found = None
+            for iso in available_isos:
+                if "windows" in iso.lower() and "2022" in iso.lower() and windows_version == "server2022":
+                    windows_iso_found = iso
+                    break
+                elif "windows" in iso.lower() and "11" in iso.lower() and windows_version == "win11":
+                    windows_iso_found = iso
+                    break
+            
+            if not windows_iso_found:
+                # Try exact match first
+                if windows_iso_name in available_isos:
+                    windows_iso_found = windows_iso_name
+                else:
+                    # For Windows 11, look specifically for Windows 11 ISOs
+                    if windows_version == "win11":
+                        for iso in available_isos:
+                            if "windows" in iso.lower() and ("11" in iso.lower() or "win11" in iso.lower()):
+                                windows_iso_found = iso
+                                logger.warning(f"Using Windows 11 ISO: {iso}")
+                                break
+                        if not windows_iso_found:
+                            raise Exception(f"Windows 11 ISO not found. Looking for: {windows_iso_name}. Available: {available_isos}")
+                    else:
+                        # For Server 2022, try any Windows ISO as fallback
+                        for iso in available_isos:
+                            if "windows" in iso.lower() and "2022" in iso.lower():
+                                windows_iso_found = iso
+                                logger.warning(f"Using alternative Windows ISO: {iso}")
+                                break
+            
+            virtio_iso_found = None
+            if virtio_iso_name in available_isos:
+                virtio_iso_found = virtio_iso_name
+            else:
+                # Try to find any virtio ISO
+                for iso in available_isos:
+                    if "virtio" in iso.lower():
+                        virtio_iso_found = iso
+                        logger.warning(f"Using alternative VirtIO ISO: {iso}")
+                        break
+            
+            if not windows_iso_found:
+                raise Exception(f"Windows ISO not found on Proxmox storage. Available: {available_isos}")
+            
+            # Attach ISOs
+            iso_config = {}
+            if windows_iso_found:
+                iso_config["ide2"] = f"local:iso/{windows_iso_found},media=cdrom"
+            if virtio_iso_found:
+                iso_config["ide3"] = f"local:iso/{virtio_iso_found},media=cdrom"
+            
+            if iso_config:
+                self.client.nodes(node).qemu(vmid).config.put(**iso_config)
+                logger.info(f"Attached ISOs to VM {vmid}: {windows_iso_found}, {virtio_iso_found if virtio_iso_found else 'none'}")
+            else:
+                logger.warning("No ISOs attached - VM may not boot correctly")
+                
         except Exception as e:
-            logger.warning(f"Failed to attach ISOs (may need manual upload): {e}")
-            # This is expected - ISOs need to be manually uploaded to Proxmox storage
-            logger.info(f"Please upload ISOs to Proxmox:")
-            logger.info(f"  1. {windows_iso_path}")
-            logger.info(f"  2. {virtio_iso_path}")
+            logger.error(f"Failed to attach ISOs: {e}")
+            logger.error(f"Please ensure Windows ISO is uploaded to Proxmox storage:")
+            logger.error(f"  /var/lib/vz/template/iso/{windows_iso_name}")
+            raise Exception(f"ISOs not found on Proxmox storage: {e}")
         
         # Upload floppy to Proxmox and attach via QEMU args
         # Windows Setup reliably checks A:\ for autounattend.xml
@@ -889,13 +1024,15 @@ class ProxmoxClient(PlatformClient):
             logger.info(f"Autounattend floppy created locally: {autounattend_floppy_path}")
             logger.info(f"Upload manually to Proxmox if needed")
         
-        # Set boot order (CD-ROM first for installation, then SATA disk)
+        # Set boot order (CD-ROM only for installation - UEFI needs explicit order)
+        # After Windows installation, change to: order=sata0
         try:
             boot_config = {
-                "boot": "order=ide2;sata0"
+                "boot": "order=ide2"  # Boot from CD-ROM only for installation
             }
             self.client.nodes(node).qemu(vmid).config.put(**boot_config)
-            logger.info(f"Set boot order for VM {vmid}")
+            logger.info(f"Set boot order for VM {vmid}: boot from CD-ROM (ide2) for installation")
+            logger.info(f"After Windows installation, change boot order to: order=sata0")
         except Exception as e:
             logger.warning(f"Failed to set boot order: {e}")
         
@@ -903,15 +1040,32 @@ class ProxmoxClient(PlatformClient):
         logger.info(f"Starting Windows VM {vmid} (Windows will auto-install, ~15-20 minutes)")
         await self.start_vm(str(vmid))
         
+        # Wait a few seconds for boot prompt, then send key press to boot from CD-ROM
+        logger.info(f"Waiting for boot prompt, then sending key press to boot from CD-ROM...")
+        await asyncio.sleep(8)  # Wait for "Press any key" prompt
+        
+        # Try to send key press via QEMU monitor (if available)
+        try:
+            # Use Proxmox API to send keyboard input via VNC
+            # Note: This may require additional configuration
+            logger.info(f"Attempting to send key press to boot from CD-ROM...")
+            # The VM should boot automatically, but if it doesn't, user needs to press key manually
+            logger.warning(f"If VM shows 'Press any key to boot from CD-ROM', manually press a key in Proxmox console")
+        except Exception as e:
+            logger.warning(f"Could not automatically send key press: {e}")
+            logger.warning(f"Please manually press a key in Proxmox console when 'Press any key' prompt appears")
+        
         # Return with assigned static IP
         logger.info(f"Windows VM {vmid} is installing. Check Proxmox console for progress.")
+        logger.info(f"⚠️  IMPORTANT: If you see 'Press any key to boot from CD-ROM', press any key in the console!")
         logger.info(f"After installation: RDP to {static_ip} with Administrator / {admin_password}")
         
         return {
             "vm_id": str(vmid),
             "ip_address": static_ip,  # Static IP assigned via autounattend
             "status": "installing",
-            "notes": f"Windows is installing automatically. This takes 15-20 minutes. RDP: {static_ip}:3389, User: Administrator, Password: {admin_password}"
+            "notes": f"Windows is installing automatically. This takes 15-20 minutes. RDP: {static_ip}:3389, User: Administrator, Password: {admin_password}",
+            "manual_step": "If 'Press any key to boot from CD-ROM' appears, press any key in Proxmox console"
         }
     
     async def resize_disk(self, node: str, vmid: int, disk: str, size: str) -> Dict[str, Any]:

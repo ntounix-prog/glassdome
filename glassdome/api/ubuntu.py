@@ -25,6 +25,7 @@ class UbuntuVMRequest(BaseModel):
     node: str = Field(..., description="Proxmox node")
     ubuntu_version: str = Field(default="22.04", description="Ubuntu version (22.04, 24.04, 20.04)")
     use_template: bool = Field(default=True, description="Use template for faster creation")
+    proxmox_instance: Optional[str] = Field(default="01", description="Proxmox instance ID (01, 02, etc.)")
     
     cores: Optional[int] = Field(default=2, description="CPU cores")
     memory: Optional[int] = Field(default=2048, description="Memory in MB")
@@ -39,6 +40,7 @@ class UbuntuVMRequest(BaseModel):
                 "node": "pve",
                 "ubuntu_version": "22.04",
                 "use_template": True,
+                "proxmox_instance": "01",
                 "cores": 2,
                 "memory": 2048,
                 "disk_size": 20
@@ -68,35 +70,38 @@ class TemplateRequest(BaseModel):
 _ubuntu_agent: Optional[UbuntuInstallerAgent] = None
 
 
-def get_ubuntu_agent() -> UbuntuInstallerAgent:
-    """Get or create Ubuntu installer agent"""
+def get_ubuntu_agent(proxmox_instance: str = "01") -> UbuntuInstallerAgent:
+    """
+    Get or create Ubuntu installer agent for a specific Proxmox instance.
+    
+    Args:
+        proxmox_instance: Proxmox instance ID ("01", "02", etc.). Default: "01"
+    
+    Returns:
+        UbuntuInstallerAgent configured for the specified Proxmox instance
+    """
     global _ubuntu_agent
     
-    if _ubuntu_agent is None:
-        # Check if Proxmox is configured
-        if not settings.proxmox_host:
-            raise HTTPException(
-                status_code=503,
-                detail="Proxmox not configured. Set PROXMOX_HOST in environment."
-            )
-        
-        # Create Proxmox client
-        proxmox_client = ProxmoxClient(
-            host=settings.proxmox_host,
-            user=settings.proxmox_user,
-            password=settings.proxmox_password,
-            token_name=settings.proxmox_token_name,
-            token_value=settings.proxmox_token_value,
-            verify_ssl=settings.proxmox_verify_ssl
+    # For now, create agent per call (can be optimized with caching per instance)
+    # Check if Proxmox is configured
+    config = settings.get_proxmox_config(proxmox_instance)
+    if not config.get("host"):
+        raise HTTPException(
+            status_code=503,
+            detail=f"Proxmox instance {proxmox_instance} not configured. Set PROXMOX_{proxmox_instance}_HOST in environment."
         )
-        
-        # Create and register agent
-        _ubuntu_agent = UbuntuInstallerAgent("ubuntu_installer_1", proxmox_client)
-        agent_manager.register_agent(_ubuntu_agent)
-        
-        logger.info("Ubuntu Installer Agent created and registered")
     
-    return _ubuntu_agent
+    # Create Proxmox client using factory
+    from glassdome.platforms.proxmox_factory import get_proxmox_client
+    proxmox_client = get_proxmox_client(instance_id=proxmox_instance)
+    
+    # Create agent (for now, single agent - can be extended to cache per instance)
+    agent = UbuntuInstallerAgent(f"ubuntu_installer_{proxmox_instance}", proxmox_client)
+    agent_manager.register_agent(agent)
+    
+    logger.info(f"Ubuntu Installer Agent created for Proxmox instance {proxmox_instance}")
+    
+    return agent
 
 
 @router.post("/create", response_model=UbuntuVMResponse)
@@ -110,7 +115,9 @@ async def create_ubuntu_vm(request: UbuntuVMRequest, background_tasks: Backgroun
     Returns immediately with a task ID. Check task status using the task ID.
     """
     try:
-        agent = get_ubuntu_agent()
+        # Get agent for specified Proxmox instance
+        proxmox_instance = request.proxmox_instance or "01"
+        agent = get_ubuntu_agent(proxmox_instance=proxmox_instance)
         
         # Prepare task for agent
         task = {
@@ -159,7 +166,9 @@ async def create_ubuntu_vm_sync(request: UbuntuVMRequest):
     For long-running tasks, use the async endpoint instead.
     """
     try:
-        agent = get_ubuntu_agent()
+        # Get agent for specified Proxmox instance
+        proxmox_instance = request.proxmox_instance or "01"
+        agent = get_ubuntu_agent(proxmox_instance=proxmox_instance)
         
         # Prepare task
         task = {
@@ -210,7 +219,8 @@ async def create_ubuntu_template(request: TemplateRequest):
     This is recommended for frequently deployed Ubuntu versions.
     """
     try:
-        agent = get_ubuntu_agent()
+        # For template creation, use default instance (can be extended)
+        agent = get_ubuntu_agent(proxmox_instance="01")
         
         result = await agent.create_template(
             node=request.node,

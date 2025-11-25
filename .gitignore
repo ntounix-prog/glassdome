@@ -84,3 +84,4 @@ isos/
 .rag_index/
 *.pyc
 __pycache__/
+.env.backup

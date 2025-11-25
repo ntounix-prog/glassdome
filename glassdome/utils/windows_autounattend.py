@@ -2,7 +2,7 @@
 Windows Autounattend.xml Generator
 
 Creates Windows answer files for unattended installation on Proxmox/ESXi.
-Supports Windows Server 2022 and Windows 11.
+Supports Windows Server 2022, Windows 11, and Windows 10.
 """
 import base64
 from typing import Dict, Any, Optional
@@ -17,7 +17,8 @@ def generate_autounattend_xml(config: Dict[str, Any]) -> str:
         config: Configuration dictionary with:
             - hostname: Computer name (default: "glassdome-win")
             - admin_password: Administrator password (default: "Glassdome123!")
-            - windows_version: "server2022" or "win11" (default: "server2022")
+            - windows_version: "server2022", "win11", or "win10" (default: "server2022")
+            - desktop_experience: Use Desktop Experience (full GUI) vs Server Core (headless) (default: True)
             - timezone: Windows timezone (default: "Pacific Standard Time")
             - enable_rdp: Enable RDP (default: True)
             - virtio_drivers: Include VirtIO driver paths for Proxmox (default: True)
@@ -47,13 +48,28 @@ def generate_autounattend_xml(config: Dict[str, Any]) -> str:
     # Encode admin password for Windows
     admin_password_b64 = base64.b64encode(f"{admin_password}AdministratorPassword".encode('utf-16-le')).decode('ascii')
     
-    # Image index (1 = Standard, 2 = Datacenter for Server 2022)
+    # Image index for Windows Server 2022 Evaluation ISO:
+    # Index 1 = Standard (Desktop Experience) - Full GUI
+    # Index 2 = Datacenter (Desktop Experience) - Full GUI
+    # Index 3 = Standard (Server Core) - Headless
+    # Index 4 = Datacenter (Server Core) - Headless
+    # 
+    # We default to Desktop Experience (full GUI) for cyber range use
+    desktop_experience = config.get("desktop_experience", True)  # Default to full GUI
+    
     if windows_version == "server2022":
-        image_index = "2"  # Datacenter
-        image_name = "Windows Server 2022 SERVERDATACENTER"
+        if desktop_experience:
+            image_index = "2"  # Datacenter with Desktop Experience (Full GUI)
+            image_name = "Windows Server 2022 SERVERDATACENTER"
+        else:
+            image_index = "4"  # Datacenter Server Core (Headless)
+            image_name = "Windows Server 2022 SERVERDATACENTER"
     elif windows_version == "win11":
         image_index = "1"  # Windows 11 Enterprise
         image_name = "Windows 11 Enterprise"
+    elif windows_version == "win10":
+        image_index = "1"  # Windows 10 Enterprise
+        image_name = "Windows 10 Enterprise"
     else:
         image_index = "2"
         image_name = "Windows Server 2022 SERVERDATACENTER"

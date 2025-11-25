@@ -71,18 +71,28 @@ class SSHClient:
             logger.info(f"Connecting to {self.username}@{self.host}:{self.port}")
             
             # Run connection in thread pool (paramiko is synchronous)
+            # For password auth, disable agent and key lookup (helps with Cisco devices)
+            connect_kwargs = {
+                "hostname": self.host,
+                "port": self.port,
+                "username": self.username,
+                "timeout": self.timeout,
+            }
+            
+            if self.password:
+                connect_kwargs["password"] = self.password
+                connect_kwargs["allow_agent"] = False
+                connect_kwargs["look_for_keys"] = False
+            else:
+                connect_kwargs["allow_agent"] = True
+                connect_kwargs["look_for_keys"] = True
+                
+            if self.key_filename:
+                connect_kwargs["key_filename"] = self.key_filename
+            
             await asyncio.get_event_loop().run_in_executor(
                 None,
-                lambda: self.client.connect(
-                    hostname=self.host,
-                    port=self.port,
-                    username=self.username,
-                    password=self.password,
-                    key_filename=self.key_filename,
-                    timeout=self.timeout,
-                    allow_agent=True,
-                    look_for_keys=True
-                )
+                lambda: self.client.connect(**connect_kwargs)
             )
             
             self._connected = True

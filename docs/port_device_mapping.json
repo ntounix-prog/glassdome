@@ -1,0 +1,743 @@
+{
+  "timestamp": "2025-11-24T19:25:05.425190",
+  "cisco_3850": {
+    "CPU": [
+      {
+        "mac": "01:00:0C:CC:CC:CC",
+        "vlan": "All",
+        "device": {}
+      },
+      {
+        "mac": "01:00:0C:CC:CC:CD",
+        "vlan": "All",
+        "device": {}
+      },
+      {
+        "mac": "01:80:C2:00:00:00",
+        "vlan": "All",
+        "device": {}
+      },
+      {
+        "mac": "01:80:C2:00:00:01",
+        "vlan": "All",
+        "device": {}
+      },
+      {
+        "mac": "01:80:C2:00:00:02",
+        "vlan": "All",
+        "device": {}
+      },
+      {
+        "mac": "01:80:C2:00:00:03",
+        "vlan": "All",
+        "device": {}
+      },
+      {
+        "mac": "01:80:C2:00:00:04",
+        "vlan": "All",
+        "device": {}
+      },
+      {
+        "mac": "01:80:C2:00:00:05",
+        "vlan": "All",
+        "device": {}
+      },
+      {
+        "mac": "01:80:C2:00:00:06",
+        "vlan": "All",
+        "device": {}
+      },
+      {
+        "mac": "01:80:C2:00:00:07",
+        "vlan": "All",
+        "device": {}
+      },
+      {
+        "mac": "01:80:C2:00:00:08",
+        "vlan": "All",
+        "device": {}
+      },
+      {
+        "mac": "01:80:C2:00:00:09",
+        "vlan": "All",
+        "device": {}
+      },
+      {
+        "mac": "01:80:C2:00:00:0A",
+        "vlan": "All",
+        "device": {}
+      },
+      {
+        "mac": "01:80:C2:00:00:0B",
+        "vlan": "All",
+        "device": {}
+      },
+      {
+        "mac": "01:80:C2:00:00:0C",
+        "vlan": "All",
+        "device": {}
+      },
+      {
+        "mac": "01:80:C2:00:00:0D",
+        "vlan": "All",
+        "device": {}
+      },
+      {
+        "mac": "01:80:C2:00:00:0E",
+        "vlan": "All",
+        "device": {}
+      },
+      {
+        "mac": "01:80:C2:00:00:0F",
+        "vlan": "All",
+        "device": {}
+      },
+      {
+        "mac": "01:80:C2:00:00:10",
+        "vlan": "All",
+        "device": {}
+      },
+      {
+        "mac": "01:80:C2:00:00:21",
+        "vlan": "All",
+        "device": {}
+      },
+      {
+        "mac": "FF:FF:FF:FF:FF:FF",
+        "vlan": "All",
+        "device": {}
+      }
+    ],
+    "Gi1/0/5": [
+      {
+        "mac": "00:00:C0:3F:81:38",
+        "vlan": "1",
+        "device": {
+          "ip": "192.168.2.111",
+          "hostname": "MyCloud-GWHRKK",
+          "mac": "00:00:C0:3F:81:38"
+        }
+      },
+      {
+        "mac": "00:04:96:9E:D9:B6",
+        "vlan": "1",
+        "device": {}
+      },
+      {
+        "mac": "00:E0:2B:00:00:01",
+        "vlan": "1",
+        "device": {}
+      },
+      {
+        "mac": "1C:98:C1:21:31:07",
+        "vlan": "1",
+        "device": {
+          "ip": "192.168.2.132",
+          "hostname": "Samsung",
+          "mac": "1C:98:C1:21:31:07"
+        }
+      },
+      {
+        "mac": "2A:14:E9:FB:52:D0",
+        "vlan": "1",
+        "device": {
+          "ip": "192.168.2.130",
+          "hostname": "iPhone",
+          "mac": "2A:14:E9:FB:52:D0"
+        }
+      },
+      {
+        "mac": "64:C9:01:C4:4F:8A",
+        "vlan": "1",
+        "device": {
+          "ip": "192.168.2.175",
+          "hostname": "TXPF21QXGD",
+          "mac": "64:C9:01:C4:4F:8A"
+        }
+      },
+      {
+        "mac": "78:2B:64:E1:B3:B4",
+        "vlan": "1",
+        "device": {
+          "ip": "192.168.2.140",
+          "hostname": "Bose-Smart-Speaker-500",
+          "mac": "78:2B:64:E1:B3:B4"
+        }
+      },
+      {
+        "mac": "94:2A:6F:7C:CE:6A",
+        "vlan": "1",
+        "device": {}
+      },
+      {
+        "mac": "A2:6A:77:87:F7:67",
+        "vlan": "1",
+        "device": {
+          "ip": "192.168.2.150",
+          "hostname": "iPhone",
+          "mac": "A2:6A:77:87:F7:67"
+        }
+      },
+      {
+        "mac": "AA:41:BA:FC:62:51",
+        "vlan": "1",
+        "device": {
+          "ip": "192.168.2.194",
+          "hostname": "MacBookPro",
+          "mac": "AA:41:BA:FC:62:51"
+        }
+      }
+    ],
+    "Gi1/0/7": [
+      {
+        "mac": "00:1A:13:DB:FD:EE",
+        "vlan": "1",
+        "device": {
+          "ip": "192.168.2.199",
+          "hostname": "N/A",
+          "mac": "00:1A:13:DB:FD:EE"
+        }
+      },
+      {
+        "mac": "28:73:F6:34:C3:8B",
+        "vlan": "1",
+        "device": {
+          "ip": "192.168.2.191",
+          "hostname": "rh01.summit.local",
+          "mac": "28:73:F6:34:C3:8B"
+        }
+      },
+      {
+        "mac": "44:4A:D6:0E:12:56",
+        "vlan": "1",
+        "device": {
+          "ip": "192.168.2.122",
+          "hostname": "wlan0",
+          "mac": "44:4A:D6:0E:12:56"
+        }
+      },
+      {
+        "mac": "44:4A:D6:0E:23:B8",
+        "vlan": "1",
+        "device": {
+          "ip": "192.168.2.161",
+          "hostname": "wlan0",
+          "mac": "44:4A:D6:0E:23:B8"
+        }
+      },
+      {
+        "mac": "44:4A:D6:0E:2C:0D",
+        "vlan": "1",
+        "device": {
+          "ip": "192.168.2.137",
+          "hostname": "wlan0",
+          "mac": "44:4A:D6:0E:2C:0D"
+        }
+      },
+      {
+        "mac": "68:D7:9A:48:5B:C8",
+        "vlan": "1",
+        "device": {}
+      },
+      {
+        "mac": "D4:8A:FC:9C:7D:04",
+        "vlan": "1",
+        "device": {
+          "ip": "192.168.2.133",
+          "hostname": "Litter-Robot4",
+          "mac": "D4:8A:FC:9C:7D:04"
+        }
+      }
+    ],
+    "Gi1/0/9": [
+      {
+        "mac": "00:3C:10:B2:A2:00",
+        "vlan": "1",
+        "device": {}
+      }
+    ],
+    "Vl1": [
+      {
+        "mac": "00:3C:10:B2:A2:47",
+        "vlan": "1",
+        "device": {
+          "ip": "192.168.2.253",
+          "hostname": "ciscocore.summit.local",
+          "mac": "00:3C:10:B2:A2:47"
+        }
+      }
+    ],
+    "Te1/1/3": [
+      {
+        "mac": "10:09:F9:DD:FC:27",
+        "vlan": "1",
+        "device": {
+          "ip": "192.168.2.197",
+          "hostname": "N/A",
+          "mac": "10:09:F9:DD:FC:27"
+        }
+      },
+      {
+        "mac": "28:C5:C8:E0:6D:5A",
+        "vlan": "1",
+        "device": {
+          "ip": "192.168.2.116",
+          "hostname": "HPIE06D5A",
+          "mac": "28:C5:C8:E0:6D:5A"
+        }
+      },
+      {
+        "mac": "3E:91:27:BC:31:04",
+        "vlan": "1",
+        "device": {
+          "ip": "192.168.2.102",
+          "hostname": "iPhone",
+          "mac": "3E:91:27:BC:31:04"
+        }
+      },
+      {
+        "mac": "74:EC:B2:44:2B:9C",
+        "vlan": "1",
+        "device": {
+          "ip": "192.168.2.135",
+          "hostname": "N/A",
+          "mac": "74:EC:B2:44:2B:9C"
+        }
+      },
+      {
+        "mac": "94:2A:6F:CC:3D:42",
+        "vlan": "1",
+        "device": {}
+      },
+      {
+        "mac": "A6:C4:8A:30:1E:CE",
+        "vlan": "1",
+        "device": {
+          "ip": "192.168.2.195",
+          "hostname": "iPhone",
+          "mac": "A6:C4:8A:30:1E:CE"
+        }
+      },
+      {
+        "mac": "EC:A9:07:07:E9:83",
+        "vlan": "1",
+        "device": {
+          "ip": "192.168.2.113",
+          "hostname": "Living-Room",
+          "mac": "EC:A9:07:07:E9:83"
+        }
+      },
+      {
+        "mac": "94:2A:6F:CC:3D:42",
+        "vlan": "2",
+        "device": {}
+      },
+      {
+        "mac": "94:2A:6F:CC:3D:42",
+        "vlan": "215",
+        "device": {}
+      },
+      {
+        "mac": "94:2A:6F:CC:3D:42",
+        "vlan": "11",
+        "device": {}
+      }
+    ],
+    "Gi1/0/13": [
+      {
+        "mac": "24:5A:4C:53:14:5D",
+        "vlan": "1",
+        "device": {}
+      },
+      {
+        "mac": "EC:8A:C4:0C:68:06",
+        "vlan": "1",
+        "device": {
+          "ip": "192.168.2.123",
+          "hostname": "blink-sync-module",
+          "mac": "EC:8A:C4:0C:68:06"
+        }
+      }
+    ],
+    "Gi1/0/23": [
+      {
+        "mac": "24:E9:B3:9B:84:A0",
+        "vlan": "1",
+        "device": {
+          "ip": "192.168.2.244",
+          "hostname": "N/A",
+          "mac": "24:E9:B3:9B:84:A0"
+        }
+      }
+    ],
+    "Te1/1/4": [
+      {
+        "mac": "24:E9:B3:9B:84:AC",
+        "vlan": "1",
+        "device": {}
+      },
+      {
+        "mac": "80:61:5F:11:AD:93",
+        "vlan": "1",
+        "device": {}
+      },
+      {
+        "mac": "BC:24:11:CA:98:04",
+        "vlan": "2",
+        "device": {
+          "ip": "192.168.3.227",
+          "hostname": "agentX",
+          "mac": "BC:24:11:CA:98:04"
+        }
+      },
+      {
+        "mac": "BC:24:11:D4:7C:7C",
+        "vlan": "2",
+        "device": {
+          "ip": "192.168.3.69",
+          "hostname": "mail.xisx.org",
+          "mac": "BC:24:11:D4:7C:7C"
+        }
+      },
+      {
+        "mac": "BC:24:11:F1:CA:48",
+        "vlan": "2",
+        "device": {
+          "ip": "192.168.3.99",
+          "hostname": "N/A",
+          "mac": "BC:24:11:F1:CA:48"
+        }
+      }
+    ],
+    "Gi1/0/11": [
+      {
+        "mac": "28:6D:97:77:05:B8",
+        "vlan": "1",
+        "device": {
+          "ip": "192.168.2.117",
+          "hostname": "hubv3-03011107833",
+          "mac": "28:6D:97:77:05:B8"
+        }
+      }
+    ],
+    "Gi1/0/35": [
+      {
+        "mac": "30:E1:71:69:03:8A",
+        "vlan": "1",
+        "device": {}
+      }
+    ],
+    "Gi1/0/38": [
+      {
+        "mac": "30:E1:71:69:82:7A",
+        "vlan": "1",
+        "device": {
+          "ip": "192.168.2.153",
+          "hostname": "ILO6CU725VV1B",
+          "mac": "30:E1:71:69:82:7A"
+        }
+      }
+    ],
+    "Gi1/0/17": [
+      {
+        "mac": "30:E1:71:69:E2:F4",
+        "vlan": "1",
+        "device": {}
+      }
+    ],
+    "Gi1/0/36": [
+      {
+        "mac": "30:E1:71:6C:9F:C4",
+        "vlan": "215",
+        "device": {
+          "ip": "192.168.215.76",
+          "hostname": "N/A",
+          "mac": "30:E1:71:6C:9F:C4"
+        }
+      }
+    ],
+    "Gi1/0/40": [
+      {
+        "mac": "30:E1:71:6C:CF:F4",
+        "vlan": "215",
+        "device": {
+          "ip": "192.168.215.78",
+          "hostname": "rh03.summit.local",
+          "mac": "30:E1:71:6C:CF:F4"
+        }
+      }
+    ],
+    "Gi1/0/37": [
+      {
+        "mac": "BC:24:11:3A:EA:2F",
+        "vlan": "215",
+        "device": {
+          "ip": "192.168.215.228",
+          "hostname": "agentX",
+          "mac": "BC:24:11:3A:EA:2F"
+        }
+      }
+    ],
+    "Gi1/0/3": [
+      {
+        "mac": "D8:5E:D3:07:47:0F",
+        "vlan": "215",
+        "device": {
+          "ip": "192.168.215.75",
+          "hostname": "truenas",
+          "mac": "D8:5E:D3:07:47:0F"
+        }
+      }
+    ],
+    "66": [
+      {
+        "mac": "MA:C::::",
+        "vlan": "Total",
+        "device": {}
+      }
+    ]
+  },
+  "nexus_3064": {
+    "MAC": [
+      {
+        "mac": "-:::::",
+        "vlan": "*",
+        "device": {}
+      }
+    ],
+    "Peer-Link": [
+      {
+        "mac": "-:::::",
+        "vlan": "age",
+        "device": {}
+      }
+    ],
+    "Ports/SWID.SSID.LID": [
+      {
+        "mac": "MA:C::::",
+        "vlan": "VLAN",
+        "device": {}
+      }
+    ],
+    "Eth1/13": [
+      {
+        "mac": "21:2::::",
+        "vlan": "*",
+        "device": {}
+      }
+    ],
+    "Eth1/29": [
+      {
+        "mac": "21:2::::",
+        "vlan": "*",
+        "device": {}
+      }
+    ],
+    "Eth1/3": [
+      {
+        "mac": "21:1::::",
+        "vlan": "*",
+        "device": {}
+      }
+    ],
+    "Eth1/23": [
+      {
+        "mac": "21:1::::",
+        "vlan": "*",
+        "device": {}
+      },
+      {
+        "mac": "2:::::",
+        "vlan": "*",
+        "device": {}
+      },
+      {
+        "mac": "2:::::",
+        "vlan": "*",
+        "device": {}
+      },
+      {
+        "mac": "2:::::",
+        "vlan": "*",
+        "device": {}
+      }
+    ],
+    "Eth1/17": [
+      {
+        "mac": "21:1::::",
+        "vlan": "*",
+        "device": {}
+      }
+    ],
+    "Eth1/5": [
+      {
+        "mac": "2:::::",
+        "vlan": "*",
+        "device": {}
+      },
+      {
+        "mac": "1:::::",
+        "vlan": "*",
+        "device": {}
+      },
+      {
+        "mac": "1:::::",
+        "vlan": "*",
+        "device": {}
+      },
+      {
+        "mac": "1:::::",
+        "vlan": "*",
+        "device": {}
+      },
+      {
+        "mac": "1:::::",
+        "vlan": "*",
+        "device": {}
+      },
+      {
+        "mac": "1:::::",
+        "vlan": "*",
+        "device": {}
+      },
+      {
+        "mac": "1:::::",
+        "vlan": "*",
+        "device": {}
+      },
+      {
+        "mac": "1:::::",
+        "vlan": "*",
+        "device": {}
+      },
+      {
+        "mac": "1:::::",
+        "vlan": "*",
+        "device": {}
+      },
+      {
+        "mac": "1:::::",
+        "vlan": "*",
+        "device": {}
+      },
+      {
+        "mac": "1:::::",
+        "vlan": "*",
+        "device": {}
+      },
+      {
+        "mac": "1:::::",
+        "vlan": "*",
+        "device": {}
+      },
+      {
+        "mac": "1:::::",
+        "vlan": "*",
+        "device": {}
+      },
+      {
+        "mac": "1:::::",
+        "vlan": "*",
+        "device": {}
+      },
+      {
+        "mac": "1:::::",
+        "vlan": "*",
+        "device": {}
+      },
+      {
+        "mac": "1:::::",
+        "vlan": "*",
+        "device": {}
+      },
+      {
+        "mac": "1:::::",
+        "vlan": "*",
+        "device": {}
+      },
+      {
+        "mac": "1:::::",
+        "vlan": "*",
+        "device": {}
+      },
+      {
+        "mac": "1:::::",
+        "vlan": "*",
+        "device": {}
+      },
+      {
+        "mac": "1:::::",
+        "vlan": "*",
+        "device": {}
+      },
+      {
+        "mac": "1:::::",
+        "vlan": "*",
+        "device": {}
+      },
+      {
+        "mac": "1:::::",
+        "vlan": "*",
+        "device": {}
+      },
+      {
+        "mac": "1:::::",
+        "vlan": "*",
+        "device": {}
+      },
+      {
+        "mac": "1:::::",
+        "vlan": "*",
+        "device": {}
+      },
+      {
+        "mac": "1:::::",
+        "vlan": "*",
+        "device": {}
+      },
+      {
+        "mac": "1:::::",
+        "vlan": "*",
+        "device": {}
+      },
+      {
+        "mac": "1:::::",
+        "vlan": "*",
+        "device": {}
+      },
+      {
+        "mac": "1:::::",
+        "vlan": "*",
+        "device": {}
+      },
+      {
+        "mac": "1:::::",
+        "vlan": "*",
+        "device": {}
+      },
+      {
+        "mac": "1:::::",
+        "vlan": "*",
+        "device": {}
+      },
+      {
+        "mac": "1:::::",
+        "vlan": "*",
+        "device": {}
+      },
+      {
+        "mac": "1:::::",
+        "vlan": "*",
+        "device": {}
+      }
+    ],
+    "Eth1/9": [
+      {
+        "mac": "1:::::",
+        "vlan": "*",
+        "device": {}
+      }
+    ]
+  },
+  "clients": 36
+}

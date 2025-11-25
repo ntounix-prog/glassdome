@@ -96,14 +96,27 @@ class WindowsInstallerAgent(BaseAgent):
             
             logger.info(f"Deploying Windows VM: {config['name']}")
             
-            # Set Windows-specific defaults
+            # Set Windows-specific defaults based on version
+            windows_version = config.get("windows_version", "server2022")
+            
+            if windows_version == "server2022":
+                # Windows Server 2022: 8 vCPU, 80GB disk, 16GB RAM
+                default_memory = 16384  # 16GB RAM
+                default_cores = 8  # 8 vCPU
+                default_disk = 80  # 80GB disk
+            else:
+                # Windows 11: 4 vCPU, 30GB disk, 16GB RAM
+                default_memory = 16384  # 16GB RAM
+                default_cores = 4  # 4 vCPU
+                default_disk = 30  # 30GB disk
+            
             windows_config = {
                 **config,
                 "os_type": "windows",
-                "windows_version": config.get("windows_version", "server2022"),
-                "memory_mb": config.get("memory_mb", 4096),
-                "cpu_cores": config.get("cpu_cores", 2),
-                "disk_size_gb": config.get("disk_size_gb", 80),
+                "windows_version": windows_version,
+                "memory_mb": config.get("memory_mb", default_memory),
+                "cpu_cores": config.get("cpu_cores", default_cores),
+                "disk_size_gb": config.get("disk_size_gb", default_disk),
                 "admin_password": config.get("admin_password", "Glassdome123!"),
                 "enable_rdp": config.get("enable_rdp", True),
             }

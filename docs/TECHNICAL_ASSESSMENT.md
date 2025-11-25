@@ -124,7 +124,7 @@ glassdome/
 
 **Known Issues:**
 - ESXi 7.0.3 standalone doesn't support OVA cloud images natively
-- Requires manual VMDK conversion: `qemu-img convert` → `vmkfstools -i`
+- Requires agentic driven VMDK conversion: `qemu-img convert` → `vmkfstools -i`
 - Management services can desync (SSH/auth lockouts) - requires console access to restart
 - No template support in standalone ESXi (workaround: manual template creation)
 

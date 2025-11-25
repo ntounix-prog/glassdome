@@ -222,54 +222,20 @@ AWS_SECRET_ACCESS_KEY=...
 
 ## 📚 Documentation
 
-**All documentation is in the [`docs/`](docs/) directory:**
+**📖 [Complete Documentation Index](docs/README.md)**
 
-### 🚀 Getting Started
-- **[QUICKSTART.md](docs/QUICKSTART.md)** - 5-minute quick start
-- **[GETTING_STARTED.md](docs/GETTING_STARTED.md)** - Complete setup walkthrough
-- **[INSTALL.md](docs/INSTALL.md)** - Package installation guide
+All documentation is organized in the [`docs/`](docs/) directory. See the [documentation index](docs/README.md) for a complete guide.
 
-### 📖 Guides
-- **[SETUP.md](docs/SETUP.md)** - Detailed setup instructions
-- **[PACKAGE_GUIDE.md](docs/PACKAGE_GUIDE.md)** - How to use as a Python package
-- **[AGENT_QUICKSTART.md](docs/AGENT_QUICKSTART.md)** - Ubuntu Agent quick start
+### Quick Links
 
-### 🏗️ Architecture
-- **[COMPLETE_ARCHITECTURE.md](docs/COMPLETE_ARCHITECTURE.md)** - Full system architecture
-- **[ARCHITECTURE.md](docs/ARCHITECTURE.md)** - System design overview
-- **[AGENT_ARCHITECTURE.md](docs/AGENT_ARCHITECTURE.md)** - Agent design patterns
+- **[Developer Onboarding](docs/DEVELOPER_ONBOARDING.md)** - Start here if you're new
+- **[Quick Start](docs/QUICKSTART.md)** - Get running in 5 minutes
+- **[Architecture](docs/ARCHITECTURE.md)** - System design overview
+- **[Platform Setup](docs/PLATFORM_SETUP.md)** - Configure Proxmox, AWS, Azure, ESXi
+- **[Windows Deployment](docs/WINDOWS_DEPLOYMENT.md)** - Windows VM deployment guide
+- **[Mailcow Integration](docs/MAILCOW_INTEGRATION.md)** - Email integration guide
 
-### 🤖 Agents
-- **[RESEARCH_AGENT.md](docs/RESEARCH_AGENT.md)** - AI-powered CVE research
-- **[REAPER_AGENT.md](docs/REAPER_AGENT.md)** - Vulnerability injection
-- **[UBUNTU_AGENT.md](docs/UBUNTU_AGENT.md)** - Ubuntu VM deployment
-- **[SSH_AGENT_CAPABILITIES.md](docs/SSH_AGENT_CAPABILITIES.md)** - SSH automation
-
-### 🔧 Configuration
-- **[API_KEYS.md](docs/API_KEYS.md)** - API keys and LLM configuration
-- **[GET_CREDENTIALS.md](docs/GET_CREDENTIALS.md)** - How to get Proxmox credentials
-- **[PROXMOX_SETUP.md](docs/PROXMOX_SETUP.md)** - Proxmox template setup
-
-### 📊 Project Info
-- **[PROJECT_VISION.md](docs/PROJECT_VISION.md)** - Vision and roadmap
-- **[PROJECT_STATUS.md](docs/PROJECT_STATUS.md)** - Current status
-- **[PROJECT_SUMMARY.md](docs/PROJECT_SUMMARY.md)** - Project overview
-- **[VP_PRESENTATION_ROADMAP.md](docs/VP_PRESENTATION_ROADMAP.md)** - Roadmap to demo
-
-### 🔬 Development
-- **[IMPLEMENTATION_SUMMARY.md](docs/IMPLEMENTATION_SUMMARY.md)** - Build details
-- **[RESTRUCTURE_SUMMARY.md](docs/RESTRUCTURE_SUMMARY.md)** - Package restructuring
-- **[PROGRESS_JOURNAL.md](docs/PROGRESS_JOURNAL.md)** - Development journal
-- **[SESSION_SUMMARY.md](docs/SESSION_SUMMARY.md)** - Latest session notes
-
-### 📋 Additional
-- **[API.md](docs/API.md)** - API documentation
-- **[ORCHESTRATOR_GUIDE.md](docs/ORCHESTRATOR_GUIDE.md)** - Lab orchestration
-- **[REQUEST_FLOW.md](docs/REQUEST_FLOW.md)** - Request flow diagrams
-- **[FEATURES_TODO.md](docs/FEATURES_TODO.md)** - Planned features
-- **[GIT_SETUP.md](docs/GIT_SETUP.md)** - Git configuration
-
-**📁 All docs live in `/docs/` - that's the source of truth!**
+**📁 All documentation lives in `/docs/` - that's the source of truth!**
 
 ## 🔧 Development
 
