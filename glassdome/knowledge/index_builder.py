@@ -106,8 +106,51 @@ class IndexBuilder:
         print(f"   Index location: {self.index_path}")
         print("="*70)
         
+    def _detect_doc_status(self, file_path: Path, content: str) -> str:
+        """
+        Detect if a document is current implementation or future/roadmap.
+        
+        Returns: 'current', 'roadmap', or 'archived'
+        """
+        path_str = str(file_path).lower()
+        content_lower = content.lower()
+        
+        # Roadmap indicators by path
+        roadmap_paths = [
+            'securityd/',      # Future daemon docs
+            'todo_',           # TODO documents
+            '_proposal',       # Proposal documents
+            '_plan',           # Plan documents
+            '_future',         # Future documents
+        ]
+        for pattern in roadmap_paths:
+            if pattern in path_str:
+                return 'roadmap'
+        
+        # Roadmap indicators by content
+        roadmap_markers = [
+            'status: future',
+            'status: proposed', 
+            'status: planned',
+            '## when to implement',
+            '## proposed architecture',
+            '## implementation plan',
+            '(future)',
+            '(proposed)',
+            '(not yet implemented)',
+        ]
+        for marker in roadmap_markers:
+            if marker in content_lower:
+                return 'roadmap'
+        
+        # Archive indicators
+        if '_archive' in path_str or 'archived' in content_lower[:500]:
+            return 'archived'
+        
+        return 'current'
+    
     def _index_markdown_docs(self):
-        """Index all markdown documentation"""
+        """Index all markdown documentation with status tagging"""
         print("\n📚 Indexing markdown documentation...")
         
         docs_dir = self.project_root / "docs"
@@ -118,17 +161,33 @@ class IndexBuilder:
         md_files = list(docs_dir.rglob("*.md"))
         print(f"   Found {len(md_files)} markdown files")
         
+        status_counts = {'current': 0, 'roadmap': 0, 'archived': 0}
+        
         for md_file in md_files:
             try:
                 with open(md_file, 'r', encoding='utf-8') as f:
                     content = f.read()
                 
+                # Detect document status
+                doc_status = self._detect_doc_status(md_file, content)
+                status_counts[doc_status] += 1
+                
                 # Split into chunks (by section headers)
                 chunks = self._chunk_markdown(content, md_file.name)
                 
                 for chunk in chunks:
+                    # Add status to metadata
+                    chunk['metadata']['status'] = doc_status
+                    
+                    # Prepend status context to roadmap docs for clarity
+                    chunk_content = chunk['content']
+                    if doc_status == 'roadmap':
+                        chunk_content = f"[ROADMAP/FUTURE - Not yet implemented]\n\n{chunk_content}"
+                    elif doc_status == 'archived':
+                        chunk_content = f"[ARCHIVED - May be outdated]\n\n{chunk_content}"
+                    
                     self._add_document(
-                        content=chunk['content'],
+                        content=chunk_content,
                         source=str(md_file.relative_to(self.project_root)),
                         doc_type="markdown",
                         metadata=chunk['metadata']
@@ -138,6 +197,7 @@ class IndexBuilder:
                 print(f"   ⚠️  Error indexing {md_file.name}: {e}")
         
         print(f"   ✅ Indexed {len([d for d in self.documents if d['type'] == 'markdown'])} markdown chunks")
+        print(f"      Status breakdown: {status_counts['current']} current, {status_counts['roadmap']} roadmap, {status_counts['archived']} archived")
         
     def _chunk_markdown(self, content: str, filename: str) -> List[Dict]:
         """Split markdown into chunks by headers"""
