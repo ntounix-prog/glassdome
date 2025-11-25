@@ -2,11 +2,12 @@
 Core Configuration Management
 """
 from pydantic_settings import BaseSettings
-from pydantic import ConfigDict
+from pydantic import ConfigDict, model_validator
 from typing import Optional, Dict, Any
 from pathlib import Path
 import os
 import re
+from glassdome.core.secrets import get_secrets_manager
 
 
 class Settings(BaseSettings):
@@ -57,13 +58,36 @@ class Settings(BaseSettings):
     proxmox_admin: Optional[str] = None  # Alternative to proxmox_user
     proxmox_admin_passwd: Optional[str] = None  # Alternative to proxmox_password
     
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        # Map legacy variables to standard ones if not already set
+    @model_validator(mode='after')
+    def _load_secrets_from_manager(self):
+        """Override field values with secrets from secrets manager if available."""
+        secrets = get_secrets_manager()
+        
+        # Map legacy variables first
         if not self.proxmox_password and self.proxmox_admin_passwd:
             self.proxmox_password = self.proxmox_admin_passwd
         if not self.proxmox_user and self.proxmox_admin:
             self.proxmox_user = self.proxmox_admin
+        
+        # Override with secrets manager values if available
+        secret_mappings = {
+            'secret_key': 'secret_key',
+            'proxmox_password': 'proxmox_password',
+            'proxmox_token_value': 'proxmox_token_value',
+            'esxi_password': 'esxi_password',
+            'azure_client_secret': 'azure_client_secret',
+            'aws_secret_access_key': 'aws_secret_access_key',
+            'openai_api_key': 'openai_api_key',
+            'anthropic_api_key': 'anthropic_api_key',
+            'mail_api': 'mail_api',
+        }
+        
+        for field_name, secret_key in secret_mappings.items():
+            secret_value = secrets.get_secret(secret_key)
+            if secret_value:
+                setattr(self, field_name, secret_value)
+        
+        return self
     
     def get_proxmox_config(self, instance_id: str = "01") -> Dict[str, Any]:
         """
@@ -136,13 +160,18 @@ class Settings(BaseSettings):
                 if "token_value" not in env_vars:
                     env_vars["token_value"] = value
         
+        # Check secrets manager for token_value
+        secrets = get_secrets_manager()
+        token_secret_key = f"proxmox_token_value_{instance_id}"
+        token_from_secrets = secrets.get_secret(token_secret_key)
+        
         # Build config dict
         config = {
             "host": env_vars.get("host") or os.getenv(f"PROXMOX_{instance_id}_HOST"),
             "user": env_vars.get("user") or os.getenv(f"PROXMOX_{instance_id}_USER"),
             "password": env_vars.get("password") or os.getenv(f"PROXMOX_{instance_id}_PASSWORD"),
             "token_name": env_vars.get("token_name") or os.getenv(f"PROXMOX_{instance_id}_TOKEN_NAME") or self.proxmox_token_name,
-            "token_value": env_vars.get("token_value") or os.getenv(f"PROXMOX_TOKEN_VALUE_{instance_id}"),
+            "token_value": token_from_secrets or env_vars.get("token_value") or os.getenv(f"PROXMOX_TOKEN_VALUE_{instance_id}"),
             "verify_ssl": env_vars.get("verify_ssl", "false").lower() == "true" if env_vars.get("verify_ssl") else self.proxmox_verify_ssl,
             "node": env_vars.get("node") or os.getenv(f"PROXMOX_{instance_id}_NODE", "pve")
         }

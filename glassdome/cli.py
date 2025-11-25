@@ -3,8 +3,11 @@ Glassdome CLI - Command Line Interface
 """
 import click
 import asyncio
+import getpass
+from pathlib import Path
 from glassdome import __version__
 from glassdome.core.config import settings
+from glassdome.core.secrets import get_secrets_manager
 
 
 @click.group()
@@ -192,6 +195,109 @@ def deploy_destroy(deployment_id):
     if click.confirm(f'Destroy deployment {deployment_id}?'):
         click.echo(f"Destroying deployment {deployment_id}...")
         # TODO: Destroy deployment
+
+
+@main.group()
+def secrets():
+    """Secrets management commands"""
+    pass
+
+
+@secrets.command('set')
+@click.argument('key')
+@click.option('--value', prompt=True, hide_input=True, help='Secret value (prompted if not provided)')
+def secrets_set(key, value):
+    """Set a secret value"""
+    try:
+        secrets = get_secrets_manager()
+        if secrets.set_secret(key, value):
+            click.echo(f"✅ Secret '{key}' stored successfully")
+        else:
+            click.echo(f"❌ Failed to store secret '{key}'")
+    except Exception as e:
+        click.echo(f"❌ Error: {e}")
+
+
+@secrets.command('get')
+@click.argument('key')
+def secrets_get(key):
+    """Get a secret value (displayed, use with caution)"""
+    try:
+        secrets = get_secrets_manager()
+        value = secrets.get_secret(key)
+        if value:
+            click.echo(f"Value for '{key}': {value}")
+        else:
+            click.echo(f"❌ Secret '{key}' not found")
+    except Exception as e:
+        click.echo(f"❌ Error: {e}")
+
+
+@secrets.command('list')
+def secrets_list():
+    """List all stored secret keys"""
+    try:
+        secrets = get_secrets_manager()
+        keys = secrets.list_secrets()
+        if keys:
+            click.echo("Stored secrets:")
+            for key in keys:
+                click.echo(f"  • {key}")
+        else:
+            click.echo("No secrets stored")
+    except Exception as e:
+        click.echo(f"❌ Error: {e}")
+
+
+@secrets.command('delete')
+@click.argument('key')
+@click.confirmation_option(prompt='Are you sure you want to delete this secret?')
+def secrets_delete(key):
+    """Delete a secret"""
+    try:
+        secrets = get_secrets_manager()
+        if secrets.delete_secret(key):
+            click.echo(f"✅ Secret '{key}' deleted")
+        else:
+            click.echo(f"❌ Secret '{key}' not found or could not be deleted")
+    except Exception as e:
+        click.echo(f"❌ Error: {e}")
+
+
+@secrets.command('migrate')
+@click.option('--env-file', type=click.Path(exists=True), default='.env', help='Path to .env file')
+def secrets_migrate(env_file):
+    """Migrate secrets from .env file to secure store"""
+    from glassdome.core.secrets import get_secrets_manager
+    
+    env_path = Path(env_file)
+    if not env_path.exists():
+        click.echo(f"❌ .env file not found: {env_path}")
+        return
+    
+    click.echo(f"📄 Migrating secrets from {env_path}")
+    click.echo("⚠️  This will prompt for a master password if this is the first time.")
+    
+    try:
+        secrets = get_secrets_manager()
+        results = secrets.migrate_from_env(env_path)
+        
+        if not results:
+            click.echo("⚠️  No secrets found to migrate")
+            return
+        
+        success_count = sum(1 for success in results.values() if success)
+        total_count = len(results)
+        
+        click.echo(f"\n✅ Migrated {success_count}/{total_count} secrets:")
+        for secret_key, success in sorted(results.items()):
+            status = "✅" if success else "❌"
+            click.echo(f"  {status} {secret_key}")
+        
+        if success_count == total_count:
+            click.echo("\n✅ Migration complete!")
+    except Exception as e:
+        click.echo(f"❌ Migration failed: {e}")
 
 
 if __name__ == '__main__':
