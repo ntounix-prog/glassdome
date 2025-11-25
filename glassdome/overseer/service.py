@@ -43,6 +43,13 @@ class GenericRequest(BaseModel):
     user: str = "api-user"
 
 
+class ReaperMissionRequest(BaseModel):
+    mission_id: str
+    lab_id: str
+    mission_type: str
+    target_vms: List[Dict[str, str]]
+
+
 # Global Overseer instance
 overseer: Optional[OverseerEntity] = None
 
@@ -335,6 +342,81 @@ async def force_state_sync():
     
     # TODO: Trigger immediate sync
     return {"message": "State sync triggered (not yet implemented)"}
+
+
+# ═══════════════════════════════════════════════════
+# Reaper Mission Endpoints
+# ═══════════════════════════════════════════════════
+
+@app.post("/reaper/missions")
+async def create_reaper_mission(request: ReaperMissionRequest):
+    """Create a new Reaper vulnerability injection mission"""
+    if not overseer:
+        raise HTTPException(status_code=503, detail="Overseer not initialized")
+    
+    result = overseer.create_reaper_mission(
+        mission_id=request.mission_id,
+        lab_id=request.lab_id,
+        mission_type=request.mission_type,
+        target_vms=request.target_vms
+    )
+    
+    if not result.get("success"):
+        raise HTTPException(status_code=400, detail=result.get("error"))
+    
+    return result
+
+
+@app.get("/reaper/missions")
+async def list_reaper_missions():
+    """List all Reaper missions"""
+    if not overseer:
+        raise HTTPException(status_code=503, detail="Overseer not initialized")
+    
+    missions = overseer.list_reaper_missions()
+    return {"missions": missions}
+
+
+@app.get("/reaper/missions/{mission_id}")
+async def get_reaper_mission_status(mission_id: str):
+    """Get status of a Reaper mission"""
+    if not overseer:
+        raise HTTPException(status_code=503, detail="Overseer not initialized")
+    
+    status = overseer.get_reaper_mission_status(mission_id)
+    
+    if "error" in status:
+        raise HTTPException(status_code=404, detail=status["error"])
+    
+    return status
+
+
+@app.get("/reaper/missions/{mission_id}/detailed")
+async def get_reaper_mission_detailed_status(mission_id: str):
+    """Get detailed status of a Reaper mission including host states"""
+    if not overseer:
+        raise HTTPException(status_code=503, detail="Overseer not initialized")
+    
+    status = overseer.get_reaper_mission_detailed_status(mission_id)
+    
+    if "error" in status:
+        raise HTTPException(status_code=404, detail=status["error"])
+    
+    return status
+
+
+@app.post("/reaper/missions/{mission_id}/cancel")
+async def cancel_reaper_mission(mission_id: str):
+    """Cancel a running Reaper mission"""
+    if not overseer:
+        raise HTTPException(status_code=503, detail="Overseer not initialized")
+    
+    result = overseer.cancel_reaper_mission(mission_id)
+    
+    if not result.get("success"):
+        raise HTTPException(status_code=404, detail=result.get("error"))
+    
+    return result
 
 
 if __name__ == "__main__":

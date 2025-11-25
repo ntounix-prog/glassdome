@@ -66,28 +66,60 @@
 }
 
 .platforms-section h2 {
+  margin-bottom: 0.5rem;
+}
+
+.platforms-subtitle {
+  color: rgba(255, 255, 255, 0.5);
   margin-bottom: 2rem;
+  font-size: 0.95rem;
 }
 
 .platform-badges {
   display: flex;
   justify-content: center;
-  gap: 2rem;
+  gap: 1.5rem;
   flex-wrap: wrap;
 }
 
 .platform-badge {
   background: rgba(255, 255, 255, 0.05);
-  padding: 1rem 2rem;
-  border-radius: 50px;
+  padding: 1rem 1.5rem;
+  border-radius: 12px;
   border: 1px solid rgba(255, 255, 255, 0.1);
   display: flex;
   align-items: center;
   gap: 0.75rem;
+  text-decoration: none;
+  color: #fff;
+  transition: all 0.25s ease;
+}
+
+.platform-badge.clickable {
+  cursor: pointer;
+}
+
+.platform-badge.clickable:hover {
+  background: rgba(102, 126, 234, 0.15);
+  border-color: rgba(102, 126, 234, 0.4);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(102, 126, 234, 0.2);
+}
+
+.platform-badge.clickable:hover .badge-arrow {
+  transform: translateX(4px);
+  opacity: 1;
 }
 
 .badge-icon {
-  font-size: 1.5rem;
+  font-size: 1.75rem;
+}
+
+.badge-arrow {
+  font-size: 1.1rem;
+  opacity: 0.4;
+  transition: all 0.25s ease;
+  margin-left: 0.5rem;
 }
 
 .status-section {

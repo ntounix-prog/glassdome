@@ -1,0 +1,247 @@
+---
+# Open Ports Vulnerability Playbook
+# Exposes unnecessary services for network security training
+#
+# Tags: ports, network, services
+# Category: Network Security
+# CVE: Training environment (no specific CVE)
+
+- name: Expose Unnecessary Services (Open Ports)
+  hosts: all
+  become: yes
+  
+  tasks:
+    - name: Install vulnerable network services
+      apt:
+        name:
+          - telnet
+          - telnetd
+          - ftp
+          - vsftpd
+          - rsh-server
+          - samba
+          - nfs-kernel-server
+        state: present
+        update_cache: yes
+      tags: [ports, install]
+    
+    - name: Configure and start Telnet (INSECURE)
+      systemd:
+        name: inetd
+        state: started
+        enabled: yes
+      ignore_errors: yes
+      tags: [ports, telnet]
+    
+    - name: Configure FTP server (anonymous access)
+      blockinfile:
+        path: /etc/vsftpd.conf
+        block: |
+          # VULNERABLE CONFIGURATION FOR TRAINING
+          anonymous_enable=YES
+          local_enable=YES
+          write_enable=YES
+          anon_upload_enable=YES
+          anon_mkdir_write_enable=YES
+          listen=YES
+        create: yes
+      notify: restart vsftpd
+      tags: [ports, ftp]
+    
+    - name: Create FTP directory with weak permissions
+      file:
+        path: /srv/ftp
+        state: directory
+        mode: '0777'
+        owner: ftp
+        group: ftp
+      tags: [ports, ftp]
+    
+    - name: Configure Samba with guest access
+      copy:
+        dest: /etc/samba/smb.conf
+        content: |
+          [global]
+          workgroup = WORKGROUP
+          server string = Vulnerable Samba Server
+          security = user
+          map to guest = Bad User
+          guest account = nobody
+          
+          [public]
+          path = /srv/samba/public
+          browseable = yes
+          writable = yes
+          guest ok = yes
+          read only = no
+          create mask = 0777
+          directory mask = 0777
+          force user = nobody
+        backup: yes
+      notify: restart smbd
+      tags: [ports, samba]
+    
+    - name: Create Samba public directory
+      file:
+        path: /srv/samba/public
+        state: directory
+        mode: '0777'
+      tags: [ports, samba]
+    
+    - name: Configure NFS exports (world-readable)
+      lineinfile:
+        path: /etc/exports
+        line: "/srv/nfs *(rw,sync,no_subtree_check,no_root_squash)"
+        create: yes
+      notify: restart nfs
+      tags: [ports, nfs]
+    
+    - name: Create NFS export directory
+      file:
+        path: /srv/nfs
+        state: directory
+        mode: '0777'
+      tags: [ports, nfs]
+    
+    - name: Start vulnerable services
+      systemd:
+        name: "{{ item }}"
+        state: started
+        enabled: yes
+      loop:
+        - vsftpd
+        - smbd
+        - nmbd
+        - nfs-server
+      ignore_errors: yes
+      tags: [ports, services]
+    
+    - name: Create vulnerable web service on non-standard port
+      copy:
+        dest: /usr/local/bin/vulnerable_web.py
+        content: |
+          #!/usr/bin/env python3
+          import http.server
+          import socketserver
+          
+          PORT = 8888
+          Handler = http.server.SimpleHTTPServer
+          
+          with socketserver.TCPServer(("", PORT), Handler) as httpd:
+              print(f"Serving on port {PORT}")
+              httpd.serve_forever()
+        mode: '0755'
+      tags: [ports, web]
+    
+    - name: Create systemd service for vulnerable web server
+      copy:
+        dest: /etc/systemd/system/vulnerable-web.service
+        content: |
+          [Unit]
+          Description=Vulnerable Web Server (Training)
+          After=network.target
+          
+          [Service]
+          Type=simple
+          User=nobody
+          WorkingDirectory=/tmp
+          ExecStart=/usr/local/bin/vulnerable_web.py
+          Restart=on-failure
+          
+          [Install]
+          WantedBy=multi-user.target
+      notify: reload systemd
+      tags: [ports, web]
+    
+    - name: Enable vulnerable web service
+      systemd:
+        name: vulnerable-web
+        state: started
+        enabled: yes
+        daemon_reload: yes
+      tags: [ports, web]
+    
+    - name: Create port information file
+      copy:
+        dest: /root/OPEN_PORTS_INFO.txt
+        content: |
+          # Open Ports Training Environment
+          
+          ## Exposed Services:
+          
+          Port 21   - FTP (vsftpd) - Anonymous access enabled
+          Port 23   - Telnet - Unencrypted remote access
+          Port 111  - RPC - Network File System
+          Port 139  - NetBIOS - Samba file sharing
+          Port 445  - SMB - Samba file sharing (guest access)
+          Port 2049 - NFS - Network File System (no_root_squash)
+          Port 8888 - HTTP - Simple web server
+          
+          ## Vulnerabilities:
+          
+          1. FTP Anonymous Access:
+             - Anyone can upload/download files
+             - Command: ftp {{ ansible_default_ipv4.address }}
+          
+          2. Telnet (Unencrypted):
+             - Credentials sent in cleartext
+             - Command: telnet {{ ansible_default_ipv4.address }}
+          
+          3. Samba Guest Access:
+             - No authentication required
+             - Command: smbclient //{{ ansible_default_ipv4.address }}/public -N
+          
+          4. NFS no_root_squash:
+             - Root privilege escalation vector
+             - Command: showmount -e {{ ansible_default_ipv4.address }}
+          
+          ## Detection:
+          
+          Port Scan:
+            nmap -sV -p- {{ ansible_default_ipv4.address }}
+          
+          Service Enumeration:
+            nmap -sC -sV {{ ansible_default_ipv4.address }}
+          
+          Vulnerability Scan:
+            nmap --script vuln {{ ansible_default_ipv4.address }}
+          
+          ## Remediation:
+          
+          - Close unnecessary ports
+          - Disable unused services
+          - Remove FTP, Telnet, use SFTP/SSH instead
+          - Configure firewall rules
+          - Implement network segmentation
+          - Regular port audits
+        mode: '0600'
+      tags: [ports, documentation]
+    
+    - name: Log vulnerability injection
+      debug:
+        msg: |
+          ✓ Unnecessary services exposed successfully
+          Vulnerable ports: 21, 23, 111, 139, 445, 2049, 8888
+          Check /root/OPEN_PORTS_INFO.txt for details
+      tags: [ports]
+  
+  handlers:
+    - name: restart vsftpd
+      service:
+        name: vsftpd
+        state: restarted
+    
+    - name: restart smbd
+      service:
+        name: smbd
+        state: restarted
+    
+    - name: restart nfs
+      service:
+        name: nfs-server
+        state: restarted
+    
+    - name: reload systemd
+      systemd:
+        daemon_reload: yes
+

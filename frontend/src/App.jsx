@@ -3,11 +3,14 @@ import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom'
 import Dashboard from './pages/Dashboard'
 import LabCanvas from './pages/LabCanvas'
 import Deployments from './pages/Deployments'
+import PlatformStatus from './pages/PlatformStatus'
+import { ChatModal, ChatToggle } from './components/OverseerChat'
 import './App.css'
 
 function App() {
   const [healthStatus, setHealthStatus] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [isChatOpen, setIsChatOpen] = useState(false)
 
   useEffect(() => {
     fetch('/api/health')
@@ -51,7 +54,19 @@ function App() {
           <Route path="/lab" element={<LabCanvas />} />
           <Route path="/lab/:labId" element={<LabCanvas />} />
           <Route path="/deployments" element={<Deployments />} />
+          <Route path="/platform/:platform" element={<PlatformStatus />} />
+          <Route path="/platform/:platform/:instanceId" element={<PlatformStatus />} />
         </Routes>
+
+        {/* Overseer Chat Interface */}
+        <ChatToggle 
+          onClick={() => setIsChatOpen(true)} 
+          hasUnread={false}
+        />
+        <ChatModal 
+          isOpen={isChatOpen} 
+          onClose={() => setIsChatOpen(false)} 
+        />
       </div>
     </Router>
   )

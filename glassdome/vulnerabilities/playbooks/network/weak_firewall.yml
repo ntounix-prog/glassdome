@@ -1,0 +1,262 @@
+---
+# Weak Firewall Configuration Vulnerability Playbook
+# Disables/weakens firewall for network security training
+#
+# Tags: firewall, network, iptables
+# Category: Network Security
+# CVE: Training environment (no specific CVE)
+
+- name: Inject Weak Firewall Configuration
+  hosts: all
+  become: yes
+  
+  tasks:
+    - name: Install iptables
+      apt:
+        name:
+          - iptables
+          - iptables-persistent
+        state: present
+        update_cache: yes
+      tags: [firewall, install]
+    
+    - name: Backup existing iptables rules
+      shell: iptables-save > /root/iptables.rules.backup
+      tags: [firewall, backup]
+    
+    - name: Flush all existing iptables rules
+      command: "{{ item }}"
+      loop:
+        - iptables -F
+        - iptables -X
+        - iptables -t nat -F
+        - iptables -t nat -X
+        - iptables -t mangle -F
+        - iptables -t mangle -X
+      tags: [firewall, flush]
+    
+    - name: Set default policies to ACCEPT (VULNERABLE)
+      command: "{{ item }}"
+      loop:
+        - iptables -P INPUT ACCEPT
+        - iptables -P FORWARD ACCEPT
+        - iptables -P OUTPUT ACCEPT
+      tags: [firewall, policy]
+    
+    - name: Create overly permissive rules
+      iptables:
+        chain: INPUT
+        protocol: "{{ item.proto }}"
+        destination_port: "{{ item.port }}"
+        jump: ACCEPT
+        comment: "Training - Allow {{ item.name }}"
+      loop:
+        - { proto: tcp, port: "21", name: "FTP" }
+        - { proto: tcp, port: "23", name: "Telnet" }
+        - { proto: tcp, port: "139", name: "NetBIOS" }
+        - { proto: tcp, port: "445", name: "SMB" }
+        - { proto: tcp, port: "3306", name: "MySQL" }
+        - { proto: tcp, port: "5432", name: "PostgreSQL" }
+        - { proto: tcp, port: "6379", name: "Redis" }
+        - { proto: tcp, port: "27017", name: "MongoDB" }
+        - { proto: tcp, port: "8080", name: "HTTP-Alt" }
+        - { proto: tcp, port: "8888", name: "HTTP-Test" }
+      tags: [firewall, rules]
+    
+    - name: Allow all ICMP (ping floods possible)
+      iptables:
+        chain: INPUT
+        protocol: icmp
+        jump: ACCEPT
+        comment: "Training - Allow all ICMP"
+      tags: [firewall, icmp]
+    
+    - name: Allow all from internal network (too broad)
+      iptables:
+        chain: INPUT
+        source: "192.168.0.0/16"
+        jump: ACCEPT
+        comment: "Training - Allow all from 192.168.0.0/16"
+      tags: [firewall, internal]
+    
+    - name: Allow all from another broad network
+      iptables:
+        chain: INPUT
+        source: "10.0.0.0/8"
+        jump: ACCEPT
+        comment: "Training - Allow all from 10.0.0.0/8"
+      tags: [firewall, internal]
+    
+    - name: Save weak iptables rules
+      shell: iptables-save > /etc/iptables/rules.v4
+      tags: [firewall, save]
+    
+    - name: Disable UFW if present
+      ufw:
+        state: disabled
+      ignore_errors: yes
+      tags: [firewall, ufw]
+    
+    - name: Stop firewalld if present
+      systemd:
+        name: firewalld
+        state: stopped
+        enabled: no
+      ignore_errors: yes
+      tags: [firewall, firewalld]
+    
+    - name: Create firewall information file
+      copy:
+        dest: /root/FIREWALL_VULNS.txt
+        content: |
+          # Weak Firewall Configuration - Training Environment
+          
+          ## Current Firewall Status: VULNERABLE
+          
+          ### Vulnerabilities:
+          
+          1. Default Policy: ACCEPT
+             - All traffic allowed by default
+             - Should be: DROP or REJECT
+          
+          2. Overly Permissive Rules:
+             - Database ports exposed (MySQL, PostgreSQL, Redis, MongoDB)
+             - Insecure protocols allowed (FTP, Telnet, SMB)
+             - No rate limiting on any service
+          
+          3. Broad Network Allowlists:
+             - Entire 192.168.0.0/16 network allowed
+             - Entire 10.0.0.0/8 network allowed
+             - Should use /24 or smaller subnets
+          
+          4. No Connection Tracking:
+             - Missing stateful firewall rules
+             - Missing anti-DDoS rules
+             - No SYN flood protection
+          
+          5. ICMP Unrestricted:
+             - Vulnerable to ping floods
+             - Information disclosure via ICMP
+          
+          ### Current Rules:
+          
+          View current rules:
+            sudo iptables -L -n -v
+          
+          View NAT rules:
+            sudo iptables -t nat -L -n -v
+          
+          View saved rules:
+            cat /etc/iptables/rules.v4
+          
+          ### Attack Scenarios:
+          
+          1. Port Scanning:
+             nmap -sS -p- {{ ansible_default_ipv4.address }}
+          
+          2. Service Exploitation:
+             - Direct access to databases
+             - FTP/Telnet brute force
+             - SMB enumeration
+          
+          3. DDoS Attacks:
+             - SYN flood (no protection)
+             - ICMP flood
+             - UDP flood
+          
+          4. Network Reconnaissance:
+             - Full port scan possible
+             - Service version detection
+             - OS fingerprinting
+          
+          ### Detection Methods:
+          
+          1. Firewall Audit:
+             sudo iptables -L -n -v
+             sudo iptables -S
+          
+          2. Port Exposure Check:
+             netstat -tulpn
+             ss -tulpn
+          
+          3. External Scan:
+             nmap -sV {{ ansible_default_ipv4.address }}
+          
+          4. Policy Review:
+             Check INPUT/OUTPUT/FORWARD default policies
+          
+          ### Remediation:
+          
+          1. Change Default Policy:
+             iptables -P INPUT DROP
+             iptables -P FORWARD DROP
+             iptables -P OUTPUT ACCEPT
+          
+          2. Implement Stateful Rules:
+             iptables -A INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+             iptables -A INPUT -m conntrack --ctstate INVALID -j DROP
+          
+          3. Limit ICMP:
+             iptables -A INPUT -p icmp --icmp-type echo-request -m limit --limit 1/s -j ACCEPT
+          
+          4. Close Unnecessary Ports:
+             - Only open required services
+             - Use specific source IPs
+             - Implement rate limiting
+          
+          5. Add Anti-DDoS Rules:
+             iptables -A INPUT -p tcp --syn -m limit --limit 1/s -j ACCEPT
+             iptables -A INPUT -p tcp --syn -j DROP
+          
+          6. Regular Audits:
+             - Review firewall rules monthly
+             - Test from external networks
+             - Use automated scanning tools
+          
+          ### Restore Secure Configuration:
+          
+          Restore backup:
+            sudo iptables-restore < /root/iptables.rules.backup
+          
+          Or implement secure rules:
+            sudo iptables -P INPUT DROP
+            sudo iptables -A INPUT -i lo -j ACCEPT
+            sudo iptables -A INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+            sudo iptables -A INPUT -p tcp --dport 22 -j ACCEPT
+            sudo iptables-save > /etc/iptables/rules.v4
+        mode: '0600'
+      tags: [firewall, documentation]
+    
+    - name: Create iptables rules viewer script
+      copy:
+        dest: /usr/local/bin/show-firewall-vulns
+        content: |
+          #!/bin/bash
+          echo "=== Current Firewall Configuration ==="
+          echo ""
+          echo "Default Policies:"
+          iptables -L | grep policy
+          echo ""
+          echo "All Rules:"
+          iptables -L -n -v --line-numbers
+          echo ""
+          echo "Vulnerabilities detected:"
+          echo "- Default policy is ACCEPT (should be DROP)"
+          echo "- Many services exposed without restrictions"
+          echo "- No rate limiting configured"
+          echo "- Broad network allowlists present"
+          echo ""
+          echo "See /root/FIREWALL_VULNS.txt for details"
+        mode: '0755'
+      tags: [firewall, tools]
+    
+    - name: Log vulnerability injection
+      debug:
+        msg: |
+          ✓ Weak firewall configuration injected successfully
+          Default policy: ACCEPT (vulnerable)
+          Exposed services: FTP, Telnet, SMB, MySQL, PostgreSQL, Redis, MongoDB
+          Check /root/FIREWALL_VULNS.txt for details
+          Run: show-firewall-vulns
+      tags: [firewall]
+

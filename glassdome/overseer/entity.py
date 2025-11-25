@@ -21,6 +21,12 @@ from pathlib import Path
 from glassdome.overseer.state import SystemState, VM, Host, Service, PendingRequest, VMStatus, HostStatus
 from glassdome.knowledge import RAGHelper
 from glassdome.platforms import ProxmoxClient, ESXiClient, AWSClient, AzureClient
+from glassdome.reaper.engine import MissionEngine
+from glassdome.reaper.planner import VulnerabilityPlanner
+from glassdome.reaper.task_queue import InMemoryTaskQueue
+from glassdome.reaper.event_bus import InMemoryEventBus
+from glassdome.reaper.mission_store import InMemoryMissionStore
+from glassdome.reaper.models import MissionState, HostState as ReaperHostState
 
 
 class OverseerEntity:
@@ -65,6 +71,13 @@ class OverseerEntity:
             'issues_detected': 0,
             'issues_resolved': 0
         }
+        
+        # Reaper mission management
+        self.reaper_missions: Dict[str, MissionEngine] = {}
+        self.reaper_task_queue = InMemoryTaskQueue()
+        self.reaper_event_bus = InMemoryEventBus()
+        self.reaper_mission_store = InMemoryMissionStore()
+        self.reaper_planner = VulnerabilityPlanner()
     
     # ═══════════════════════════════════════════════════
     # Platform Clients (Lazy Loading)
@@ -567,7 +580,174 @@ class OverseerEntity:
         print("\n🛑 Shutting down Overseer...")
         self.monitoring_active = False
         self.execution_active = False
+        
+        # Stop all Reaper missions
+        for mission_id, engine in self.reaper_missions.items():
+            print(f"  Stopping Reaper mission: {mission_id}")
+            engine.stop()
+        
         self.state.save()
+    
+    # ═══════════════════════════════════════════════════
+    # Reaper Mission Management
+    # ═══════════════════════════════════════════════════
+    
+    def create_reaper_mission(
+        self,
+        mission_id: str,
+        lab_id: str,
+        mission_type: str,
+        target_vms: List[Dict[str, str]]
+    ) -> Dict[str, Any]:
+        """
+        Create a Reaper vulnerability injection mission
+        
+        Args:
+            mission_id: Unique mission identifier
+            lab_id: Lab deployment ID (from LabOrchestrator)
+            mission_type: Mission type (e.g., "web-security-lab")
+            target_vms: List of VMs to target [{"host_id": str, "os": str, "ip_address": str}]
+            
+        Returns:
+            Mission creation result
+        """
+        print(f"\n[Overseer] Creating Reaper mission: {mission_id}")
+        print(f"  Lab ID: {lab_id}")
+        print(f"  Type: {mission_type}")
+        print(f"  Targets: {len(target_vms)} VMs")
+        
+        # Validate mission doesn't already exist
+        if mission_id in self.reaper_missions:
+            return {
+                "success": False,
+                "error": f"Mission {mission_id} already exists"
+            }
+        
+        # Create host states
+        hosts = {}
+        for vm in target_vms:
+            hosts[vm["host_id"]] = ReaperHostState(
+                host_id=vm["host_id"],
+                os=vm["os"],
+                ip_address=vm.get("ip_address")
+            )
+        
+        # Create mission state
+        initial_state = MissionState(
+            mission_id=mission_id,
+            lab_id=lab_id,
+            mission_type=mission_type,
+            hosts=hosts
+        )
+        
+        # Create mission engine
+        engine = MissionEngine(
+            mission_id,
+            self.reaper_mission_store,
+            self.reaper_task_queue,
+            self.reaper_event_bus,
+            self.reaper_planner
+        )
+        
+        # Store engine
+        self.reaper_missions[mission_id] = engine
+        
+        # Start mission
+        engine.start_mission(initial_state)
+        
+        # Start event loop in background
+        engine.start_event_loop_background()
+        
+        print(f"✅ [Overseer] Reaper mission {mission_id} started")
+        
+        return {
+            "success": True,
+            "mission_id": mission_id,
+            "lab_id": lab_id,
+            "status": "running",
+            "target_hosts": len(hosts)
+        }
+    
+    def get_reaper_mission_status(self, mission_id: str) -> Dict[str, Any]:
+        """
+        Get status of a Reaper mission
+        
+        Args:
+            mission_id: Mission ID
+            
+        Returns:
+            Mission status
+        """
+        if mission_id not in self.reaper_missions:
+            return {"error": f"Mission {mission_id} not found"}
+        
+        engine = self.reaper_missions[mission_id]
+        return engine.get_status()
+    
+    def get_reaper_mission_detailed_status(self, mission_id: str) -> Dict[str, Any]:
+        """
+        Get detailed status of a Reaper mission including host states
+        
+        Args:
+            mission_id: Mission ID
+            
+        Returns:
+            Detailed mission status
+        """
+        if mission_id not in self.reaper_missions:
+            return {"error": f"Mission {mission_id} not found"}
+        
+        engine = self.reaper_missions[mission_id]
+        return engine.get_detailed_status()
+    
+    def list_reaper_missions(self) -> List[Dict[str, Any]]:
+        """
+        List all Reaper missions
+        
+        Returns:
+            List of mission summaries
+        """
+        missions = []
+        for mission_id, engine in self.reaper_missions.items():
+            status = engine.get_status()
+            missions.append(status)
+        return missions
+    
+    def cancel_reaper_mission(self, mission_id: str) -> Dict[str, Any]:
+        """
+        Cancel a running Reaper mission
+        
+        Args:
+            mission_id: Mission ID
+            
+        Returns:
+            Cancellation result
+        """
+        if mission_id not in self.reaper_missions:
+            return {
+                "success": False,
+                "error": f"Mission {mission_id} not found"
+            }
+        
+        engine = self.reaper_missions[mission_id]
+        engine.stop()
+        
+        # Update mission status
+        mission = self.reaper_mission_store.load(mission_id)
+        if mission:
+            mission.status = "cancelled"
+            self.reaper_mission_store.save(mission)
+        
+        # Remove from active missions
+        del self.reaper_missions[mission_id]
+        
+        print(f"✅ [Overseer] Reaper mission {mission_id} cancelled")
+        
+        return {
+            "success": True,
+            "mission_id": mission_id,
+            "status": "cancelled"
+        }
 
 
 if __name__ == "__main__":

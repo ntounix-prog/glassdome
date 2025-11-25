@@ -1,0 +1,150 @@
+---
+# SQL Injection Vulnerability Playbook
+# Installs DVWA (Damn Vulnerable Web Application) for SQL injection training
+#
+# Tags: sqli, web, dvwa
+# Category: Web Security
+# CVE: Training environment (no specific CVE)
+
+- name: Inject SQL Injection Vulnerability (DVWA)
+  hosts: all
+  become: yes
+  vars:
+    dvwa_path: /var/www/html/dvwa
+    mysql_root_password: "vulnerablePass123"
+    dvwa_db_user: "dvwa"
+    dvwa_db_password: "dvwa"
+    dvwa_db_name: "dvwa"
+  
+  tasks:
+    - name: Install required packages
+      apt:
+        name:
+          - apache2
+          - mysql-server
+          - php
+          - php-mysql
+          - php-gd
+          - git
+        state: present
+        update_cache: yes
+      tags: [sqli, install]
+    
+    - name: Start and enable Apache
+      service:
+        name: apache2
+        state: started
+        enabled: yes
+      tags: [sqli]
+    
+    - name: Start and enable MySQL
+      service:
+        name: mysql
+        state: started
+        enabled: yes
+      tags: [sqli]
+    
+    - name: Clone DVWA repository
+      git:
+        repo: 'https://github.com/digininja/DVWA.git'
+        dest: "{{ dvwa_path }}"
+        version: master
+        force: yes
+      tags: [sqli, install]
+    
+    - name: Copy DVWA config
+      copy:
+        src: "{{ dvwa_path }}/config/config.inc.php.dist"
+        dest: "{{ dvwa_path }}/config/config.inc.php"
+        remote_src: yes
+      tags: [sqli, configure]
+    
+    - name: Configure DVWA database settings
+      lineinfile:
+        path: "{{ dvwa_path }}/config/config.inc.php"
+        regexp: "{{ item.regexp }}"
+        line: "{{ item.line }}"
+      loop:
+        - { regexp: "^\\$_DVWA\\[ 'db_user' \\]", line: "$_DVWA[ 'db_user' ] = '{{ dvwa_db_user }}';" }
+        - { regexp: "^\\$_DVWA\\[ 'db_password' \\]", line: "$_DVWA[ 'db_password' ] = '{{ dvwa_db_password }}';" }
+        - { regexp: "^\\$_DVWA\\[ 'db_database' \\]", line: "$_DVWA[ 'db_database' ] = '{{ dvwa_db_name }}';" }
+      tags: [sqli, configure]
+    
+    - name: Set DVWA security level to low
+      lineinfile:
+        path: "{{ dvwa_path }}/config/config.inc.php"
+        regexp: "^\\$_DVWA\\[ 'default_security_level' \\]"
+        line: "$_DVWA[ 'default_security_level' ] = 'low';"
+      tags: [sqli, configure]
+    
+    - name: Set permissions on DVWA directory
+      file:
+        path: "{{ dvwa_path }}"
+        owner: www-data
+        group: www-data
+        recurse: yes
+      tags: [sqli]
+    
+    - name: Create MySQL database
+      mysql_db:
+        name: "{{ dvwa_db_name }}"
+        state: present
+        login_unix_socket: /var/run/mysqld/mysqld.sock
+      tags: [sqli, database]
+    
+    - name: Create MySQL user
+      mysql_user:
+        name: "{{ dvwa_db_user }}"
+        password: "{{ dvwa_db_password }}"
+        priv: "{{ dvwa_db_name }}.*:ALL"
+        state: present
+        login_unix_socket: /var/run/mysqld/mysqld.sock
+      tags: [sqli, database]
+    
+    - name: Create DVWA Apache vhost
+      copy:
+        dest: /etc/apache2/sites-available/dvwa.conf
+        content: |
+          <VirtualHost *:80>
+              ServerAdmin webmaster@localhost
+              DocumentRoot {{ dvwa_path }}
+              <Directory {{ dvwa_path }}>
+                  Options Indexes FollowSymLinks
+                  AllowOverride All
+                  Require all granted
+              </Directory>
+              ErrorLog ${APACHE_LOG_DIR}/dvwa-error.log
+              CustomLog ${APACHE_LOG_DIR}/dvwa-access.log combined
+          </VirtualHost>
+      tags: [sqli, configure]
+    
+    - name: Enable DVWA site
+      command: a2ensite dvwa.conf
+      notify: reload apache
+      tags: [sqli, configure]
+    
+    - name: Disable default site
+      command: a2dissite 000-default.conf
+      notify: reload apache
+      tags: [sqli, configure]
+    
+    - name: Verify DVWA is accessible
+      uri:
+        url: "http://localhost/setup.php"
+        status_code: 200
+      register: dvwa_check
+      retries: 3
+      delay: 2
+      tags: [sqli, verify]
+    
+    - name: Log vulnerability injection
+      debug:
+        msg: "✓ SQL Injection vulnerability (DVWA) installed successfully. Access at http://{{ ansible_default_ipv4.address }}/"
+      tags: [sqli]
+  
+  handlers:
+    - name: reload apache
+      service:
+        name: apache2
+        state: reloaded
+

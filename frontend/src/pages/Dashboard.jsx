@@ -1,8 +1,15 @@
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 import '../styles/Dashboard.css'
 
 function Dashboard({ healthStatus }) {
   const navigate = useNavigate()
+
+  const platforms = [
+    { id: 'proxmox', name: 'Proxmox', icon: '🖥️', path: '/platform/proxmox' },
+    { id: 'esxi', name: 'ESXi', icon: '🏢', path: '/platform/esxi' },
+    { id: 'aws', name: 'AWS', icon: '☁️', path: '/platform/aws' },
+    { id: 'azure', name: 'Azure', icon: '🌐', path: '/platform/azure' },
+  ]
 
   return (
     <div className="dashboard">
@@ -55,20 +62,20 @@ function Dashboard({ healthStatus }) {
       </div>
 
       <div className="platforms-section">
-        <h2>Supported Platforms</h2>
+        <h2>Platforms</h2>
+        <p className="platforms-subtitle">Click a platform to view status and manage VMs</p>
         <div className="platform-badges">
-          <div className="platform-badge">
-            <span className="badge-icon">🖥️</span>
-            <span>Proxmox</span>
-          </div>
-          <div className="platform-badge">
-            <span className="badge-icon">☁️</span>
-            <span>Azure</span>
-          </div>
-          <div className="platform-badge">
-            <span className="badge-icon">☁️</span>
-            <span>AWS</span>
-          </div>
+          {platforms.map((platform) => (
+            <Link 
+              key={platform.id} 
+              to={platform.path} 
+              className="platform-badge clickable"
+            >
+              <span className="badge-icon">{platform.icon}</span>
+              <span>{platform.name}</span>
+              <span className="badge-arrow">→</span>
+            </Link>
+          ))}
         </div>
       </div>
 

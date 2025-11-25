@@ -1,0 +1,168 @@
+---
+# Weak SSH Configuration Vulnerability Playbook
+# Introduces SSH misconfigurations and weak credentials for training
+#
+# Tags: ssh, weak-creds, system
+# Category: System Security
+# CVE: Training environment (no specific CVE)
+
+- name: Inject Weak SSH Configuration
+  hosts: all
+  become: yes
+  vars:
+    weak_users:
+      - { username: "admin", password: "admin" }
+      - { username: "backup", password: "backup123" }
+      - { username: "test", password: "test" }
+      - { username: "ftpuser", password: "ftp123" }
+  
+  tasks:
+    - name: Ensure SSH server is installed
+      apt:
+        name: openssh-server
+        state: present
+        update_cache: yes
+      tags: [ssh, install]
+    
+    - name: Create weak credential users
+      user:
+        name: "{{ item.username }}"
+        password: "{{ item.password | password_hash('sha512') }}"
+        shell: /bin/bash
+        state: present
+      loop: "{{ weak_users }}"
+      tags: [ssh, users]
+    
+    - name: Backup original sshd_config
+      copy:
+        src: /etc/ssh/sshd_config
+        dest: /etc/ssh/sshd_config.orig
+        remote_src: yes
+        force: no
+      tags: [ssh]
+    
+    - name: Configure weak SSH settings
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: "{{ item.regexp }}"
+        line: "{{ item.line }}"
+        state: present
+      loop:
+        - { regexp: "^#?PermitRootLogin", line: "PermitRootLogin yes" }
+        - { regexp: "^#?PasswordAuthentication", line: "PasswordAuthentication yes" }
+        - { regexp: "^#?PermitEmptyPasswords", line: "PermitEmptyPasswords no" }
+        - { regexp: "^#?PubkeyAuthentication", line: "PubkeyAuthentication yes" }
+        - { regexp: "^#?MaxAuthTries", line: "MaxAuthTries 20" }
+        - { regexp: "^#?LoginGraceTime", line: "LoginGraceTime 300" }
+      notify: restart sshd
+      tags: [ssh, configure]
+    
+    - name: Allow password authentication (if using includes)
+      blockinfile:
+        path: /etc/ssh/sshd_config
+        block: |
+          # VULNERABLE CONFIGURATION FOR TRAINING
+          # These settings make SSH vulnerable to various attacks
+          PermitRootLogin yes
+          PasswordAuthentication yes
+          MaxAuthTries 20
+          ClientAliveInterval 0
+        marker: "# {mark} ANSIBLE MANAGED - TRAINING VULNERABILITY"
+      notify: restart sshd
+      tags: [ssh, configure]
+    
+    - name: Create weak authorized_keys for admin
+      file:
+        path: /home/admin/.ssh
+        state: directory
+        owner: admin
+        group: admin
+        mode: '0700'
+      tags: [ssh, keys]
+    
+    - name: Add weak SSH key (publicly known key for training)
+      copy:
+        dest: /home/admin/.ssh/authorized_keys
+        content: |
+          ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDKfKVwHbH0lRfLHmXPZlsyKmTN3gN4JCkLQ1MfQfYvN7wF8gK3rZ8YhH8s5L3N9y2V4X5Z6T7U8M9P0Q1R2S3T4U5V training@vulnerable
+        owner: admin
+        group: admin
+        mode: '0600'
+      tags: [ssh, keys]
+    
+    - name: Create credential list file
+      copy:
+        dest: /root/WEAK_CREDENTIALS.txt
+        content: |
+          # Weak SSH Credentials for Training
+          
+          ## Default Accounts with Weak Passwords:
+          {% for user in weak_users %}
+          Username: {{ user.username }}
+          Password: {{ user.password }}
+          {% endfor %}
+          
+          ## SSH Configuration Vulnerabilities:
+          - Root login enabled
+          - Password authentication enabled
+          - High max auth tries (20)
+          - Long login grace time (300 seconds)
+          
+          ## Attack Vectors:
+          1. Brute Force Attack:
+             hydra -L userlist.txt -P passwordlist.txt ssh://{{ ansible_default_ipv4.address }}
+          
+          2. Dictionary Attack:
+             medusa -h {{ ansible_default_ipv4.address }} -u admin -P /usr/share/wordlists/rockyou.txt -M ssh
+          
+          3. Key-based Auth (if private key obtained):
+             ssh -i id_rsa admin@{{ ansible_default_ipv4.address }}
+          
+          ## Detection:
+          - Review /etc/ssh/sshd_config for weak settings
+          - Check /var/log/auth.log for failed login attempts
+          - Monitor for brute force patterns
+          - Use fail2ban or similar IDS
+          
+          ## Remediation:
+          - Disable root login
+          - Use key-based authentication only
+          - Implement fail2ban
+          - Reduce MaxAuthTries to 3-6
+          - Use strong passwords or disable password auth
+          - Implement 2FA
+        mode: '0600'
+      tags: [ssh, documentation]
+    
+    - name: Create user hints file
+      copy:
+        dest: /home/admin/SSH_INFO.txt
+        content: |
+          # SSH Training Environment
+          
+          This system has weak SSH configurations for training purposes.
+          
+          Try to identify the vulnerabilities and exploit them.
+          
+          Hint: Check the SSH server configuration and look for weak accounts.
+        owner: admin
+        group: admin
+        mode: '0644'
+      tags: [ssh, hints]
+    
+    - name: Log vulnerability injection
+      debug:
+        msg: |
+          ✓ Weak SSH configuration injected successfully
+          Weak accounts created: {{ weak_users | map(attribute='username') | list | join(', ') }}
+          Root login: ENABLED
+          Password auth: ENABLED
+          Check /root/WEAK_CREDENTIALS.txt for details
+      tags: [ssh]
+  
+  handlers:
+    - name: restart sshd
+      service:
+        name: sshd
+        state: restarted
+

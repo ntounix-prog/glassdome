@@ -21,6 +21,8 @@ from glassdome.api.ubuntu import router as ubuntu_router
 from glassdome.api.labs import router as labs_router
 from glassdome.api.ansible import router as ansible_router
 from glassdome.api import auth
+from glassdome.api.chat import router as chat_router
+from glassdome.api.platforms import router as platforms_router
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -43,12 +45,21 @@ app.include_router(ubuntu_router, prefix=settings.api_prefix)
 app.include_router(labs_router)
 app.include_router(ansible_router)
 app.include_router(auth.router)
+app.include_router(chat_router)  # Overseer chat interface
+app.include_router(platforms_router)  # Platform status API
 
 
 # Startup and shutdown events
 @app.on_event("startup")
 async def startup_event():
     """Initialize services on startup"""
+    # Initialize session from cache (no password prompt if cached)
+    from glassdome.core.session import get_session
+    session = get_session()
+    if session.initialize(use_cache=True, interactive=False):
+        import logging
+        logging.getLogger(__name__).info(f"Session loaded with {len(session.secrets)} secrets")
+    
     await init_db()
     # Start agent manager in background
     # asyncio.create_task(agent_manager.start())

@@ -1,0 +1,197 @@
+---
+# Cross-Site Scripting (XSS) Vulnerability Playbook
+# Creates a simple vulnerable PHP application with XSS
+#
+# Tags: xss, web
+# Category: Web Security
+# CVE: Training environment (no specific CVE)
+
+- name: Inject XSS Vulnerability
+  hosts: all
+  become: yes
+  vars:
+    xss_app_path: /var/www/html/xss_vulnerable
+  
+  tasks:
+    - name: Install Apache and PHP
+      apt:
+        name:
+          - apache2
+          - php
+          - libapache2-mod-php
+        state: present
+        update_cache: yes
+      tags: [xss, install]
+    
+    - name: Start and enable Apache
+      service:
+        name: apache2
+        state: started
+        enabled: yes
+      tags: [xss]
+    
+    - name: Create XSS vulnerable application directory
+      file:
+        path: "{{ xss_app_path }}"
+        state: directory
+        owner: www-data
+        group: www-data
+        mode: '0755'
+      tags: [xss]
+    
+    - name: Create vulnerable search page
+      copy:
+        dest: "{{ xss_app_path }}/search.php"
+        content: |
+          <!DOCTYPE html>
+          <html>
+          <head>
+              <title>Vulnerable Search</title>
+              <style>
+                  body { font-family: Arial, sans-serif; margin: 40px; }
+                  .search-box { padding: 20px; background: #f0f0f0; border-radius: 5px; }
+                  input[type="text"] { padding: 10px; width: 300px; }
+                  button { padding: 10px 20px; background: #007bff; color: white; border: none; cursor: pointer; }
+                  .results { margin-top: 20px; padding: 20px; background: #fff; border: 1px solid #ddd; }
+              </style>
+          </head>
+          <body>
+              <h1>Product Search (VULNERABLE TO XSS)</h1>
+              <div class="search-box">
+                  <form method="GET" action="">
+                      <input type="text" name="query" placeholder="Search products..." value="<?php echo $_GET['query'] ?? ''; ?>">
+                      <button type="submit">Search</button>
+                  </form>
+              </div>
+              
+              <?php if (isset($_GET['query'])): ?>
+              <div class="results">
+                  <h2>Search Results for: <?php echo $_GET['query']; ?></h2>
+                  <p>No products found matching your search.</p>
+                  <p><i>Note: This page is vulnerable to XSS. The search query is echoed without sanitization.</i></p>
+              </div>
+              <?php endif; ?>
+              
+              <div style="margin-top: 40px; padding: 20px; background: #ffffcc; border: 1px solid #ffcc00;">
+                  <h3>Training Information</h3>
+                  <p><b>Vulnerability:</b> Reflected XSS (Cross-Site Scripting)</p>
+                  <p><b>How to exploit:</b> Try injecting: <code>&lt;script&gt;alert('XSS')&lt;/script&gt;</code></p>
+                  <p><b>Impact:</b> Cookie theft, session hijacking, defacement, keylogging</p>
+                  <p><b>Remediation:</b> Use htmlspecialchars() or similar sanitization functions</p>
+              </div>
+          </body>
+          </html>
+        owner: www-data
+        group: www-data
+        mode: '0644'
+      tags: [xss]
+    
+    - name: Create vulnerable comment page
+      copy:
+        dest: "{{ xss_app_path }}/comments.php"
+        content: |
+          <!DOCTYPE html>
+          <html>
+          <head>
+              <title>Vulnerable Comments</title>
+              <style>
+                  body { font-family: Arial, sans-serif; margin: 40px; }
+                  .comment-form { padding: 20px; background: #f0f0f0; border-radius: 5px; margin-bottom: 20px; }
+                  textarea { width: 100%; padding: 10px; }
+                  button { padding: 10px 20px; background: #007bff; color: white; border: none; cursor: pointer; margin-top: 10px; }
+                  .comment { padding: 15px; background: #fff; border: 1px solid #ddd; margin-bottom: 10px; }
+              </style>
+          </head>
+          <body>
+              <h1>Comments (VULNERABLE TO STORED XSS)</h1>
+              <div class="comment-form">
+                  <form method="POST" action="">
+                      <input type="text" name="name" placeholder="Your name" required><br><br>
+                      <textarea name="comment" rows="4" placeholder="Your comment" required></textarea>
+                      <button type="submit">Post Comment</button>
+                  </form>
+              </div>
+              
+              <?php
+              session_start();
+              if (!isset($_SESSION['comments'])) {
+                  $_SESSION['comments'] = [];
+              }
+              
+              if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+                  $_SESSION['comments'][] = [
+                      'name' => $_POST['name'],
+                      'comment' => $_POST['comment'],
+                      'time' => date('Y-m-d H:i:s')
+                  ];
+              }
+              
+              foreach (array_reverse($_SESSION['comments']) as $c) {
+                  echo '<div class="comment">';
+                  echo '<strong>' . $c['name'] . '</strong> <small>(' . $c['time'] . ')</small>';
+                  echo '<p>' . $c['comment'] . '</p>';
+                  echo '</div>';
+              }
+              ?>
+              
+              <div style="margin-top: 40px; padding: 20px; background: #ffffcc; border: 1px solid #ffcc00;">
+                  <h3>Training Information</h3>
+                  <p><b>Vulnerability:</b> Stored XSS (Cross-Site Scripting)</p>
+                  <p><b>How to exploit:</b> Submit a comment with: <code>&lt;script&gt;alert('XSS')&lt;/script&gt;</code></p>
+                  <p><b>Impact:</b> Persistent malicious code affecting all users who view the page</p>
+                  <p><b>Remediation:</b> Sanitize all user input before storing and displaying</p>
+              </div>
+          </body>
+          </html>
+        owner: www-data
+        group: www-data
+        mode: '0644'
+      tags: [xss]
+    
+    - name: Create index page
+      copy:
+        dest: "{{ xss_app_path }}/index.html"
+        content: |
+          <!DOCTYPE html>
+          <html>
+          <head>
+              <title>XSS Vulnerability Lab</title>
+              <style>
+                  body { font-family: Arial, sans-serif; margin: 40px; }
+                  .link { display: block; padding: 15px; background: #007bff; color: white; text-decoration: none; margin: 10px 0; border-radius: 5px; }
+                  .link:hover { background: #0056b3; }
+              </style>
+          </head>
+          <body>
+              <h1>XSS Vulnerability Training Lab</h1>
+              <p>This lab contains intentionally vulnerable pages for XSS training.</p>
+              
+              <a href="search.php" class="link">Reflected XSS - Search Page</a>
+              <a href="comments.php" class="link">Stored XSS - Comments Page</a>
+              
+              <div style="margin-top: 40px; padding: 20px; background: #ffcccc; border: 1px solid #ff0000;">
+                  <h3>⚠️ WARNING</h3>
+                  <p>These applications are intentionally vulnerable. Do NOT deploy in production.</p>
+                  <p>For educational and training purposes only.</p>
+              </div>
+          </body>
+          </html>
+        owner: www-data
+        group: www-data
+        mode: '0644'
+      tags: [xss]
+    
+    - name: Verify XSS app is accessible
+      uri:
+        url: "http://localhost/xss_vulnerable/"
+        status_code: 200
+      register: xss_check
+      retries: 3
+      delay: 2
+      tags: [xss, verify]
+    
+    - name: Log vulnerability injection
+      debug:
+        msg: "✓ XSS vulnerability installed successfully. Access at http://{{ ansible_default_ipv4.address }}/xss_vulnerable/"
+      tags: [xss]
+
