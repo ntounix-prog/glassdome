@@ -76,9 +76,12 @@ export default function PlatformStatus() {
     try {
       setLoading(true)
       // For AWS, use all-regions endpoint to get both Virginia and Oregon
+      // For Proxmox, use all-instances endpoint to get all clusters (pve01, pve02, etc.)
       let url
       if (platform === 'aws') {
         url = '/api/platforms/aws/all-regions'
+      } else if (platform === 'proxmox') {
+        url = '/api/platforms/proxmox/all-instances'
       } else if (instanceId) {
         url = `/api/platforms/${platform}/${instanceId}/vms`
       } else {
@@ -102,10 +105,19 @@ export default function PlatformStatus() {
     }
   }
 
-  const handleVMAction = async (vmid, action) => {
+  const handleVMAction = async (vmid, action, vmNode = null) => {
     setActionLoading(vmid)
     try {
-      const url = `/api/platforms/${platform}/${instanceId || '01'}/vms/${vmid}/${action}`
+      // Extract instance ID from node if available (format: "pve01 (01)")
+      let targetInstance = instanceId || '01'
+      if (vmNode && vmNode.includes('(')) {
+        const match = vmNode.match(/\((\d+)\)/)
+        if (match) {
+          targetInstance = match[1]
+        }
+      }
+      
+      const url = `/api/platforms/${platform}/${targetInstance}/vms/${vmid}/${action}`
       const response = await fetch(url, { method: 'POST' })
       const data = await response.json()
       
@@ -193,7 +205,33 @@ export default function PlatformStatus() {
             )}
           </div>
 
-          {/* Nodes Section (Proxmox) */}
+          {/* Instances Section (Proxmox multi-cluster) */}
+          {status.summary?.instances && status.summary.instances.length > 0 && (
+            <div className="nodes-section">
+              <h3>Proxmox Clusters</h3>
+              <div className="nodes-grid">
+                {status.summary.instances.map((instance, idx) => (
+                  <div key={idx} className={`node-card ${instance.connected ? 'online' : 'offline'}`}>
+                    <div className="node-name">
+                      {instance.node || `PVE${instance.instance_id}`}
+                    </div>
+                    <div className="node-host">{instance.host}</div>
+                    <div className="node-status">
+                      {instance.connected ? '🟢 Online' : '🔴 Offline'}
+                    </div>
+                    {instance.connected && (
+                      <div className="node-stat">{instance.vms} VMs</div>
+                    )}
+                    {instance.error && (
+                      <div className="node-error">{instance.error}</div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Nodes Section (Proxmox individual nodes within clusters) */}
           {status.nodes && status.nodes.length > 0 && (
             <div className="nodes-section">
               <h3>Cluster Nodes</h3>
@@ -201,6 +239,9 @@ export default function PlatformStatus() {
                 {status.nodes.map((node, idx) => (
                   <div key={idx} className={`node-card ${node.status || 'online'}`}>
                     <div className="node-name">{node.node || node.name}</div>
+                    {node.instance_id && (
+                      <div className="node-instance">Cluster: {node.instance_id}</div>
+                    )}
                     <div className="node-status">{node.status || 'online'}</div>
                     {node.cpu && (
                       <div className="node-stat">CPU: {(node.cpu * 100).toFixed(1)}%</div>
@@ -311,7 +352,7 @@ export default function PlatformStatus() {
                             {(vm.status === 'running' || vm.status === 'poweredOn') ? (
                               <button 
                                 className="action-btn stop"
-                                onClick={() => handleVMAction(vm.vmid, 'stop')}
+                                onClick={() => handleVMAction(vm.vmid, 'stop', vm.node)}
                                 disabled={actionLoading === vm.vmid}
                               >
                                 {actionLoading === vm.vmid ? '...' : '⏹️ Stop'}
@@ -319,7 +360,7 @@ export default function PlatformStatus() {
                             ) : (
                               <button 
                                 className="action-btn start"
-                                onClick={() => handleVMAction(vm.vmid, 'start')}
+                                onClick={() => handleVMAction(vm.vmid, 'start', vm.node)}
                                 disabled={actionLoading === vm.vmid}
                               >
                                 {actionLoading === vm.vmid ? '...' : '▶️ Start'}

@@ -180,6 +180,20 @@
   font-weight: 600;
   color: #fff;
   margin-bottom: 0.25rem;
+  font-size: 1.1rem;
+}
+
+.node-host {
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.4);
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  margin-bottom: 0.5rem;
+}
+
+.node-instance {
+  font-size: 0.75rem;
+  color: rgba(96, 165, 250, 0.8);
+  margin-bottom: 0.25rem;
 }
 
 .node-status {
@@ -188,9 +202,20 @@
   margin-bottom: 0.5rem;
 }
 
+.node-card.offline .node-status {
+  color: #ef4444;
+}
+
 .node-stat {
   font-size: 0.75rem;
   color: rgba(255, 255, 255, 0.5);
+}
+
+.node-error {
+  font-size: 0.7rem;
+  color: #fca5a5;
+  margin-top: 0.5rem;
+  word-break: break-word;
 }
 
 /* VM Filters */

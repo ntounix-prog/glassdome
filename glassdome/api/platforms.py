@@ -196,6 +196,113 @@ async def get_proxmox_vms(instance_id: str):
     return await get_proxmox_status(instance_id)
 
 
+@router.get("/proxmox/all-instances")
+async def get_all_proxmox_status():
+    """Get status from all configured Proxmox instances (pve01, pve02, etc.)"""
+    try:
+        instances = list_available_proxmox_instances()
+        logger.info(f"Checking Proxmox instances: {instances}")
+        
+        all_vms = []
+        all_nodes = []
+        summary = {"total": 0, "running": 0, "stopped": 0, "templates": 0}
+        connected_count = 0
+        instance_details = []
+        
+        for instance_id in instances:
+            try:
+                config = settings.get_proxmox_config(instance_id)
+                if not config.get("host"):
+                    logger.warning(f"Proxmox instance {instance_id} has no host configured, skipping")
+                    continue
+                    
+                client = get_proxmox_client(instance_id)
+                connected = await client.test_connection()
+                
+                if not connected:
+                    logger.warning(f"Proxmox instance {instance_id} not reachable")
+                    instance_details.append({
+                        "instance_id": instance_id,
+                        "host": config.get("host"),
+                        "connected": False,
+                        "node": config.get("node", "pve"),
+                        "vms": 0
+                    })
+                    continue
+                
+                connected_count += 1
+                nodes = await client.list_nodes()
+                
+                for node_info in nodes:
+                    node_name = node_info.get("node", config.get("node", "pve"))
+                    # Add instance info to node
+                    node_info["instance_id"] = instance_id
+                    node_info["host"] = config.get("host")
+                    all_nodes.append(node_info)
+                    
+                    vms = await client.list_vms(node_name)
+                    
+                    for vm in vms:
+                        vm_info = VMInfo(
+                            vmid=vm.get("vmid", 0),
+                            name=vm.get("name", f"VM-{vm.get('vmid')}"),
+                            status=vm.get("status", "unknown"),
+                            cpu=vm.get("cpu", 0),
+                            memory=vm.get("maxmem", 0),
+                            memory_used=vm.get("mem", 0),
+                            disk=vm.get("maxdisk", 0),
+                            uptime=vm.get("uptime", 0),
+                            node=f"{node_name} ({instance_id})",  # Show which cluster
+                            template=vm.get("template", False)
+                        )
+                        all_vms.append(vm_info)
+                        
+                        summary["total"] += 1
+                        if vm_info.template:
+                            summary["templates"] += 1
+                        elif vm_info.status == "running":
+                            summary["running"] += 1
+                        else:
+                            summary["stopped"] += 1
+                
+                instance_details.append({
+                    "instance_id": instance_id,
+                    "host": config.get("host"),
+                    "connected": True,
+                    "node": config.get("node", "pve"),
+                    "vms": len([v for v in all_vms if f"({instance_id})" in v.node])
+                })
+                    
+            except Exception as e:
+                logger.error(f"Failed to get status from Proxmox instance {instance_id}: {e}")
+                instance_details.append({
+                    "instance_id": instance_id,
+                    "host": config.get("host") if 'config' in dir() else "unknown",
+                    "connected": False,
+                    "error": str(e)
+                })
+        
+        return PlatformStatusResponse(
+            platform="proxmox",
+            connected=connected_count > 0,
+            message=f"Connected to {connected_count}/{len(instances)} Proxmox instances ({summary['total']} VMs)",
+            nodes=all_nodes,
+            vms=all_vms,
+            summary={
+                **summary,
+                "instances": instance_details
+            }
+        )
+        
+    except Exception as e:
+        logger.error(f"Failed to get all Proxmox status: {e}")
+        return PlatformStatusResponse(
+            platform="proxmox",
+            connected=False,
+            message=f"Error: {str(e)}"
+        )
+
+
 @router.post("/proxmox/{instance_id}/vms/{vmid}/start")
 async def start_proxmox_vm(instance_id: str, vmid: int):
     """Start a VM on Proxmox"""

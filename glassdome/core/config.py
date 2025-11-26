@@ -227,7 +227,30 @@ class Settings(BaseSettings):
         """
         instances = ["01"]  # Always include default instance
         
-        # Find all PROXMOX_XX_HOST variables
+        # Check .env file for PROXMOX_XX_HOST variables
+        env_file_path = Path(".env")
+        if env_file_path.exists():
+            with open(env_file_path) as f:
+                for line in f:
+                    line = line.strip()
+                    if not line or line.startswith("#"):
+                        continue
+                    if "=" in line:
+                        key = line.split("=", 1)[0].strip()
+                        # Look for PROXMOX_XX_HOST pattern
+                        match = re.match(r'^PROXMOX_(\d+)_HOST$', key)
+                        if match:
+                            instance_id = match.group(1)
+                            if instance_id not in instances:
+                                instances.append(instance_id)
+                        # Also check for PROXMOX_TOKEN_VALUE_XX pattern
+                        match = re.match(r'^PROXMOX_TOKEN_VALUE_(\d+)$', key)
+                        if match:
+                            instance_id = match.group(1)
+                            if instance_id not in instances:
+                                instances.append(instance_id)
+        
+        # Also check os.environ as fallback
         pattern = re.compile(r'^PROXMOX_(\d+)_HOST$')
         for key in os.environ.keys():
             match = pattern.match(key)
@@ -236,7 +259,6 @@ class Settings(BaseSettings):
                 if instance_id not in instances:
                     instances.append(instance_id)
         
-        # Also check for PROXMOX_TOKEN_VALUE_XX format
         pattern = re.compile(r'^PROXMOX_TOKEN_VALUE_(\d+)$')
         for key in os.environ.keys():
             match = pattern.match(key)
