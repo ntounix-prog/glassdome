@@ -23,8 +23,34 @@ from glassdome.reaper.exploit_library import (
 )
 from sqlalchemy import select, update, delete
 from sqlalchemy.ext.asyncio import AsyncSession
+import os
+from pathlib import Path
 
-logger = logging.getLogger(__name__)
+# ============================================================================
+# Reaper-specific logging setup
+# ============================================================================
+
+logger = logging.getLogger("glassdome.reaper")
+
+# Create logs directory if it doesn't exist
+LOGS_DIR = Path(__file__).parent.parent.parent / "logs"
+LOGS_DIR.mkdir(exist_ok=True)
+
+# File handler for Reaper-specific logs
+reaper_log_file = LOGS_DIR / "reaper.log"
+file_handler = logging.FileHandler(reaper_log_file)
+file_handler.setLevel(logging.DEBUG)
+file_handler.setFormatter(logging.Formatter(
+    '%(asctime)s [%(levelname)s] %(name)s - %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S'
+))
+logger.addHandler(file_handler)
+logger.setLevel(logging.DEBUG)
+
+logger.info("=" * 60)
+logger.info("REAPER API INITIALIZED")
+logger.info(f"Log file: {reaper_log_file}")
+logger.info("=" * 60)
 
 router = APIRouter(prefix="/api/reaper", tags=["reaper"])
 
@@ -434,7 +460,9 @@ async def execute_mission(mission_id: str):
     3. For each exploit: install → verify
     4. Report results
     """
-    from glassdome.db.session import async_session_factory
+    logger.info("=" * 60)
+    logger.info(f"[MISSION START] {mission_id}")
+    logger.info("=" * 60)
     
     async with async_session_factory() as session:
         try:
@@ -444,8 +472,12 @@ async def execute_mission(mission_id: str):
             mission = result.scalar_one_or_none()
             
             if not mission:
-                logger.error(f"Mission {mission_id} not found")
+                logger.error(f"[MISSION ERROR] {mission_id} - Mission not found in database")
                 return
+            
+            logger.info(f"[MISSION] {mission_id} - Name: {mission.name}")
+            logger.info(f"[MISSION] {mission_id} - Platform: {mission.platform}")
+            logger.info(f"[MISSION] {mission_id} - Exploits: {mission.exploit_ids}")
             
             # Get exploits
             exploit_result = await session.execute(
@@ -459,14 +491,19 @@ async def execute_mission(mission_id: str):
             await session.commit()
             
             # Step 1: Get or create target VM
+            logger.info(f"[MISSION] {mission_id} - Step 1: Acquiring target VM")
             vm_ip = None
             if mission.target_vm_id:
                 # Use existing VM - need to get its IP
+                logger.info(f"[MISSION] {mission_id} - Using existing VM: {mission.target_vm_id}")
                 mission.current_step = f"Using existing VM: {mission.target_vm_id}"
                 # TODO: Get IP from platform
                 vm_ip = mission.vm_ip_address  # Assume already set
+                logger.info(f"[MISSION] {mission_id} - VM IP: {vm_ip}")
             elif mission.target_vm_config:
                 # Deploy new VM
+                logger.info(f"[MISSION] {mission_id} - Deploying new VM on {mission.platform}")
+                logger.debug(f"[MISSION] {mission_id} - VM Config: {mission.target_vm_config}")
                 mission.current_step = "Deploying new VM..."
                 await session.commit()
                 
@@ -480,9 +517,13 @@ async def execute_mission(mission_id: str):
                     vm_ip = vm_result.get("ip_address")
                     mission.vm_ip_address = vm_ip
                     mission.progress = 30
+                    logger.info(f"[MISSION] {mission_id} - VM deployed: ID={mission.vm_created_id}, IP={vm_ip}")
                 else:
-                    raise Exception(f"VM deployment failed: {vm_result.get('error')}")
+                    error_msg = vm_result.get('error', 'Unknown error')
+                    logger.error(f"[MISSION] {mission_id} - VM deployment failed: {error_msg}")
+                    raise Exception(f"VM deployment failed: {error_msg}")
             else:
+                logger.error(f"[MISSION] {mission_id} - No target VM specified")
                 raise Exception("No target VM specified")
             
             if not vm_ip:
@@ -493,15 +534,23 @@ async def execute_mission(mission_id: str):
             await session.commit()
             
             # Step 2: Inject exploits
+            logger.info(f"[MISSION] {mission_id} - Step 2: Injecting {len(exploits)} exploits")
             results = {}
             progress_per_exploit = 40 / len(exploits)  # 40-80% for injection
             
             for i, exploit in enumerate(exploits):
+                logger.info(f"[MISSION] {mission_id} - [{i+1}/{len(exploits)}] Injecting: {exploit.display_name}")
+                logger.debug(f"[MISSION] {mission_id} - Exploit details: type={exploit.exploit_type}, severity={exploit.severity}")
                 mission.current_step = f"Injecting: {exploit.display_name}"
                 await session.commit()
                 
-                inject_result = await inject_exploit(vm_ip, exploit)
+                inject_result = await inject_exploit(vm_ip, exploit, mission_id)
                 results[str(exploit.id)] = inject_result
+                
+                if inject_result.get("status") == "success":
+                    logger.info(f"[MISSION] {mission_id} - ✓ {exploit.display_name} injected successfully")
+                else:
+                    logger.warning(f"[MISSION] {mission_id} - ✗ {exploit.display_name} injection failed: {inject_result.get('output', 'Unknown error')}")
                 
                 mission.progress = int(40 + ((i + 1) * progress_per_exploit))
                 await session.commit()
@@ -526,10 +575,22 @@ async def execute_mission(mission_id: str):
             mission.completed_at = datetime.utcnow()
             await session.commit()
             
-            logger.info(f"Mission {mission_id} completed successfully")
+            # Log completion summary
+            successful = sum(1 for r in results.values() if r.get("status") == "success")
+            failed = len(results) - successful
+            logger.info("=" * 60)
+            logger.info(f"[MISSION COMPLETE] {mission_id}")
+            logger.info(f"  Duration: {(mission.completed_at - mission.started_at).total_seconds():.1f}s")
+            logger.info(f"  VM IP: {vm_ip}")
+            logger.info(f"  Exploits: {successful} success, {failed} failed")
+            logger.info(f"  Results: {results}")
+            logger.info("=" * 60)
             
         except Exception as e:
-            logger.error(f"Mission {mission_id} failed: {e}", exc_info=True)
+            logger.error("=" * 60)
+            logger.error(f"[MISSION FAILED] {mission_id}")
+            logger.error(f"  Error: {e}")
+            logger.error("=" * 60, exc_info=True)
             
             # Update mission status
             mission.status = "failed"
@@ -609,60 +670,83 @@ async def deploy_mission_vm(platform: str, config: Dict[str, Any]) -> Dict[str, 
         return {"success": False, "error": str(e)}
 
 
-async def inject_exploit(vm_ip: str, exploit: Exploit) -> Dict[str, Any]:
+async def inject_exploit(vm_ip: str, exploit: Exploit, mission_id: str = "") -> Dict[str, Any]:
     """
     Inject a single exploit into a VM
     
     Args:
         vm_ip: Target VM IP address
         exploit: Exploit to inject
+        mission_id: Mission ID for logging
         
     Returns:
         Dict with status, output
     """
     import asyncssh
     
+    log_prefix = f"[INJECT] {mission_id}" if mission_id else "[INJECT]"
+    logger.debug(f"{log_prefix} Connecting to {vm_ip} for exploit: {exploit.name}")
+    
     try:
         # Connect via SSH (assumes ubuntu user with key-based auth)
+        logger.debug(f"{log_prefix} SSH connection attempt to {vm_ip}:22 as ubuntu")
         async with asyncssh.connect(
             vm_ip,
             username="ubuntu",
             known_hosts=None,
             connect_timeout=30
         ) as conn:
+            logger.debug(f"{log_prefix} SSH connected successfully")
             
             # If package-based install
             if exploit.package_name:
-                result = await conn.run(
-                    f"sudo apt-get update && sudo apt-get install -y {exploit.package_name}",
-                    check=False
-                )
+                cmd = f"sudo apt-get update && sudo apt-get install -y {exploit.package_name}"
+                logger.debug(f"{log_prefix} Running package install: {exploit.package_name}")
+                result = await conn.run(cmd, check=False)
+                logger.debug(f"{log_prefix} Package install exit code: {result.returncode}")
+                logger.debug(f"{log_prefix} STDOUT: {result.stdout[:500] if result.stdout else 'empty'}")
+                if result.stderr:
+                    logger.debug(f"{log_prefix} STDERR: {result.stderr[:500]}")
                 return {
                     "status": "success" if result.returncode == 0 else "error",
-                    "output": result.stdout + result.stderr
+                    "output": result.stdout + result.stderr,
+                    "exit_code": result.returncode
                 }
             
             # If script-based install
             elif exploit.install_script:
+                logger.debug(f"{log_prefix} Running custom install script ({len(exploit.install_script)} bytes)")
                 # Upload and run script
                 script_content = exploit.install_script
                 result = await conn.run(
                     f"echo '{script_content}' | sudo bash",
                     check=False
                 )
+                logger.debug(f"{log_prefix} Script exit code: {result.returncode}")
+                logger.debug(f"{log_prefix} STDOUT: {result.stdout[:500] if result.stdout else 'empty'}")
+                if result.stderr:
+                    logger.debug(f"{log_prefix} STDERR: {result.stderr[:500]}")
                 return {
                     "status": "success" if result.returncode == 0 else "error",
-                    "output": result.stdout + result.stderr
+                    "output": result.stdout + result.stderr,
+                    "exit_code": result.returncode
                 }
             
             else:
+                logger.warning(f"{log_prefix} No installation method defined for {exploit.name}")
                 return {
                     "status": "error",
                     "output": "No installation method defined"
                 }
                 
+    except asyncssh.Error as e:
+        logger.error(f"{log_prefix} SSH error for {exploit.name}: {e}")
+        return {
+            "status": "error",
+            "output": f"SSH connection failed: {str(e)}"
+        }
     except Exception as e:
-        logger.error(f"Failed to inject exploit {exploit.name}: {e}")
+        logger.error(f"{log_prefix} Failed to inject exploit {exploit.name}: {e}", exc_info=True)
         return {
             "status": "error",
             "output": str(e)
