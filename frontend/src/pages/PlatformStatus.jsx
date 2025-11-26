@@ -205,54 +205,39 @@ export default function PlatformStatus() {
             )}
           </div>
 
-          {/* Instances Section (Proxmox multi-cluster) */}
-          {status.summary?.instances && status.summary.instances.length > 0 && (
-            <div className="nodes-section">
-              <h3>Proxmox Clusters</h3>
-              <div className="nodes-grid">
-                {status.summary.instances.map((instance, idx) => (
-                  <div key={idx} className={`node-card ${instance.connected ? 'online' : 'offline'}`}>
-                    <div className="node-name">
-                      {instance.node || `PVE${instance.instance_id}`}
-                    </div>
-                    <div className="node-host">{instance.host}</div>
-                    <div className="node-status">
-                      {instance.connected ? '🟢 Online' : '🔴 Offline'}
-                    </div>
-                    {instance.connected && (
-                      <div className="node-stat">{instance.vms} VMs</div>
-                    )}
-                    {instance.error && (
-                      <div className="node-error">{instance.error}</div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Nodes Section (Proxmox individual nodes within clusters) */}
+          {/* Proxmox Servers Section - combines instance info with node stats */}
           {status.nodes && status.nodes.length > 0 && (
             <div className="nodes-section">
-              <h3>Cluster Nodes</h3>
+              <h3>Proxmox Servers</h3>
               <div className="nodes-grid">
-                {status.nodes.map((node, idx) => (
-                  <div key={idx} className={`node-card ${node.status || 'online'}`}>
-                    <div className="node-name">{node.node || node.name}</div>
-                    {node.instance_id && (
-                      <div className="node-instance">Cluster: {node.instance_id}</div>
-                    )}
-                    <div className="node-status">{node.status || 'online'}</div>
-                    {node.cpu && (
-                      <div className="node-stat">CPU: {(node.cpu * 100).toFixed(1)}%</div>
-                    )}
-                    {node.mem && node.maxmem && (
-                      <div className="node-stat">
-                        RAM: {formatBytes(node.mem)} / {formatBytes(node.maxmem)}
+                {status.nodes.map((node, idx) => {
+                  // Find matching instance info for VM count
+                  const instanceInfo = status.summary?.instances?.find(
+                    i => i.instance_id === node.instance_id
+                  )
+                  return (
+                    <div key={idx} className={`node-card ${node.status || 'online'}`}>
+                      <div className="node-name">{node.node || node.name}</div>
+                      {node.host && (
+                        <div className="node-host">{node.host}</div>
+                      )}
+                      <div className="node-status">
+                        {node.status === 'online' ? '🟢' : '🔴'} {node.status || 'online'}
                       </div>
-                    )}
-                  </div>
-                ))}
+                      {node.cpu !== undefined && (
+                        <div className="node-stat">CPU: {(node.cpu * 100).toFixed(1)}%</div>
+                      )}
+                      {node.mem && node.maxmem && (
+                        <div className="node-stat">
+                          RAM: {formatBytes(node.mem)} / {formatBytes(node.maxmem)}
+                        </div>
+                      )}
+                      {instanceInfo && (
+                        <div className="node-stat vm-count">{instanceInfo.vms} VMs</div>
+                      )}
+                    </div>
+                  )
+                })}
               </div>
             </div>
           )}
