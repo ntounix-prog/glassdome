@@ -31,38 +31,45 @@ const TOTAL_DURATION = PHASES.reduce((sum, p) => sum + p.duration, 0)
 export default function DemoShowcase({ isOpen, onClose }) {
   const [currentPhase, setCurrentPhase] = useState(0)
   const [progress, setProgress] = useState(0)
-  const [isMuted, setIsMuted] = useState(false)
+  const [isPlaying, setIsPlaying] = useState(false)
+  const [audioReady, setAudioReady] = useState(false)
   const audioRef = useRef(null)
 
-  // Handle music
+  // Initialize audio when demo opens
   useEffect(() => {
-    if (isOpen) {
-      // Create and play audio
+    if (isOpen && !audioRef.current) {
       const audio = new Audio(MUSIC_TRACKS[0])
-      audio.volume = 0.3
+      audio.volume = 0.4
       audio.loop = true
+      audio.preload = 'auto'
       audioRef.current = audio
-      
-      // Try to play (may be blocked by browser autoplay policy)
-      audio.play().catch(e => {
-        console.log('Autoplay blocked, user can unmute')
-      })
-      
-      return () => {
-        audio.pause()
-        audio.currentTime = 0
+      setAudioReady(true)
+    }
+    
+    return () => {
+      if (!isOpen && audioRef.current) {
+        audioRef.current.pause()
+        audioRef.current.currentTime = 0
+        audioRef.current = null
+        setAudioReady(false)
+        setIsPlaying(false)
       }
     }
   }, [isOpen])
 
-  // Toggle mute
-  const toggleMute = () => {
+  // Toggle sound - this is the user interaction that enables playback
+  const toggleSound = async () => {
     if (audioRef.current) {
-      audioRef.current.muted = !audioRef.current.muted
-      setIsMuted(!isMuted)
-      // If unmuting and not playing, try to play
-      if (isMuted && audioRef.current.paused) {
-        audioRef.current.play().catch(() => {})
+      if (isPlaying) {
+        audioRef.current.pause()
+        setIsPlaying(false)
+      } else {
+        try {
+          await audioRef.current.play()
+          setIsPlaying(true)
+        } catch (e) {
+          console.log('Audio play failed:', e)
+        }
       }
     }
   }
@@ -117,8 +124,11 @@ export default function DemoShowcase({ isOpen, onClose }) {
 
       {/* Controls */}
       <div className="demo-controls">
-        <button className="demo-mute" onClick={toggleMute}>
-          {isMuted ? '🔇 Unmute' : '🔊 Sound'}
+        <button 
+          className={`demo-sound ${isPlaying ? 'playing' : ''}`} 
+          onClick={toggleSound}
+        >
+          {isPlaying ? '🔊 Playing' : '🎵 Play Music'}
         </button>
         <button className="demo-skip" onClick={onClose}>
           Skip Demo →
