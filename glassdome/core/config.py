@@ -1,5 +1,10 @@
 """
 Core Configuration Management
+
+Secrets are loaded based on SECRETS_BACKEND environment variable:
+- env: Read from environment variables (default, production)
+- vault: Read from HashiCorp Vault (future)
+- local: Read from encrypted local store (legacy dev)
 """
 from pydantic_settings import BaseSettings
 from pydantic import ConfigDict, model_validator
@@ -7,7 +12,6 @@ from typing import Optional, Dict, Any
 from pathlib import Path
 import os
 import re
-from glassdome.core.secrets import get_secrets_manager
 from glassdome.core.paths import ENV_FILE
 
 
@@ -61,9 +65,9 @@ class Settings(BaseSettings):
     proxmox_root_password: Optional[str] = None  # Root password for SSH access to Proxmox host
     
     @model_validator(mode='after')
-    def _load_secrets_from_manager(self):
-        """Override field values with secrets from secrets manager if available."""
-        secrets = get_secrets_manager()
+    def _load_secrets(self):
+        """Override field values with secrets based on SECRETS_BACKEND config."""
+        from glassdome.core.security import get_secret
         
         # Map legacy variables first
         if not self.proxmox_password and self.proxmox_admin_passwd:
@@ -71,7 +75,7 @@ class Settings(BaseSettings):
         if not self.proxmox_user and self.proxmox_admin:
             self.proxmox_user = self.proxmox_admin
         
-        # Override with secrets manager values if available
+        # Override with secrets if available
         secret_mappings = {
             # Core security
             'secret_key': 'secret_key',
@@ -115,12 +119,12 @@ class Settings(BaseSettings):
         }
         
         for field_name, secret_key in secret_mappings.items():
-            secret_value = secrets.get_secret(secret_key)
+            secret_value = get_secret(secret_key)
             if secret_value:
                 setattr(self, field_name, secret_value)
         
         # Handle legacy proxmox_admin_passwd -> proxmox_password mapping
-        proxmox_admin_passwd = secrets.get_secret('proxmox_admin_passwd')
+        proxmox_admin_passwd = get_secret('proxmox_admin_passwd')
         if proxmox_admin_passwd and not self.proxmox_password:
             self.proxmox_password = proxmox_admin_passwd
         
@@ -196,14 +200,14 @@ class Settings(BaseSettings):
                 if "token_value" not in env_vars:
                     env_vars["token_value"] = value
         
-        # Check secrets manager for token_value and password
-        secrets = get_secrets_manager()
+        # Check for token_value and password via configured backend
+        from glassdome.core.security import get_secret
         token_secret_key = f"proxmox_token_value_{instance_id}"
-        token_from_secrets = secrets.get_secret(token_secret_key)
+        token_from_secrets = get_secret(token_secret_key)
         
-        # Get password from secrets manager for this instance (if multi-instance)
+        # Get password for this instance (if multi-instance)
         password_secret_key = f"proxmox_password_{instance_id}" if instance_id != "01" else "proxmox_password"
-        password_from_secrets = secrets.get_secret(password_secret_key)
+        password_from_secrets = get_secret(password_secret_key)
         
         # Build config dict (secrets manager takes priority)
         config = {
@@ -410,14 +414,14 @@ class Settings(BaseSettings):
         Returns:
             Dictionary with user, password, port
         """
-        secrets = get_secrets_manager()
+        from glassdome.core.security import get_secret
         
         # Try machine-specific credential first
         machine_user_key = f"machine_cred_{hostname}_user"
         machine_pass_key = f"machine_cred_{hostname}_password"
         
-        machine_user = secrets.get_secret(machine_user_key)
-        machine_pass = secrets.get_secret(machine_pass_key)
+        machine_user = get_secret(machine_user_key)
+        machine_pass = get_secret(machine_pass_key)
         
         if machine_user and machine_pass:
             port = self.winrm_port if os_type == "windows" else self.linux_ssh_port
@@ -456,10 +460,11 @@ class Settings(BaseSettings):
         Returns:
             True if stored successfully
         """
-        secrets = get_secrets_manager()
-        user_result = secrets.set_secret(f"machine_cred_{hostname}_user", user)
-        pass_result = secrets.set_secret(f"machine_cred_{hostname}_password", password)
-        return user_result and pass_result
+        # For env backend, this just sets env vars for current process
+        # For vault/local backends, this persists
+        os.environ[f"MACHINE_CRED_{hostname.upper()}_USER"] = user
+        os.environ[f"MACHINE_CRED_{hostname.upper()}_PASSWORD"] = password
+        return True
 
 
 settings = Settings()

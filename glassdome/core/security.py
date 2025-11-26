@@ -1,99 +1,155 @@
 """
 Glassdome Security Bootstrap
 
-Provides helpers to ensure a valid security context (session + settings)
-for any process that wants to run agents or access secrets.
+Provides helpers to ensure secrets are accessible for any process.
 
-Design goals:
-- NEVER prompt for the master password here (non-interactive safe).
-- Rely on session cache + OS keyring when available.
-- Support production mode with environment variables only.
-- Fail fast with a clear error if the session is not initialized.
+Configuration:
+    SECRETS_BACKEND=env     # Read from environment variables (production)
+    SECRETS_BACKEND=local   # Read from encrypted local store (development)
+    SECRETS_BACKEND=vault   # Read from HashiCorp Vault (future)
 
 Usage:
-    from glassdome.core.security import ensure_security_context, get_secure_settings
-
-    ensure_security_context()          # at process startup
-    settings = get_secure_settings()   # anywhere after that
+    from glassdome.core.security import get_secret, get_secure_settings
+    
+    api_key = get_secret("openai_api_key")
+    settings = get_secure_settings()
 """
 
 from __future__ import annotations
 
 import os
-from typing import Any
+import logging
+from typing import Any, Optional
 
-from .session import get_session
+logger = logging.getLogger(__name__)
+
+# Cache the backend type
+_backend_type: Optional[str] = None
+_env_loaded: bool = False
 
 
-def _has_env_secrets() -> bool:
-    """Check if essential secrets are available in environment variables."""
-    # Check for at least one critical secret in env
-    env_secrets = [
-        'OPENAI_API_KEY', 'ANTHROPIC_API_KEY', 'PROXMOX_PASSWORD',
-        'AWS_SECRET_ACCESS_KEY', 'DATABASE_URL'
-    ]
-    return any(os.environ.get(key) for key in env_secrets)
+def _load_env_file() -> None:
+    """Load .env file into os.environ (once)."""
+    global _env_loaded
+    if _env_loaded:
+        return
+    _env_loaded = True
+    
+    from glassdome.core.paths import ENV_FILE
+    if ENV_FILE.exists():
+        try:
+            from dotenv import load_dotenv
+            load_dotenv(ENV_FILE, override=False)  # Don't override existing env vars
+            logger.debug(f"Loaded .env from {ENV_FILE}")
+        except ImportError:
+            # Fallback: manual parse
+            with open(ENV_FILE) as f:
+                for line in f:
+                    line = line.strip()
+                    if not line or line.startswith('#'):
+                        continue
+                    if '=' in line:
+                        key, value = line.split('=', 1)
+                        key = key.strip()
+                        value = value.strip().strip('"').strip("'")
+                        if key not in os.environ:  # Don't override
+                            os.environ[key] = value
+
+
+def get_backend_type() -> str:
+    """Get the configured secrets backend type."""
+    global _backend_type
+    if _backend_type is None:
+        _backend_type = os.environ.get("SECRETS_BACKEND", "env")
+        logger.debug(f"Secrets backend: {_backend_type}")
+    return _backend_type
+
+
+def get_secret(key: str) -> Optional[str]:
+    """
+    Get a secret value.
+    
+    Args:
+        key: Secret key name (e.g., 'openai_api_key')
+        
+    Returns:
+        Secret value or None if not found
+    """
+    backend_type = get_backend_type()
+    
+    if backend_type == "env":
+        # Load .env file first (if not already loaded)
+        _load_env_file()
+        # Then read from environment
+        return os.environ.get(key.upper())
+    
+    elif backend_type == "vault":
+        # Future: HashiCorp Vault
+        from glassdome.core.secrets_backend import VaultSecretsBackend
+        vault = VaultSecretsBackend()
+        return vault.get(key)
+    
+    elif backend_type == "local":
+        # Legacy: encrypted local store
+        from glassdome.core.secrets import get_secrets_manager
+        return get_secrets_manager().get_secret(key)
+    
+    else:
+        raise ValueError(f"Unknown SECRETS_BACKEND: {backend_type}")
 
 
 def ensure_security_context() -> None:
     """
-    Ensure the current process has an authenticated session.
-
-    Behavior:
-    - If environment variables provide secrets, session is optional (production mode).
-    - Uses cache + keyring only (no interactive prompts).
-    - If the session is already initialized in this process, it's a no-op.
-    - If cache/keyring are not available or invalid, raises RuntimeError
-      with guidance to initialize via CLI or API first.
+    Ensure secrets are accessible. Called at process startup.
+    
+    For env backend: No-op (env vars are always available)
+    For local backend: Tries to initialize session from cache
+    For vault backend: Verifies vault connectivity
     """
-    session = get_session()
-
-    # If this process already has an authenticated session, nothing to do
-    if session.is_initialized():
-        return
-
-    # Try to hydrate from cache/keyring without prompting
-    success = session.initialize(interactive=False, use_cache=True)
-    if success and session.is_initialized():
+    backend_type = get_backend_type()
+    
+    if backend_type == "env":
+        # Environment variables are always available
+        # Just verify we have at least some secrets
+        test_keys = ['OPENAI_API_KEY', 'DATABASE_URL', 'PROXMOX_PASSWORD']
+        if not any(os.environ.get(k) for k in test_keys):
+            logger.warning("No secrets found in environment. Check your .env file.")
         return
     
-    # Production mode: if secrets are in env vars, allow startup without full session
-    if _has_env_secrets():
-        # Log warning but allow startup
-        import logging
-        logging.getLogger(__name__).info(
-            "Running in production mode with environment variable secrets. "
-            "Session not initialized, but secrets available from environment."
-        )
+    elif backend_type == "vault":
+        # Verify Vault is accessible
+        from glassdome.core.secrets_backend import VaultSecretsBackend
+        vault = VaultSecretsBackend()
+        if not vault.is_available():
+            raise RuntimeError(
+                "Vault backend configured but not available.\n"
+                "Set VAULT_ADDR and VAULT_TOKEN environment variables."
+            )
         return
     
-    # Neither session nor env vars available
-    raise RuntimeError(
-        "Glassdome security context not initialized in this process.\n"
-        "Initialize the session first, for example:\n"
-        "  - CLI: ./glassdome_start\n"
-        "  - API: POST /api/auth/login with master_password\n"
-        "  - Or set secrets as environment variables (OPENAI_API_KEY, etc.)\n"
-    )
+    elif backend_type == "local":
+        # Try to initialize session from cache (legacy behavior)
+        from .session import get_session
+        session = get_session()
+        if not session.is_initialized():
+            success = session.initialize(interactive=False, use_cache=True)
+            if not success:
+                raise RuntimeError(
+                    "Local secrets backend requires initialized session.\n"
+                    "Run: ./glassdome_start"
+                )
+        return
 
 
 def get_secure_settings() -> Any:
     """
-    Get Settings instance from an authenticated session or environment.
-
-    This ensures:
-    - Session is initialized in this process (or env vars available).
-    - Settings are hydrated from SecretsManager (which now checks env vars first).
+    Get Settings instance with secrets populated.
+    
+    Returns:
+        Settings instance
     """
     ensure_security_context()
-    session = get_session()
     
-    # If session is fully initialized, use its settings
-    if session.is_initialized():
-        return session.get_settings()
-    
-    # Production mode: create settings directly (env vars will be used)
+    # Settings will use get_secret() internally which respects SECRETS_BACKEND
     from glassdome.core.config import Settings
     return Settings()
-
-

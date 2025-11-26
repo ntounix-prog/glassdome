@@ -1,10 +1,10 @@
 """
 Glassdome Session Management
 
-Handles initialization, authentication, and secure secret loading.
-Agents cannot run without a valid session.
+NOTE: Session is only needed for 'local' (encrypted) secrets backend.
+For 'env' and 'vault' backends, secrets are accessed directly without a session.
 
-Sessions are shared across processes via a secure cache file.
+Set SECRETS_BACKEND=env to bypass session requirement entirely.
 """
 from typing import Optional, Dict, Any, TYPE_CHECKING
 from pathlib import Path
@@ -17,7 +17,6 @@ from datetime import datetime, timedelta
 from cryptography.fernet import Fernet
 import keyring
 
-from glassdome.core.secrets import get_secrets_manager
 from glassdome.core.paths import (
     SESSION_CACHE_PATH,
     SESSION_KEY_PATH,
@@ -25,11 +24,16 @@ from glassdome.core.paths import (
     SECRETS_DIR,
 )
 
-# Settings imported lazily to avoid premature initialization (which would prompt for password)
+# Settings imported lazily to avoid premature initialization
 if TYPE_CHECKING:
     from glassdome.core.config import Settings
 
 logger = logging.getLogger(__name__)
+
+
+def _get_backend_type() -> str:
+    """Get configured secrets backend type."""
+    return os.environ.get("SECRETS_BACKEND", "env")
 
 
 class GlassdomeSession:
@@ -62,13 +66,16 @@ class GlassdomeSession:
     @classmethod
     def is_initialized(cls) -> bool:
         """
-        Check if session is initialized and authenticated **in this process**.
-
-        NOTE:
-        - This does NOT look at the cache file directly.
-        - A process must call initialize() (optionally with use_cache=True)
-          to hydrate its own session from cache/keyring.
+        Check if session is initialized.
+        
+        For 'env' backend: Always returns True (no session needed)
+        For 'local' backend: Checks if authenticated session exists
         """
+        # For env/vault backends, session is not required
+        if _get_backend_type() in ("env", "vault"):
+            return True
+        
+        # For local backend, check actual session state
         if cls._instance is None:
             return False
         return cls._instance.authenticated and cls._instance._is_session_valid()
@@ -235,6 +242,9 @@ class GlassdomeSession:
         """
         Initialize Glassdome session with authentication.
         
+        For 'env' backend: No-op, returns True immediately
+        For 'local' backend: Loads secrets from encrypted store
+        
         Args:
             master_password: Master password for secrets (if None, will prompt)
             interactive: Whether to prompt for password if not provided
@@ -243,8 +253,21 @@ class GlassdomeSession:
         Returns:
             True if initialization successful, False otherwise
         """
+        backend = _get_backend_type()
+        
+        # For env/vault backends, no session initialization needed
+        if backend in ("env", "vault"):
+            logger.debug(f"Using {backend} backend - session initialization not required")
+            self.authenticated = True
+            self.authenticated_at = datetime.now()
+            # Load settings
+            from glassdome.core.config import Settings
+            self.settings = Settings()
+            return True
+        
+        # Local backend - requires encrypted secrets store
         try:
-            logger.info("Initializing Glassdome session...")
+            logger.info("Initializing Glassdome session (local backend)...")
             
             # Try to load from cache first (if enabled)
             if use_cache and self._load_from_cache():
@@ -252,12 +275,12 @@ class GlassdomeSession:
                 return True
             
             # Get secrets manager
+            from glassdome.core.secrets import get_secrets_manager
             self._secrets_manager = get_secrets_manager()
             
             # Check if secrets manager has encrypted files (without prompting for password)
-            # We'll check for the existence of the encrypted file, not try to decrypt it
             if not MASTER_KEY_PATH.exists() and not self._secrets_manager._use_keyring:
-                logger.error("Secrets manager not initialized. Run 'glassdome secrets setup' first.")
+                logger.error("Local secrets not initialized. Run 'glassdome secrets setup' or set SECRETS_BACKEND=env")
                 return False
             
             # If master_password was not provided, prompt for it once
