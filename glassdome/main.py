@@ -445,8 +445,12 @@ async def get_statistics():
 
 
 # Serve static files in production
-if os.path.exists("frontend/dist"):
-    app.mount("/assets", StaticFiles(directory="frontend/dist/assets"), name="assets")
+from glassdome.core.paths import PROJECT_ROOT
+
+FRONTEND_DIST = PROJECT_ROOT / "frontend" / "dist"
+
+if FRONTEND_DIST.exists():
+    app.mount("/assets", StaticFiles(directory=str(FRONTEND_DIST / "assets")), name="assets")
     
     @app.get("/{full_path:path}")
     async def serve_frontend(full_path: str):
@@ -454,11 +458,11 @@ if os.path.exists("frontend/dist"):
         if full_path.startswith("api/"):
             return {"error": "Not found"}
         
-        file_path = f"frontend/dist/{full_path}"
-        if os.path.exists(file_path) and os.path.isfile(file_path):
-            return FileResponse(file_path)
+        file_path = FRONTEND_DIST / full_path
+        if file_path.exists() and file_path.is_file():
+            return FileResponse(str(file_path))
         
-        return FileResponse("frontend/dist/index.html")
+        return FileResponse(str(FRONTEND_DIST / "index.html"))
 
 
 if __name__ == "__main__":
