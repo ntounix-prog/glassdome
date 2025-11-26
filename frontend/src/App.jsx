@@ -5,14 +5,12 @@ import LabCanvas from './pages/LabCanvas'
 import Deployments from './pages/Deployments'
 import PlatformStatus from './pages/PlatformStatus'
 import { ChatModal, ChatToggle } from './components/OverseerChat'
-import DemoShowcase from './components/DemoShowcase'
 import './App.css'
 
 function App() {
   const [healthStatus, setHealthStatus] = useState(null)
   const [loading, setLoading] = useState(true)
   const [isChatOpen, setIsChatOpen] = useState(false)
-  const [isDemoOpen, setIsDemoOpen] = useState(false)
 
   useEffect(() => {
     fetch('/api/health')
@@ -30,19 +28,6 @@ function App() {
   return (
     <Router>
       <div className="App">
-        {/* Demo Button - Upper Left */}
-        <button 
-          className="demo-button"
-          onClick={() => setIsDemoOpen(true)}
-        >
-          ▶ Demo
-        </button>
-
-        {/* Demo Showcase */}
-        <DemoShowcase 
-          isOpen={isDemoOpen} 
-          onClose={() => setIsDemoOpen(false)} 
-        />
 
         <nav className="navbar">
           <div className="nav-brand">

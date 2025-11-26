@@ -1,8 +1,11 @@
+import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
+import DemoShowcase from '../components/DemoShowcase'
 import '../styles/Dashboard.css'
 
 function Dashboard({ healthStatus }) {
   const navigate = useNavigate()
+  const [isDemoOpen, setIsDemoOpen] = useState(false)
 
   const platforms = [
     { id: 'proxmox', name: 'Proxmox', icon: '🖥️', path: '/platform/proxmox' },
@@ -13,6 +16,19 @@ function Dashboard({ healthStatus }) {
 
   return (
     <div className="dashboard">
+      {/* Demo Button - Only on Dashboard */}
+      <button 
+        className="demo-button"
+        onClick={() => setIsDemoOpen(true)}
+      >
+        ▶ Demo
+      </button>
+
+      {/* Demo Showcase */}
+      <DemoShowcase 
+        isOpen={isDemoOpen} 
+        onClose={() => setIsDemoOpen(false)} 
+      />
       <div className="hero-section">
         <h1>Agentic Cyber Range Deployment</h1>
         <p className="hero-subtitle">
