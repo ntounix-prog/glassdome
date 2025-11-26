@@ -166,14 +166,40 @@
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 10px;
   padding: 1rem;
+  transition: all 0.2s ease;
+}
+
+.node-card.selectable {
+  cursor: pointer;
+}
+
+.node-card.selectable:hover {
+  background: rgba(255, 255, 255, 0.1);
+  transform: translateY(-2px);
+}
+
+.node-card.selected {
+  background: rgba(96, 165, 250, 0.15);
+  border-color: rgba(96, 165, 250, 0.5);
+  box-shadow: 0 0 15px rgba(96, 165, 250, 0.2);
 }
 
 .node-card.online {
   border-left: 3px solid #10b981;
 }
 
+.node-card.online.selected {
+  border-left-color: #60a5fa;
+}
+
 .node-card.offline {
   border-left: 3px solid #ef4444;
+}
+
+.select-hint {
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.4);
+  font-weight: normal;
 }
 
 .node-name {
@@ -306,6 +332,43 @@
 .vm-table-container {
   padding: 0 2rem 2rem;
   overflow-x: auto;
+}
+
+.vm-table-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+  padding: 1rem 1.25rem;
+  background: rgba(96, 165, 250, 0.1);
+  border: 1px solid rgba(96, 165, 250, 0.2);
+  border-radius: 10px;
+}
+
+.vm-table-header h3 {
+  margin: 0;
+  color: #fff;
+  font-size: 1.1rem;
+}
+
+.vm-table-header .server-host {
+  color: rgba(255, 255, 255, 0.5);
+  font-weight: normal;
+  font-size: 0.9rem;
+}
+
+.vm-count-badge {
+  background: rgba(96, 165, 250, 0.3);
+  color: #60a5fa;
+  padding: 0.35rem 0.75rem;
+  border-radius: 12px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.server-cell {
+  color: rgba(96, 165, 250, 0.9);
+  font-weight: 500;
 }
 
 .vm-table {

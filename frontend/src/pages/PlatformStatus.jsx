@@ -62,6 +62,7 @@ export default function PlatformStatus() {
   const [filter, setFilter] = useState('all')
   const [search, setSearch] = useState('')
   const [actionLoading, setActionLoading] = useState(null)
+  const [selectedServer, setSelectedServer] = useState('all') // 'all' or instance_id like '01', '02'
 
   const config = PLATFORM_CONFIG[platform] || PLATFORM_CONFIG.proxmox
 
@@ -135,8 +136,16 @@ export default function PlatformStatus() {
     }
   }
 
-  // Filter VMs
+  // Filter VMs by server, status, and search
   const filteredVMs = status?.vms?.filter(vm => {
+    // Filter by selected server (for Proxmox)
+    if (platform === 'proxmox' && selectedServer !== 'all') {
+      // node format is "pve01 (01)" - extract instance ID
+      const match = vm.node?.match(/\((\d+)\)/)
+      const vmInstance = match ? match[1] : null
+      if (vmInstance !== selectedServer) return false
+    }
+    
     // Filter by status
     if (filter === 'running' && vm.status !== 'running' && vm.status !== 'poweredOn') return false
     if (filter === 'stopped' && vm.status !== 'stopped' && vm.status !== 'poweredOff') return false
@@ -147,6 +156,11 @@ export default function PlatformStatus() {
     
     return true
   }) || []
+  
+  // Get selected server info for display
+  const selectedServerInfo = selectedServer !== 'all' 
+    ? status?.nodes?.find(n => n.instance_id === selectedServer) 
+    : null
 
   return (
     <div className="platform-status-page">
@@ -205,18 +219,33 @@ export default function PlatformStatus() {
             )}
           </div>
 
-          {/* Proxmox Servers Section - combines instance info with node stats */}
+          {/* Proxmox Servers Section - clickable cards to filter VMs */}
           {status.nodes && status.nodes.length > 0 && (
             <div className="nodes-section">
-              <h3>Proxmox Servers</h3>
+              <h3>Proxmox Servers <span className="select-hint">(click to filter)</span></h3>
               <div className="nodes-grid">
+                {/* "All Servers" option */}
+                <div 
+                  className={`node-card selectable ${selectedServer === 'all' ? 'selected' : ''}`}
+                  onClick={() => setSelectedServer('all')}
+                >
+                  <div className="node-name">📊 All Servers</div>
+                  <div className="node-status">View combined</div>
+                  <div className="node-stat vm-count">{status.summary?.total || 0} VMs total</div>
+                </div>
+                
                 {status.nodes.map((node, idx) => {
                   // Find matching instance info for VM count
                   const instanceInfo = status.summary?.instances?.find(
                     i => i.instance_id === node.instance_id
                   )
+                  const isSelected = selectedServer === node.instance_id
                   return (
-                    <div key={idx} className={`node-card ${node.status || 'online'}`}>
+                    <div 
+                      key={idx} 
+                      className={`node-card selectable ${node.status || 'online'} ${isSelected ? 'selected' : ''}`}
+                      onClick={() => setSelectedServer(node.instance_id)}
+                    >
                       <div className="node-name">{node.node || node.name}</div>
                       {node.host && (
                         <div className="node-host">{node.host}</div>
@@ -284,8 +313,24 @@ export default function PlatformStatus() {
             </button>
           </div>
 
-          {/* VM Table */}
+          {/* VM Table with server header */}
           <div className="vm-table-container">
+            {platform === 'proxmox' && (
+              <div className="vm-table-header">
+                {selectedServer === 'all' ? (
+                  <h3>📊 All Virtual Machines</h3>
+                ) : (
+                  <h3>
+                    🖥️ {selectedServerInfo?.node || `Server ${selectedServer}`}
+                    {selectedServerInfo?.host && (
+                      <span className="server-host"> ({selectedServerInfo.host})</span>
+                    )}
+                  </h3>
+                )}
+                <span className="vm-count-badge">{filteredVMs.length} VMs</span>
+              </div>
+            )}
+            
             <table className="vm-table">
               <thead>
                 <tr>
@@ -296,20 +341,20 @@ export default function PlatformStatus() {
                   <th>Memory</th>
                   <th>Disk</th>
                   <th>Uptime</th>
-                  {platform === 'proxmox' && <th>Node</th>}
+                  {platform === 'proxmox' && selectedServer === 'all' && <th>Server</th>}
                   <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredVMs.length === 0 ? (
                   <tr>
-                    <td colSpan={platform === 'proxmox' ? 9 : 8} className="no-vms">
-                      {loading ? 'Loading...' : 'No VMs found'}
+                    <td colSpan={platform === 'proxmox' && selectedServer === 'all' ? 9 : 8} className="no-vms">
+                      {loading ? 'Loading...' : 'No VMs found on this server'}
                     </td>
                   </tr>
                 ) : (
                   filteredVMs.map((vm) => (
-                    <tr key={vm.vmid} className={vm.template ? 'template-row' : ''}>
+                    <tr key={`${vm.vmid}-${vm.node}`} className={vm.template ? 'template-row' : ''}>
                       <td className="vm-id">{vm.vmid}</td>
                       <td className="vm-name">
                         {vm.template && <span className="template-badge">📋</span>}
@@ -330,7 +375,9 @@ export default function PlatformStatus() {
                       </td>
                       <td>{vm.disk ? formatBytes(vm.disk) : '-'}</td>
                       <td>{formatUptime(vm.uptime)}</td>
-                      {platform === 'proxmox' && <td>{vm.node}</td>}
+                      {platform === 'proxmox' && selectedServer === 'all' && (
+                        <td className="server-cell">{vm.node?.split(' ')[0]}</td>
+                      )}
                       <td className="vm-actions">
                         {!vm.template && (
                           <>
