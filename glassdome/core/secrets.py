@@ -170,7 +170,18 @@ class SecretsManager:
             
         Returns:
             Secret value or None if not found
+            
+        Priority:
+            1. Environment variable (KEY_NAME -> key_name)
+            2. Keyring
+            3. Encrypted fallback file
         """
+        # First check environment variables (for production/container deployments)
+        env_key = key.upper()
+        env_value = os.getenv(env_key)
+        if env_value:
+            return env_value
+        
         if self._use_keyring:
             try:
                 value = keyring.get_password(self.SERVICE_NAME, key)
