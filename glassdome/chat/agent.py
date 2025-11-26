@@ -369,6 +369,15 @@ class OverseerChatAgent:
                 temperature=0.7
             )
             
+            # Check if the follow-up also has tool calls (recursive)
+            if follow_up.tool_calls:
+                logger.info(f"Follow-up has {len(follow_up.tool_calls)} more tool calls, processing recursively")
+                # Process the additional tool calls
+                recursive_result = await self._handle_tool_calls(conversation, follow_up)
+                # Combine results
+                recursive_result["tool_results"] = results + (recursive_result.get("tool_results") or [])
+                return recursive_result
+            
             conversation.add_message(MessageRole.ASSISTANT, follow_up.content)
             
             return {
@@ -1159,8 +1168,12 @@ class OverseerChatAgent:
         try:
             session = get_session()
             
-            # Get Mailcow credentials from session
-            mailcow_api_key = session.secrets.get('mailcow_api_key')
+            # Get Mailcow credentials from session (try multiple key names)
+            mailcow_api_key = (
+                session.secrets.get('mailcow_api_key') or 
+                session.secrets.get('mail_api') or
+                session.secrets.get('mailcow_key')
+            )
             mailcow_url = session.secrets.get('mailcow_url', 'https://mail.xisx.org')
             
             if not mailcow_api_key:
@@ -1172,25 +1185,40 @@ class OverseerChatAgent:
             # Initialize client
             client = MailcowClient(
                 api_url=mailcow_url,
-                api_key=mailcow_api_key
+                api_token=mailcow_api_key
             )
             
-            # Send the email
-            from_address = details.get("from", "overseer@xisx.org")
+            # Send the email via SMTP (Mailcow API doesn't support sending)
+            # Always use glassdome-ai@xisx.org as sender (the only configured mailbox)
+            from_address = "glassdome-ai@xisx.org"  # Override any other sender
             to_addresses = details.get("to", [])
             subject = details.get("subject", "")
             body = details.get("body", "")
             html_body = details.get("html_body")
             cc = details.get("cc")
             
+            # Get SMTP password for the mailbox
+            smtp_password = (
+                session.secrets.get('overseer_mail_password') or 
+                session.secrets.get('mail_password') or
+                session.secrets.get('mailcow_smtp_password')
+            )
+            
+            if not smtp_password:
+                return {
+                    "success": False,
+                    "error": "SMTP password not configured. Please add 'overseer_mail_password' to secrets for the overseer@xisx.org mailbox."
+                }
+            
             result = client.send_email(
                 mailbox=from_address,
+                password=smtp_password,
                 to_addresses=to_addresses,
                 subject=subject,
                 body=body,
                 html_body=html_body,
                 cc=cc,
-                use_api=True
+                use_api=False  # Use SMTP instead of API (Mailcow API doesn't support sending)
             )
             
             if result.get("success"):
