@@ -340,6 +340,70 @@ class ESXiClient(PlatformClient):
             logger.error(f"Failed to get platform info: {str(e)}")
             return {"platform": "esxi", "version": "unknown"}
     
+    async def list_vms(self) -> List[Dict[str, Any]]:
+        """
+        List all VMs on the ESXi host
+        
+        Returns:
+            List of VM dictionaries with name, power_state, cpu_usage, memory, etc.
+        """
+        vms = []
+        try:
+            container = self.content.viewManager.CreateContainerView(
+                self.content.rootFolder,
+                [vim.VirtualMachine],
+                True
+            )
+            
+            for vm in container.view:
+                try:
+                    # Get power state
+                    power_state = "unknown"
+                    if vm.runtime.powerState == vim.VirtualMachinePowerState.poweredOn:
+                        power_state = "running"
+                    elif vm.runtime.powerState == vim.VirtualMachinePowerState.poweredOff:
+                        power_state = "stopped"
+                    elif vm.runtime.powerState == vim.VirtualMachinePowerState.suspended:
+                        power_state = "suspended"
+                    
+                    # Get resource usage (only if powered on)
+                    cpu_usage = 0
+                    memory_mb = 0
+                    if power_state == "running" and vm.summary.quickStats:
+                        cpu_usage = vm.summary.quickStats.overallCpuUsage or 0
+                        memory_mb = vm.summary.quickStats.guestMemoryUsage or 0
+                    
+                    # Get IP address
+                    ip_address = None
+                    if vm.guest and vm.guest.ipAddress:
+                        ip_address = vm.guest.ipAddress
+                    
+                    vm_info = {
+                        "moid": str(vm._moId),
+                        "name": vm.name,
+                        "power_state": power_state,
+                        "cpu_usage": cpu_usage,
+                        "memory_mb": memory_mb,
+                        "memory_max_mb": vm.config.hardware.memoryMB if vm.config else 0,
+                        "num_cpus": vm.config.hardware.numCPU if vm.config else 0,
+                        "guest_os": vm.config.guestFullName if vm.config else "Unknown",
+                        "ip_address": ip_address,
+                        "template": vm.config.template if vm.config else False
+                    }
+                    vms.append(vm_info)
+                    
+                except Exception as e:
+                    logger.warning(f"Error getting VM info for {vm.name}: {e}")
+                    continue
+            
+            container.Destroy()
+            logger.info(f"Listed {len(vms)} VMs on ESXi host {self.host}")
+            
+        except Exception as e:
+            logger.error(f"Failed to list VMs: {e}")
+        
+        return vms
+    
     # =========================================================================
     # ESXI-SPECIFIC HELPER METHODS
     # =========================================================================

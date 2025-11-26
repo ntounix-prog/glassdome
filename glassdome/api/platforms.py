@@ -376,15 +376,15 @@ async def get_esxi_status():
                 name=vm.get("name", "Unknown"),
                 status=vm.get("power_state", "unknown"),
                 cpu=vm.get("cpu_usage", 0),
-                memory=vm.get("memory_mb", 0) * 1024 * 1024 if vm.get("memory_mb") else 0,
-                template=vm.get("is_template", False)
+                memory=vm.get("memory_max_mb", 0) * 1024 * 1024 if vm.get("memory_max_mb") else 0,
+                template=vm.get("template", False)
             )
             vms.append(vm_info)
             
             summary["total"] += 1
             if vm_info.template:
                 summary["templates"] += 1
-            elif vm_info.status == "poweredOn":
+            elif vm_info.status == "running":
                 summary["running"] += 1
             else:
                 summary["stopped"] += 1

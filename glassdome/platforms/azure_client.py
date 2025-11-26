@@ -796,3 +796,133 @@ runcmd:
     def get_platform_name(self) -> str:
         """Get platform name"""
         return "azure"
+    
+    async def list_vms(self, resource_group: Optional[str] = None) -> List[Dict[str, Any]]:
+        """
+        List all VMs in the subscription or a specific resource group
+        
+        Args:
+            resource_group: Optional resource group name (defaults to glassdome-rg)
+        
+        Returns:
+            List of VM dictionaries with name, power_state, location, size, etc.
+        """
+        vms = []
+        rg = resource_group or self.resource_group_name
+        
+        try:
+            # Get VMs from the resource group
+            vm_list = self.compute_client.virtual_machines.list(rg)
+            
+            for vm in vm_list:
+                try:
+                    # Get power state from instance view
+                    power_state = "unknown"
+                    try:
+                        instance_view = self.compute_client.virtual_machines.instance_view(rg, vm.name)
+                        if instance_view.statuses:
+                            for status in instance_view.statuses:
+                                if status.code.startswith('PowerState/'):
+                                    power_state = status.code.split('/')[-1]
+                                    break
+                    except Exception:
+                        pass
+                    
+                    # Get public IP if available
+                    ip_address = None
+                    try:
+                        public_ip_name = f"{vm.name}-ip"
+                        public_ip = self.network_client.public_ip_addresses.get(rg, public_ip_name)
+                        ip_address = public_ip.ip_address
+                    except Exception:
+                        pass
+                    
+                    vm_info = {
+                        "id": vm.id,
+                        "name": vm.name,
+                        "power_state": power_state,
+                        "location": vm.location,
+                        "vm_size": vm.hardware_profile.vm_size if vm.hardware_profile else "Unknown",
+                        "os_type": vm.storage_profile.os_disk.os_type if vm.storage_profile and vm.storage_profile.os_disk else "Unknown",
+                        "ip_address": ip_address,
+                        "resource_group": rg,
+                        "tags": dict(vm.tags) if vm.tags else {}
+                    }
+                    vms.append(vm_info)
+                    
+                except Exception as e:
+                    logger.warning(f"Error getting VM info for {vm.name}: {e}")
+                    continue
+            
+            logger.info(f"Listed {len(vms)} VMs in Azure resource group {rg}")
+            
+        except Exception as e:
+            logger.error(f"Failed to list Azure VMs: {e}")
+        
+        return vms
+    
+    async def list_all_vms(self) -> List[Dict[str, Any]]:
+        """
+        List all VMs across all resource groups in the subscription
+        
+        Returns:
+            List of VM dictionaries
+        """
+        vms = []
+        
+        try:
+            # Get all VMs in the subscription
+            vm_list = self.compute_client.virtual_machines.list_all()
+            
+            for vm in vm_list:
+                try:
+                    # Extract resource group from VM ID
+                    # Format: /subscriptions/{sub}/resourceGroups/{rg}/providers/...
+                    parts = vm.id.split('/')
+                    rg_index = parts.index('resourceGroups') + 1 if 'resourceGroups' in parts else -1
+                    rg = parts[rg_index] if rg_index > 0 else "unknown"
+                    
+                    # Get power state
+                    power_state = "unknown"
+                    try:
+                        instance_view = self.compute_client.virtual_machines.instance_view(rg, vm.name)
+                        if instance_view.statuses:
+                            for status in instance_view.statuses:
+                                if status.code.startswith('PowerState/'):
+                                    power_state = status.code.split('/')[-1]
+                                    break
+                    except Exception:
+                        pass
+                    
+                    # Get public IP if available
+                    ip_address = None
+                    try:
+                        public_ip_name = f"{vm.name}-ip"
+                        public_ip = self.network_client.public_ip_addresses.get(rg, public_ip_name)
+                        ip_address = public_ip.ip_address
+                    except Exception:
+                        pass
+                    
+                    vm_info = {
+                        "id": vm.id,
+                        "name": vm.name,
+                        "power_state": power_state,
+                        "location": vm.location,
+                        "vm_size": vm.hardware_profile.vm_size if vm.hardware_profile else "Unknown",
+                        "os_type": vm.storage_profile.os_disk.os_type if vm.storage_profile and vm.storage_profile.os_disk else "Unknown",
+                        "ip_address": ip_address,
+                        "resource_group": rg,
+                        "tags": dict(vm.tags) if vm.tags else {}
+                    }
+                    vms.append(vm_info)
+                    
+                except Exception as e:
+                    logger.warning(f"Error getting VM info: {e}")
+                    continue
+            
+            logger.info(f"Listed {len(vms)} VMs across all Azure resource groups")
+            
+        except Exception as e:
+            logger.error(f"Failed to list all Azure VMs: {e}")
+        
+        return vms
