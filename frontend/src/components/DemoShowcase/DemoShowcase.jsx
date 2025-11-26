@@ -5,9 +5,16 @@
  * showcasing Glassdome capabilities for VP demos.
  */
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import './DemoShowcase.css'
+
+// Royalty-free synthwave/cyberpunk music URLs
+const MUSIC_TRACKS = [
+  'https://assets.mixkit.co/music/preview/mixkit-tech-house-vibes-130.mp3',
+  'https://assets.mixkit.co/music/preview/mixkit-driving-ambition-32.mp3',
+  'https://assets.mixkit.co/music/preview/mixkit-hip-hop-02-738.mp3',
+]
 
 const PHASES = [
   { id: 'intro', duration: 4000 },
@@ -24,6 +31,41 @@ const TOTAL_DURATION = PHASES.reduce((sum, p) => sum + p.duration, 0)
 export default function DemoShowcase({ isOpen, onClose }) {
   const [currentPhase, setCurrentPhase] = useState(0)
   const [progress, setProgress] = useState(0)
+  const [isMuted, setIsMuted] = useState(false)
+  const audioRef = useRef(null)
+
+  // Handle music
+  useEffect(() => {
+    if (isOpen) {
+      // Create and play audio
+      const audio = new Audio(MUSIC_TRACKS[0])
+      audio.volume = 0.3
+      audio.loop = true
+      audioRef.current = audio
+      
+      // Try to play (may be blocked by browser autoplay policy)
+      audio.play().catch(e => {
+        console.log('Autoplay blocked, user can unmute')
+      })
+      
+      return () => {
+        audio.pause()
+        audio.currentTime = 0
+      }
+    }
+  }, [isOpen])
+
+  // Toggle mute
+  const toggleMute = () => {
+    if (audioRef.current) {
+      audioRef.current.muted = !audioRef.current.muted
+      setIsMuted(!isMuted)
+      // If unmuting and not playing, try to play
+      if (isMuted && audioRef.current.paused) {
+        audioRef.current.play().catch(() => {})
+      }
+    }
+  }
 
   useEffect(() => {
     if (!isOpen) {
@@ -73,10 +115,15 @@ export default function DemoShowcase({ isOpen, onClose }) {
         <div className="demo-progress-bar" style={{ width: `${progress}%` }} />
       </div>
 
-      {/* Skip button */}
-      <button className="demo-skip" onClick={onClose}>
-        Skip Demo →
-      </button>
+      {/* Controls */}
+      <div className="demo-controls">
+        <button className="demo-mute" onClick={toggleMute}>
+          {isMuted ? '🔇 Unmute' : '🔊 Sound'}
+        </button>
+        <button className="demo-skip" onClick={onClose}>
+          Skip Demo →
+        </button>
+      </div>
 
       {/* Main content */}
       <div className="demo-content">

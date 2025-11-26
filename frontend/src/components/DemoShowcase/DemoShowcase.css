@@ -29,12 +29,18 @@
   box-shadow: 0 0 20px rgba(0, 212, 255, 0.5);
 }
 
-/* Skip button */
-.demo-skip {
+/* Controls */
+.demo-controls {
   position: absolute;
   top: 20px;
   right: 20px;
   z-index: 100;
+  display: flex;
+  gap: 10px;
+}
+
+.demo-mute,
+.demo-skip {
   padding: 10px 20px;
   background: rgba(255, 255, 255, 0.1);
   border: 1px solid rgba(255, 255, 255, 0.2);
@@ -45,9 +51,15 @@
   transition: all 0.3s;
 }
 
+.demo-mute:hover,
 .demo-skip:hover {
   background: rgba(255, 255, 255, 0.2);
   color: white;
+}
+
+.demo-mute {
+  background: rgba(123, 47, 255, 0.2);
+  border-color: rgba(123, 47, 255, 0.4);
 }
 
 /* Content container */

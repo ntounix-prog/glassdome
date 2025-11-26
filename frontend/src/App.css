@@ -4,11 +4,11 @@
   color: #ffffff;
 }
 
-/* Demo Button - Upper Left */
+/* Demo Button - Below navbar */
 .demo-button {
   position: fixed;
-  top: 15px;
-  left: 15px;
+  top: 85px;
+  left: 20px;
   z-index: 1000;
   padding: 10px 20px;
   background: linear-gradient(135deg, #7b2fff 0%, #00d4ff 100%);
