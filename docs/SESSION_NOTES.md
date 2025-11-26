@@ -1,6 +1,6 @@
 # Glassdome Session Notes
 
-## Session: 2025-11-25 (Overseer Chat, Email, Platform Status)
+## Session: 2025-11-25–26 (Overseer Chat, Email, Platform Status, Multi-Proxmox)
 
 ### Summary
 Major feature session implementing Overseer chat interface with LLM integration, email notifications, platform status pages, and VM deployment/termination via chat.
@@ -87,6 +87,9 @@ Ask Overseer: "Send a status email to user@example.com"
 - Search by VM name or ID
 - VM table with status, resources, and actions
 - Auto-refresh every 30 seconds
+- **Multi-Proxmox support:** pve01 + pve02 shown as distinct servers
+- Clickable **Proxmox Servers** cards (All / pve01 / pve02) to filter VMs
+- Combined view shows all VMs with a `Server` column
 
 ### 5. AWS Multi-Region Support
 **Endpoint:** `/api/platforms/aws/all-regions`
@@ -136,9 +139,9 @@ Ask Overseer: "Send a status email to user@example.com"
 - And 15 others...
 
 ### Platform Connections
-| Platform | Status | Instances |
-|----------|--------|-----------|
-| Proxmox | ✅ Connected | VMs available |
+| Platform | Status | Instances / Notes |
+|----------|--------|-------------------|
+| Proxmox | ✅ Connected | **pve01** (192.168.215.78), **pve02** (192.168.215.77) – 15 VMs total |
 | AWS | ✅ Connected | 2 instances (mx-east, mx-west) |
 | ESXi | ⚠️ Not configured | - |
 | Azure | ⚠️ Not configured | - |
@@ -170,6 +173,12 @@ Ask Overseer: "Send a status email to user@example.com"
 
 5. **VM serialization error**
    - Fixed JSON serialization of VM objects in tool results
+
+6. **Proxmox multi-instance + token bug**
+   - Implemented multi-instance Proxmox config (`get_proxmox_config(instance_id)`) and discovery (`list_proxmox_instances()`)
+   - Added `/api/platforms/proxmox/all-instances` to aggregate **pve01 + pve02**
+   - Found a stale `proxmox_token_value_02` with limited permissions that caused pve02 to return 0 VMs
+   - Removed the bad token from the secrets manager so password auth is used and all 8 pve02 VMs are visible
 
 ---
 

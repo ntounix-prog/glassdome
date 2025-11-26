@@ -241,7 +241,6 @@ async def get_all_proxmox_status():
                     all_nodes.append(node_info)
                     
                     vms = await client.list_vms(node_name)
-                    logger.info(f"Instance {instance_id}: Node '{node_name}' has {len(vms)} VMs")
                     
                     for vm in vms:
                         vm_info = VMInfo(

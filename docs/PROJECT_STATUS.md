@@ -1,6 +1,6 @@
 # Glassdome Project Status
 
-**Last Updated:** November 25, 2025  
+**Last Updated:** November 26, 2025  
 **Demo Date:** December 8, 2025  
 **Target:** Deploy 9-VM cyber ranges with one command, completely air-gapped
 
@@ -24,7 +24,7 @@ Autonomous AI-driven deployment framework for cybersecurity cyber range lab envi
 ### ✅ Completed (75%)
 
 **Platform Integration:**
-- Proxmox: Full CRUD, template cloning, cloud-init ✅
+- Proxmox: Full CRUD, template cloning, cloud-init, **multi-instance (pve01 + pve02)** ✅
 - ESXi: VM creation, template builder, cloud-init ✅  
 - AWS: EC2 deployment, dynamic AMI selection, multi-region ✅
 - Azure: VM creation, resource group management ✅
@@ -61,6 +61,7 @@ Autonomous AI-driven deployment framework for cybersecurity cyber range lab envi
 - Start/Stop VM controls ✅
 - Multi-region AWS support ✅
 - Real-time status updates ✅
+- **Multi-Proxmox view:** All VMs across pve01 + pve02, with per-server filters
 
 **Reaper System (NEW):**
 - Mission Engine architecture ✅
@@ -154,6 +155,7 @@ Autonomous AI-driven deployment framework for cybersecurity cyber range lab envi
 1. **ESXi auth services desync** - Root cause: PAM lockout from wrong password attempts (resolved)
 2. **IP Pool Manager** - Allocating wrong CIDR ranges (192.168.2.x instead of 192.168.3.x)
 3. **Proxmox SSH** - Using password instead of token for floppy upload
+6. **Proxmox token hygiene (fixed)** - Removed stale `proxmox_token_value_02` that had insufficient VM permissions; now pve02 reports all VMs correctly
 4. **Windows autounattend debugging** - 4 failed attempts, diminishing returns
 5. **VNC automation** - Needs Proxmox VNC proxy configuration
 
