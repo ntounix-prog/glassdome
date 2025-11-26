@@ -1,9 +1,9 @@
 # Glassdome Session Notes
 
-## Session: 2025-11-25–26 (Overseer Chat, Email, Platform Status, Multi-Proxmox)
+## Session: 2025-11-25–26 (Full Feature Session)
 
 ### Summary
-Major feature session implementing Overseer chat interface with LLM integration, email notifications, platform status pages, and VM deployment/termination via chat.
+Major feature session implementing Overseer chat interface, Reaper vulnerability injection system, multi-platform dashboard connections, and VP demo showcase.
 
 ---
 
@@ -18,6 +18,7 @@ Major feature session implementing Overseer chat interface with LLM integration,
 - 12 available tools for operations
 - Confirmation workflow for destructive actions
 - Recursive tool call handling
+- **Draggable floating button** (saves position to localStorage)
 
 **Tools Available:**
 | Tool | Description |
@@ -35,44 +36,50 @@ Major feature session implementing Overseer chat interface with LLM integration,
 | `ask_clarification` | Ask for more details |
 | `confirm_action` | Generic confirmation |
 
-**Files Created:**
-- `glassdome/chat/__init__.py`
-- `glassdome/chat/agent.py` - Main chat agent
-- `glassdome/chat/llm_service.py` - LLM provider abstraction
-- `glassdome/chat/tools.py` - Tool definitions
-- `glassdome/chat/workflow_engine.py` - Multi-step workflows
-- `glassdome/api/chat.py` - WebSocket/REST endpoints
-- `frontend/src/components/OverseerChat/` - React components
+### 2. Reaper Vulnerability Injection System ✨ NEW
+**Full exploit library and mission management UI**
 
-### 2. Email Integration
-**Overseer can send email notifications**
-
-**Setup:**
-- Created/reset `glassdome-ai@xisx.org` mailbox on Mailcow
-- Password stored in secrets as `overseer_mail_password`
-- Uses SMTP via mail.xisx.org:587
-
-**Usage:**
-Ask Overseer: "Send a status email to user@example.com"
-
-**Files Modified:**
-- `glassdome/chat/agent.py` - Added `_execute_send_email()`
-- `glassdome/chat/tools.py` - Added `send_email` tool
-
-### 3. VM Deployment via Chat
-**Deploy and terminate VMs through Overseer**
-
-**Examples:**
-- "Deploy a t2.nano Ubuntu to AWS us-east-1 called test-vm"
-- "Terminate the AWS instance named glassdome-92ff57"
+**Architecture:**
+```
+Reaper (owns exploits)  ←─────  Architect designs/manages
+       │
+       └── /missions/{id}/start  ←──  Overseer can ONLY call this
+```
 
 **Features:**
-- Automatic platform detection
-- Region selection for AWS
-- Instance type configuration
-- Confirmation before destructive actions
+- **Exploit Library Browser** - Grid view with filters (type, severity, OS)
+- **Mission Builder** - 3-step wizard (Configure → Select Exploits → Launch)
+- **Active Missions Tracker** - Progress bars, status updates
+- **Mission History** - Completed/failed missions table
+- **Live Log Viewer** - Semi-transparent panel with WebSocket streaming
+- 6 default exploits pre-loaded (SQL injection, XSS, weak SSH, sudo privesc, SMB anon, DVWA)
 
-### 4. Platform Status Pages
+**API Endpoints:**
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/reaper/exploits` | GET | List all exploits |
+| `/api/reaper/exploits` | POST | Create new exploit |
+| `/api/reaper/exploits/{id}` | GET/PUT/DELETE | CRUD operations |
+| `/api/reaper/exploits/seed` | POST | Load default exploits |
+| `/api/reaper/missions` | GET/POST | List/create missions |
+| `/api/reaper/missions/{id}/start` | POST | Start mission (Overseer access) |
+| `/api/reaper/stats` | GET | Dashboard statistics |
+| `/api/reaper/logs` | GET | Recent log entries |
+| `/api/reaper/logs/stream` | WS | Live log streaming |
+
+**Database Tables:**
+- `exploits` - Exploit definitions (CVE, type, severity, scripts, etc.)
+- `exploit_missions` - Mission tracking (target, exploits, status, results)
+
+**Log File:** `logs/reaper.log`
+
+**Files Created:**
+- `glassdome/reaper/exploit_library.py` - DB models + default exploits
+- `glassdome/api/reaper.py` - REST API + WebSocket endpoints
+- `frontend/src/pages/ReaperDesign.jsx` - Full React UI
+- `frontend/src/styles/ReaperDesign.css` - Dark theme styling
+
+### 3. Platform Status Pages
 **Dashboard → Platform → Status View**
 
 **Routes:**
@@ -88,33 +95,40 @@ Ask Overseer: "Send a status email to user@example.com"
 - VM table with status, resources, and actions
 - Auto-refresh every 30 seconds
 - **Multi-Proxmox support:** pve01 + pve02 shown as distinct servers
-- Clickable **Proxmox Servers** cards (All / pve01 / pve02) to filter VMs
-- Combined view shows all VMs with a `Server` column
+- Clickable **Proxmox Servers** cards to filter VMs
 
-### 5. AWS Multi-Region Support
-**Endpoint:** `/api/platforms/aws/all-regions`
+### 4. ESXi and Azure Connections
+**Added platform client methods and API integration**
 
-- Queries `us-east-1` (Virginia) and `us-west-2` (Oregon)
-- Aggregates instances from all regions
-- Shows region in instance name
+| Platform | Host | Status | VMs |
+|----------|------|--------|-----|
+| ESXi | 192.168.215.76 | ✅ Connected | 11 VMs |
+| Azure | Subscription c93088a4-... | ✅ Connected | 0 VMs |
 
-### 6. Creator Lab Deployment
-**Fixed lab deployment from Creator canvas**
+### 5. Email Integration
+**Overseer can send email notifications**
 
-- Wired up `/api/deployments` endpoint to actually deploy
-- Added platform selector (AWS/Proxmox)
-- Fixed node type detection for canvas elements
-- Real deployment feedback
+- Mailbox: `glassdome-ai@xisx.org`
+- SMTP: mail.xisx.org:587
+- Usage: "Send a status email to user@example.com"
 
-### 7. Startup Script Updated
-**`./glassdome_start` now supports:**
+### 6. VP Demo Showcase
+**30-second animated demo for presentations**
 
-```bash
-./glassdome_start              # Initialize session only
-./glassdome_start --backend    # Start backend (port 8011)
-./glassdome_start --frontend   # Start frontend (port 5174)
-./glassdome_start --all        # Start both services
+- Accessible via "▶ Demo" button on Dashboard only
+- Synthwave music with Web Audio API
+- Custom audio upload support
+- Cyberpunk animations
+
+### 7. Version Management
+**Protected MVP with branch strategy**
+
 ```
+main (v0.3.0) ← Protected, tagged MVP
+  └── develop ← All new work
+```
+
+**Version:** `0.3.0` (tagged)
 
 ---
 
@@ -128,23 +142,13 @@ Ask Overseer: "Send a status email to user@example.com"
 | PostgreSQL | 5432 | ✅ Running (192.168.3.26) |
 | Mailcow | 587 | ✅ Connected |
 
-### Authenticated Secrets (22 total)
-- `openai_api_key` ✅
-- `anthropic_api_key` ✅
-- `aws_access_key_id` ✅
-- `aws_secret_access_key` ✅
-- `mail_api` ✅
-- `overseer_mail_password` ✅ (NEW)
-- `proxmox_password` ✅
-- And 15 others...
-
 ### Platform Connections
-| Platform | Status | Instances / Notes |
-|----------|--------|-------------------|
-| Proxmox | ✅ Connected | **pve01** (192.168.215.78), **pve02** (192.168.215.77) – 15 VMs total |
-| AWS | ✅ Connected | 2 instances (mx-east, mx-west) |
-| ESXi | ⚠️ Not configured | - |
-| Azure | ⚠️ Not configured | - |
+| Platform | Status | Details |
+|----------|--------|---------|
+| Proxmox | ✅ Connected | pve01 (7 VMs) + pve02 (8 VMs) |
+| AWS | ✅ Connected | 2 instances (us-east-1, us-west-2) |
+| ESXi | ✅ Connected | 11 VMs |
+| Azure | ✅ Connected | 0 VMs (glassdome-rg) |
 
 ### LLM Providers
 - OpenAI (gpt-4o) ✅
@@ -152,131 +156,107 @@ Ask Overseer: "Send a status email to user@example.com"
 
 ---
 
-## Bug Fixes This Session
-
-1. **Streaming mode doesn't support tools**
-   - Changed default to non-streaming for chat
-   - Tools now execute properly
-
-2. **Tool message format for OpenAI**
-   - Fixed assistant message with tool_calls before tool results
-   - Proper conversation history format
-
-3. **Recursive tool calls**
-   - Follow-up LLM responses with tool_calls now processed
-   - Multi-step operations work (e.g., get status → send email)
-
-4. **Email configuration**
-   - Fixed `api_key` → `api_token` for MailcowClient
-   - Added `mail_api` as fallback key name
-   - Force sender to configured mailbox
-
-5. **VM serialization error**
-   - Fixed JSON serialization of VM objects in tool results
-
-6. **Proxmox multi-instance + token bug**
-   - Implemented multi-instance Proxmox config (`get_proxmox_config(instance_id)`) and discovery (`list_proxmox_instances()`)
-   - Added `/api/platforms/proxmox/all-instances` to aggregate **pve01 + pve02**
-   - Found a stale `proxmox_token_value_02` with limited permissions that caused pve02 to return 0 VMs
-   - Removed the bad token from the secrets manager so password auth is used and all 8 pve02 VMs are visible
-
----
-
 ## Files Created This Session
 
 ```
+# Reaper System
+glassdome/reaper/exploit_library.py
+glassdome/api/reaper.py
+frontend/src/pages/ReaperDesign.jsx
+frontend/src/styles/ReaperDesign.css
+logs/reaper.log
+
+# Chat System
 glassdome/chat/__init__.py
 glassdome/chat/agent.py
 glassdome/chat/llm_service.py
 glassdome/chat/tools.py
 glassdome/chat/workflow_engine.py
 glassdome/api/chat.py
-glassdome/api/platforms.py
-glassdome/reaper/                    # Full Reaper system
 frontend/src/components/OverseerChat/
+
+# Platform Status
+glassdome/api/platforms.py
 frontend/src/pages/PlatformStatus.jsx
 frontend/src/styles/PlatformStatus.css
-docs/REAPER_SYSTEM.md
+
+# Demo
+frontend/src/components/DemoShowcase/
 ```
 
 ## Files Modified This Session
 
 ```
-glassdome/main.py                    # Deployment endpoint, session loading
-glassdome/server.py                  # Logging configuration
-glassdome/overseer/entity.py         # Reaper integration
-frontend/src/App.jsx                 # Chat + platform routes
-frontend/src/pages/Dashboard.jsx     # Platform links
-frontend/src/pages/LabCanvas.jsx     # Platform selector, deployment
-frontend/src/styles/Dashboard.css    # Link styling
-frontend/src/styles/LabCanvas.css    # Platform selector styling
-scripts/start_glassdome.sh           # Updated with --frontend, --all
+glassdome/main.py                    # Router registration
+glassdome/core/database.py           # Reaper tables
+glassdome/platforms/esxi_client.py   # list_vms()
+glassdome/platforms/azure_client.py  # list_vms()
+frontend/src/App.jsx                 # Routes + Reaper
+frontend/src/pages/Dashboard.jsx     # Tools section
+frontend/src/styles/Dashboard.css    # Tools styling
+frontend/src/components/OverseerChat/ChatToggle.jsx  # Draggable
+frontend/src/components/OverseerChat/ChatToggle.css
+```
+
+---
+
+## Git Commits (develop branch)
+
+```
+feat: Reaper Vulnerability Injection System UI
+feat: Add comprehensive Reaper logging
+feat: Add live log viewer panel to Reaper UI
+feat: Make Overseer chat button draggable
+chore: Bump version to 0.3.0
+feat: Add ESXi and Azure dashboard connections
+fix: Demo button only shows on dashboard page
 ```
 
 ---
 
 ## Testing Commands
 
-### Check Services
+### Reaper API
 ```bash
-curl http://localhost:8011/api/health
+# Get stats
+curl http://localhost:8011/api/reaper/stats
+
+# List exploits
+curl http://localhost:8011/api/reaper/exploits
+
+# Seed default exploits
+curl -X POST http://localhost:8011/api/reaper/exploits/seed
+
+# Get recent logs
+curl http://localhost:8011/api/reaper/logs
+```
+
+### Platform APIs
+```bash
+curl http://localhost:8011/api/platforms/proxmox/all-instances
+curl http://localhost:8011/api/platforms/esxi
+curl http://localhost:8011/api/platforms/azure
 curl http://localhost:8011/api/platforms/aws/all-regions
 ```
 
-### Test Chat
-```bash
-curl -X POST http://localhost:8011/api/chat/conversations/test/messages \
-  -H "Content-Type: application/json" \
-  -d '{"message": "What AWS instances do I have?"}'
-```
+---
 
-### Test Email
-```bash
-# Via Overseer chat:
-"Send a status email to user@example.com"
-```
+## Next Steps (Roadmap)
+
+1. **GitHub Issues Integration** - Track tickets via GitHub API
+2. **Network Architecture** - VM interfaces, bridges, cross-platform mapping
+3. **Cross-Platform Migration** - Move labs between ESXi/AWS/Azure
+4. **User Authentication** - Roles (observer, architect, engineer, admin)
+5. **Enhanced Canvas** - Platform-agnostic lab templates
 
 ---
 
-### 7. ESXi and Azure Dashboard Connections
-**Added platform client methods and API integration**
+## Version Plan
 
-**ESXi:**
-- Host: `192.168.215.76`
-- User: `root`
-- Password stored in `.env`
-- Added `list_vms()` method to ESXiClient
-- **Status:** ✅ Connected (11 VMs detected)
-
-**Azure:**
-- Subscription: `c93088a4-...`
-- Tenant: `f5b89107-...`
-- Client ID: `ee2f1e19-...`
-- Client Secret stored in `.env`
-- Added `list_vms()` and `list_all_vms()` methods to AzureClient
-- **Status:** ✅ Connected (0 VMs in glassdome-rg)
-
-**Files Modified:**
-- `glassdome/platforms/esxi_client.py` - Added list_vms()
-- `glassdome/platforms/azure_client.py` - Added list_vms(), list_all_vms()
-- `glassdome/api/platforms.py` - Fixed ESXi status mapping
-
----
-
-## Next Steps
-
-1. **Reaper Testing:** Test vulnerability injection via chat
-2. **Monitoring:** Add Overseer background monitoring
-3. **Lab Templates:** Pre-built lab configurations
-
----
-
-## Git Commits This Session
-
-```
-feat: Overseer Chat Interface + Reaper System + Platform Status
-feat: Add email tool to Overseer + fix Creator deployment
-fix: Demo button only shows on dashboard page
-feat: Add ESXi and Azure dashboard connections
-```
-
+| Version | Features |
+|---------|----------|
+| v0.3.0 | MVP - Current (protected on main) |
+| v0.4.0 | Reaper UI + GitHub Issues |
+| v0.5.0 | Network tracking |
+| v0.6.0 | Cross-platform migration |
+| v1.0.0 | Production with auth |
