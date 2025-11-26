@@ -154,39 +154,80 @@ export default function DemoShowcase({ isOpen, onClose }) {
   const [progress, setProgress] = useState(0)
   const [isPlaying, setIsPlaying] = useState(false)
   const [audioStatus, setAudioStatus] = useState('🎵 Click for Music')
+  const [customAudio, setCustomAudio] = useState(null)
+  const [customFileName, setCustomFileName] = useState(null)
   const synthRef = useRef(null)
+  const audioRef = useRef(null)
+  const fileInputRef = useRef(null)
 
   // Cleanup when demo closes
   useEffect(() => {
+    if (!isOpen) {
+      stopAllAudio()
+    }
     return () => {
-      if (synthRef.current) {
-        synthRef.current.stop()
-        synthRef.current = null
-        setIsPlaying(false)
-      }
+      stopAllAudio()
     }
   }, [isOpen])
 
-  // Toggle synthwave music
+  const stopAllAudio = () => {
+    if (synthRef.current) {
+      synthRef.current.stop()
+      synthRef.current = null
+    }
+    if (audioRef.current) {
+      audioRef.current.pause()
+      audioRef.current.currentTime = 0
+    }
+    setIsPlaying(false)
+  }
+
+  // Handle file selection
+  const handleFileSelect = (e) => {
+    const file = e.target.files[0]
+    if (file) {
+      // Create object URL for the file
+      const url = URL.createObjectURL(file)
+      setCustomAudio(url)
+      setCustomFileName(file.name)
+      setAudioStatus(`🎵 ${file.name.slice(0, 20)}...`)
+      
+      // Create audio element
+      const audio = new Audio(url)
+      audio.loop = true
+      audio.volume = 0.5
+      audioRef.current = audio
+    }
+  }
+
+  // Toggle music
   const toggleSound = () => {
     try {
       if (isPlaying) {
-        if (synthRef.current) {
-          synthRef.current.stop()
-          synthRef.current = null
-        }
-        setIsPlaying(false)
-        setAudioStatus('🎵 Click for Music')
+        stopAllAudio()
+        setAudioStatus(customAudio ? `🎵 ${customFileName?.slice(0, 15)}...` : '🎵 Click for Music')
       } else {
-        synthRef.current = new SynthwaveGenerator()
-        synthRef.current.start()
-        setIsPlaying(true)
-        setAudioStatus('🔊 Synthwave Playing')
+        // Use custom audio if available, otherwise synth
+        if (customAudio && audioRef.current) {
+          audioRef.current.play()
+          setIsPlaying(true)
+          setAudioStatus(`🔊 ${customFileName?.slice(0, 15)}...`)
+        } else {
+          synthRef.current = new SynthwaveGenerator()
+          synthRef.current.start()
+          setIsPlaying(true)
+          setAudioStatus('🔊 Synthwave Playing')
+        }
       }
     } catch (e) {
       console.error('Audio error:', e)
       setAudioStatus(`❌ ${e.message}`)
     }
+  }
+
+  // Open file picker
+  const openFilePicker = () => {
+    fileInputRef.current?.click()
   }
 
   useEffect(() => {
@@ -239,6 +280,20 @@ export default function DemoShowcase({ isOpen, onClose }) {
 
       {/* Controls */}
       <div className="demo-controls">
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="audio/*"
+          onChange={handleFileSelect}
+          style={{ display: 'none' }}
+        />
+        <button 
+          className="demo-upload"
+          onClick={openFilePicker}
+          title="Upload your own music"
+        >
+          📁 {customFileName ? 'Change' : 'Upload Music'}
+        </button>
         <button 
           className={`demo-sound ${isPlaying ? 'playing' : ''}`} 
           onClick={toggleSound}
