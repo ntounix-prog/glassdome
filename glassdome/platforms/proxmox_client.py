@@ -617,29 +617,44 @@ class ProxmoxClient(PlatformClient):
         return result
     
     async def clone_vm_raw(self, node: str, vmid: int, newid: int, name: str,
-                          full: bool = True) -> Dict[str, Any]:
+                          full: bool = True, target_node: str = None,
+                          target_storage: str = None) -> Dict[str, Any]:
         """
         Clone an existing VM (Proxmox-specific, low-level)
         
         Args:
-            node: Node name
+            node: Source node name (where template lives)
             vmid: Source VM ID
             newid: New VM ID
             name: New VM name
             full: Full clone (vs linked clone)
+            target_node: Target node for the clone (for cross-node cloning)
+            target_storage: Target storage on destination node
             
         Returns:
             Task status
         """
         try:
-            logger.info(f"API call: nodes('{node}').qemu({vmid}).clone.post(newid={newid}, name='{name}', full={1 if full else 0})")
-            task = self.client.nodes(node).qemu(vmid).clone.post(
-                newid=newid,
-                name=name,
-                full=1 if full else 0
-            )
-            logger.info(f"VM {vmid} cloned to {newid} on node {node}")
-            return {"success": True, "task": task, "vmid": newid}
+            clone_params = {
+                "newid": newid,
+                "name": name,
+                "full": 1 if full else 0
+            }
+            
+            # Cross-node cloning support
+            if target_node and target_node != node:
+                clone_params["target"] = target_node
+                logger.info(f"Cross-node clone: {node} -> {target_node}")
+            
+            if target_storage:
+                clone_params["storage"] = target_storage
+            
+            logger.info(f"API call: nodes('{node}').qemu({vmid}).clone.post({clone_params})")
+            task = self.client.nodes(node).qemu(vmid).clone.post(**clone_params)
+            
+            actual_node = target_node or node
+            logger.info(f"VM {vmid} cloned to {newid} on node {actual_node}")
+            return {"success": True, "task": task, "vmid": newid, "node": actual_node}
         except Exception as e:
             logger.error(f"Failed to clone VM {vmid}: {str(e)}")
             return {"success": False, "error": str(e)}
