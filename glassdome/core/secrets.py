@@ -15,6 +15,14 @@ from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 import getpass
 import os
 
+from glassdome.core.paths import (
+    SECRETS_DIR,
+    SECRETS_STORE_PATH,
+    MASTER_KEY_PATH,
+    SECRETS_REGISTRY_PATH,
+    ENV_FILE,
+)
+
 
 class SecretsManager:
     """
@@ -24,7 +32,7 @@ class SecretsManager:
     
     SERVICE_NAME = "glassdome"
     MASTER_KEY_NAME = "master_key"
-    FALLBACK_STORE_PATH = Path.home() / ".glassdome" / "secrets.encrypted"
+    FALLBACK_STORE_PATH = SECRETS_STORE_PATH  # Use centralized path
     
     def __init__(self):
         self._master_key: Optional[bytes] = None
@@ -62,7 +70,7 @@ class SecretsManager:
         # Check fallback file
         if self.FALLBACK_STORE_PATH.exists():
             # Master key is stored encrypted with a derived key from user input
-            master_key_encrypted_path = self.FALLBACK_STORE_PATH.parent / "master_key.enc"
+            master_key_encrypted_path = MASTER_KEY_PATH
             if master_key_encrypted_path.exists():
                 # Use provided password or prompt
                 if password is None:
@@ -109,8 +117,8 @@ class SecretsManager:
         encrypted_master = fernet.encrypt(self._master_key)
         
         # Save encrypted master key
-        self.FALLBACK_STORE_PATH.parent.mkdir(parents=True, exist_ok=True)
-        with open(self.FALLBACK_STORE_PATH.parent / "master_key.enc", 'wb') as f:
+        SECRETS_DIR.mkdir(parents=True, exist_ok=True)
+        with open(MASTER_KEY_PATH, 'wb') as f:
             f.write(salt + encrypted_master)
         
         # Also store in keyring if available
@@ -252,10 +260,9 @@ class SecretsManager:
         if self._use_keyring:
             # Keyring doesn't have a list method, so we check common keys
             # This is a limitation - we'll maintain a registry
-            registry_path = Path.home() / ".glassdome" / "secrets_registry.json"
-            if registry_path.exists():
+            if SECRETS_REGISTRY_PATH.exists():
                 try:
-                    with open(registry_path) as f:
+                    with open(SECRETS_REGISTRY_PATH) as f:
                         keys = json.load(f)
                 except Exception:
                     pass
@@ -285,13 +292,12 @@ class SecretsManager:
     
     def _save_fallback_secrets(self, secrets: Dict[str, str]) -> None:
         """Save secrets to encrypted fallback file."""
-        self.FALLBACK_STORE_PATH.parent.mkdir(parents=True, exist_ok=True)
+        SECRETS_DIR.mkdir(parents=True, exist_ok=True)
         with open(self.FALLBACK_STORE_PATH, 'w') as f:
             json.dump(secrets, f, indent=2)
         
         # Update registry
-        registry_path = Path.home() / ".glassdome" / "secrets_registry.json"
-        with open(registry_path, 'w') as f:
+        with open(SECRETS_REGISTRY_PATH, 'w') as f:
             json.dump(list(secrets.keys()), f, indent=2)
     
     def migrate_from_env(self, env_file: Path = None, include_bashrc: bool = True, include_environment: bool = True) -> Dict[str, bool]:
@@ -344,7 +350,7 @@ class SecretsManager:
         
         # 1. Parse .env file if it exists
         if env_file is None:
-            env_file = Path(".env")
+            env_file = ENV_FILE
         
         if env_file.exists():
             with open(env_file) as f:

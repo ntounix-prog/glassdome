@@ -10,7 +10,12 @@ import os
 import asyncio
 import json
 from datetime import datetime
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../..'))
+from pathlib import Path
+
+# Add project root to path
+SCRIPT_DIR = Path(__file__).parent
+PROJECT_ROOT = SCRIPT_DIR.parent.parent
+sys.path.insert(0, str(PROJECT_ROOT))
 
 from glassdome.core.ssh_client import SSHClient
 from glassdome.core.security import ensure_security_context, get_secure_settings
@@ -157,7 +162,7 @@ async def discover_cisco_3850():
     )
     
     # Save results
-    output_file = '/home/nomad/glassdome/docs/cisco_3850_discovery.json'
+    output_file = PROJECT_ROOT / "docs" / "cisco_3850_discovery.json"
     with open(output_file, 'w') as f:
         json.dump(discovery_data, f, indent=2)
     

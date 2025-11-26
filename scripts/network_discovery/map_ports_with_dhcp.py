@@ -11,7 +11,12 @@ import json
 import re
 import requests
 from datetime import datetime
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../..'))
+from pathlib import Path
+
+# Add project root to path
+SCRIPT_DIR = Path(__file__).parent
+PROJECT_ROOT = SCRIPT_DIR.parent.parent
+sys.path.insert(0, str(PROJECT_ROOT))
 
 from glassdome.core.security import ensure_security_context, get_secure_settings
 
@@ -110,14 +115,14 @@ def load_switch_data():
     nexus_data = {}
     
     # Load Cisco 3850 data
-    cisco_file = '/home/nomad/glassdome/docs/cisco_3850_discovery.json'
-    if os.path.exists(cisco_file):
+    cisco_file = PROJECT_ROOT / "docs" / "cisco_3850_discovery.json"
+    if cisco_file.exists():
         with open(cisco_file) as f:
             cisco_data = json.load(f)
     
     # Load Nexus 3064 data
-    nexus_file = '/home/nomad/glassdome/docs/nexus_3064_discovery.json'
-    if os.path.exists(nexus_file):
+    nexus_file = PROJECT_ROOT / "docs" / "nexus_3064_discovery.json"
+    if nexus_file.exists():
         with open(nexus_file) as f:
             nexus_data = json.load(f)
     
@@ -247,7 +252,7 @@ def map_ports_to_devices():
         'clients': len(clients)
     }
     
-    output_file = '/home/nomad/glassdome/docs/port_device_mapping.json'
+    output_file = PROJECT_ROOT / "docs" / "port_device_mapping.json"
     with open(output_file, 'w') as f:
         json.dump(mapping_data, f, indent=2)
     

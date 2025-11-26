@@ -14,6 +14,7 @@ PROJECT_ROOT = Path(__file__).parent.parent.parent.resolve()
 sys.path.insert(0, str(PROJECT_ROOT))
 
 from glassdome.core.secrets import get_secrets_manager
+from glassdome.core.paths import MASTER_KEY_PATH, SECRET_NAMES_PATH, PROJECT_ROOT as GLASSDOME_ROOT
 
 app = FastAPI(title="Glassdome Secrets Manager", version="1.0.0")
 
@@ -483,9 +484,7 @@ async def status():
         secrets = get_secrets_manager()
         # Try to access the master key (will prompt if not initialized)
         # For web interface, we'll check if the encrypted file exists
-        from pathlib import Path
-        master_key_path = Path.home() / ".glassdome" / "master_key.enc"
-        initialized = master_key_path.exists()
+        initialized = MASTER_KEY_PATH.exists()
         
         return {
             "initialized": initialized,
@@ -511,9 +510,7 @@ async def setup(master_password: str = Form(...), confirm_password: str = Form(.
         secrets = get_secrets_manager()
         
         # Check if already initialized
-        from pathlib import Path
-        master_key_path = Path.home() / ".glassdome" / "master_key.enc"
-        if master_key_path.exists():
+        if MASTER_KEY_PATH.exists():
             return JSONResponse(
                 status_code=400,
                 content={"success": False, "error": "Secrets manager already initialized"}
@@ -572,9 +569,7 @@ async def setup(master_password: str = Form(...), confirm_password: str = Form(.
 
 def _load_master_key(secrets, master_password):
     """Helper to load master key using password"""
-    from pathlib import Path
-    master_key_path = Path.home() / ".glassdome" / "master_key.enc"
-    if not master_key_path.exists():
+    if not MASTER_KEY_PATH.exists():
         raise ValueError("Secrets manager not initialized")
     
     if secrets._master_key is not None:
@@ -589,7 +584,7 @@ def _load_master_key(secrets, master_password):
     from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
     import base64
     
-    with open(master_key_path, 'rb') as f:
+    with open(MASTER_KEY_PATH, 'rb') as f:
         salt = f.read(16)
         encrypted_key = f.read()
     
@@ -682,13 +677,11 @@ async def list_secrets():
         secret_keys = secrets.list_secrets()
         
         # Load secret name mappings
-        from pathlib import Path
         import json
-        names_path = Path.home() / ".glassdome" / "secret_names.json"
         secret_names = {}
-        if names_path.exists():
+        if SECRET_NAMES_PATH.exists():
             try:
-                with open(names_path) as f:
+                with open(SECRET_NAMES_PATH) as f:
                     secret_names = json.load(f)
             except Exception:
                 pass
@@ -732,20 +725,18 @@ async def add_new_key(
         # Store the secret
         if secrets.set_secret(internal_key, secret_value):
             # Store the name mapping
-            from pathlib import Path
             import json
-            names_path = Path.home() / ".glassdome" / "secret_names.json"
             secret_names = {}
-            if names_path.exists():
+            if SECRET_NAMES_PATH.exists():
                 try:
-                    with open(names_path) as f:
+                    with open(SECRET_NAMES_PATH) as f:
                         secret_names = json.load(f)
                 except Exception:
                     pass
             
             secret_names[internal_key] = key_name
-            names_path.parent.mkdir(parents=True, exist_ok=True)
-            with open(names_path, 'w') as f:
+            SECRET_NAMES_PATH.parent.mkdir(parents=True, exist_ok=True)
+            with open(SECRET_NAMES_PATH, 'w') as f:
                 json.dump(secret_names, f, indent=2)
             
             return JSONResponse(content={
@@ -778,16 +769,14 @@ async def delete_secret(secret_key: str):
         secrets = get_secrets_manager()
         if secrets.delete_secret(secret_key):
             # Remove from name mappings
-            from pathlib import Path
             import json
-            names_path = Path.home() / ".glassdome" / "secret_names.json"
-            if names_path.exists():
+            if SECRET_NAMES_PATH.exists():
                 try:
-                    with open(names_path) as f:
+                    with open(SECRET_NAMES_PATH) as f:
                         secret_names = json.load(f)
                     if secret_key in secret_names:
                         del secret_names[secret_key]
-                        with open(names_path, 'w') as f:
+                        with open(SECRET_NAMES_PATH, 'w') as f:
                             json.dump(secret_names, f, indent=2)
                 except Exception:
                     pass
@@ -812,9 +801,7 @@ async def migrate_secrets(master_password: str = Form(...)):
         secrets = get_secrets_manager()
         
         # Load master key using provided password
-        from pathlib import Path
-        master_key_path = Path.home() / ".glassdome" / "master_key.enc"
-        if not master_key_path.exists():
+        if not MASTER_KEY_PATH.exists():
             return JSONResponse(
                 status_code=400,
                 content={"success": False, "error": "Secrets manager not initialized"}
@@ -826,7 +813,7 @@ async def migrate_secrets(master_password: str = Form(...)):
         from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
         import base64
         
-        with open(master_key_path, 'rb') as f:
+        with open(MASTER_KEY_PATH, 'rb') as f:
             salt = f.read(16)
             encrypted_key = f.read()
         

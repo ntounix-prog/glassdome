@@ -28,19 +28,21 @@ except ImportError:
     print("WARNING: sentence-transformers or faiss not installed")
     print("Install with: pip install sentence-transformers faiss-cpu")
 
+from glassdome.core.paths import PROJECT_ROOT, RAG_INDEX_DIR
+
 
 class IndexBuilder:
     """Build and manage RAG knowledge index"""
     
     def __init__(
         self,
-        project_root: str = "/home/nomad/glassdome",
+        project_root: str = None,
         model_name: str = "all-MiniLM-L6-v2",  # Fast, 384 dim
         index_path: str = None
     ):
-        self.project_root = Path(project_root)
+        self.project_root = Path(project_root) if project_root else PROJECT_ROOT
         self.model_name = model_name
-        self.index_path = Path(index_path) if index_path else self.project_root / ".rag_index"
+        self.index_path = Path(index_path) if index_path else RAG_INDEX_DIR
         
         # Create index directory
         self.index_path.mkdir(exist_ok=True)

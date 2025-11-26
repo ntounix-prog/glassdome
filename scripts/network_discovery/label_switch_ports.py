@@ -10,7 +10,12 @@ import os
 import json
 import subprocess
 import asyncio
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../..'))
+from pathlib import Path
+
+# Add project root to path
+SCRIPT_DIR = Path(__file__).parent
+PROJECT_ROOT = SCRIPT_DIR.parent.parent
+sys.path.insert(0, str(PROJECT_ROOT))
 
 from glassdome.core.ssh_client import SSHClient
 from glassdome.core.security import ensure_security_context, get_secure_settings
@@ -24,8 +29,8 @@ def get_cisco_3850_config():
 
 def load_port_mapping():
     """Load port-to-device mapping"""
-    mapping_file = '/home/nomad/glassdome/docs/port_device_mapping.json'
-    if os.path.exists(mapping_file):
+    mapping_file = PROJECT_ROOT / "docs" / "port_device_mapping.json"
+    if mapping_file.exists():
         with open(mapping_file) as f:
             return json.load(f)
     return {}

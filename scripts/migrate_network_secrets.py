@@ -14,16 +14,20 @@ import os
 from pathlib import Path
 
 # Add project root to path
-sys.path.insert(0, str(Path(__file__).parent.parent))
+PROJECT_ROOT = Path(__file__).parent.parent
+sys.path.insert(0, str(PROJECT_ROOT))
 
 from glassdome.core.security import ensure_security_context, get_secure_settings
 from glassdome.core.session import get_session
+from glassdome.core.paths import ENV_FILE
 
 
-def read_env_file(env_path: str = "/home/nomad/glassdome/.env") -> dict:
+def read_env_file(env_path: Path = None) -> dict:
     """Read .env file and return as dictionary."""
+    if env_path is None:
+        env_path = ENV_FILE
     config = {}
-    if os.path.exists(env_path):
+    if env_path.exists():
         with open(env_path) as f:
             for line in f:
                 line = line.strip()

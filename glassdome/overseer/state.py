@@ -11,6 +11,8 @@ from datetime import datetime
 from dataclasses import dataclass, asdict
 from enum import Enum
 
+from glassdome.core.paths import OVERSEER_STATE_FILE
+
 
 class VMStatus(Enum):
     RUNNING = "running"
@@ -102,7 +104,7 @@ class SystemState:
     """
     
     def __init__(self, state_file: str = None):
-        self.state_file = Path(state_file) if state_file else Path("/home/nomad/glassdome/.overseer_state.json")
+        self.state_file = Path(state_file) if state_file else OVERSEER_STATE_FILE
         
         self.vms: Dict[str, VM] = {}
         self.hosts: Dict[str, Host] = {}

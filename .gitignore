@@ -47,6 +47,9 @@ env/
 .env.production
 !env.example
 
+# Secrets (encrypted, but keep out of repo)
+.secrets/
+
 # Logs
 *.log
 logs/

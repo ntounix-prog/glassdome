@@ -8,11 +8,12 @@ from pathlib import Path
 import os
 import re
 from glassdome.core.secrets import get_secrets_manager
+from glassdome.core.paths import ENV_FILE
 
 
 class Settings(BaseSettings):
     model_config = ConfigDict(
-        env_file=".env",
+        env_file=str(ENV_FILE),
         case_sensitive=False,
         extra="allow"  # Allow extra fields for multi-instance support
     )
@@ -165,11 +166,10 @@ class Settings(BaseSettings):
         instance_prefix = f"PROXMOX_{instance_id.upper()}_"
         
         # Read from .env file directly (pydantic-settings doesn't populate os.environ)
-        env_file_path = Path(".env")
         env_vars = {}
         
-        if env_file_path.exists():
-            with open(env_file_path) as f:
+        if ENV_FILE.exists():
+            with open(ENV_FILE) as f:
                 for line in f:
                     line = line.strip()
                     if not line or line.startswith("#"):
@@ -228,9 +228,8 @@ class Settings(BaseSettings):
         instances = ["01"]  # Always include default instance
         
         # Check .env file for PROXMOX_XX_HOST variables
-        env_file_path = Path(".env")
-        if env_file_path.exists():
-            with open(env_file_path) as f:
+        if ENV_FILE.exists():
+            with open(ENV_FILE) as f:
                 for line in f:
                     line = line.strip()
                     if not line or line.startswith("#"):

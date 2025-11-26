@@ -18,17 +18,18 @@ from cryptography.fernet import Fernet
 import keyring
 
 from glassdome.core.secrets import get_secrets_manager
+from glassdome.core.paths import (
+    SESSION_CACHE_PATH,
+    SESSION_KEY_PATH,
+    MASTER_KEY_PATH,
+    SECRETS_DIR,
+)
 
 # Settings imported lazily to avoid premature initialization (which would prompt for password)
 if TYPE_CHECKING:
     from glassdome.core.config import Settings
 
 logger = logging.getLogger(__name__)
-
-# Session cache file for cross-process sharing (metadata only, no secrets)
-SESSION_CACHE_PATH = Path.home() / ".glassdome" / "session_cache.json"
-# Session key file for cross-process master key sharing (protected, 0600)
-SESSION_KEY_PATH = Path.home() / ".glassdome" / "session_key.bin"
 
 
 class GlassdomeSession:
@@ -200,7 +201,7 @@ class GlassdomeSession:
         """
         try:
             # Ensure directory exists
-            SESSION_CACHE_PATH.parent.mkdir(parents=True, exist_ok=True)
+            SECRETS_DIR.mkdir(parents=True, exist_ok=True)
             
             # Save metadata cache
             cache = {
@@ -255,8 +256,7 @@ class GlassdomeSession:
             
             # Check if secrets manager has encrypted files (without prompting for password)
             # We'll check for the existence of the encrypted file, not try to decrypt it
-            master_key_file = self._secrets_manager.FALLBACK_STORE_PATH.parent / "master_key.enc"
-            if not master_key_file.exists() and not self._secrets_manager._use_keyring:
+            if not MASTER_KEY_PATH.exists() and not self._secrets_manager._use_keyring:
                 logger.error("Secrets manager not initialized. Run 'glassdome secrets setup' first.")
                 return False
             

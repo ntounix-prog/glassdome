@@ -16,13 +16,15 @@ try:
 except ImportError:
     print("WARNING: sentence-transformers or faiss not installed")
 
+from glassdome.core.paths import PROJECT_ROOT, RAG_INDEX_DIR
+
 
 class QueryEngine:
     """Query RAG knowledge base"""
     
-    def __init__(self, index_path: str = None, project_root: str = "/home/nomad/glassdome"):
-        self.project_root = Path(project_root)
-        self.index_path = Path(index_path) if index_path else self.project_root / ".rag_index"
+    def __init__(self, index_path: str = None, project_root: str = None):
+        self.project_root = Path(project_root) if project_root else PROJECT_ROOT
+        self.index_path = Path(index_path) if index_path else RAG_INDEX_DIR
         
         # Load index and metadata
         self._load_index()
