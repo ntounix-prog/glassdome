@@ -91,3 +91,4 @@ black>=23.0.0
 flake8>=6.1.0
 mypy>=1.7.0
 paramiko>=3.4.0
+asyncssh>=2.14.0

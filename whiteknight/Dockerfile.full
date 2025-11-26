@@ -1,0 +1,100 @@
+# WhiteKnight FULL - Complete security toolkit with Metasploit
+# WARNING: Large image (~2-3GB), slow to build
+
+FROM kalilinux/kali-rolling:latest
+
+LABEL maintainer="Glassdome Team"
+LABEL description="WhiteKnight FULL - Complete vulnerability validation suite"
+LABEL version="1.0-full"
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+# ============================================================================
+# KALI CORE TOOLS
+# ============================================================================
+RUN apt-get update --allow-releaseinfo-change && \
+    apt-get install -y --no-install-recommends \
+    # Metasploit Framework
+    metasploit-framework \
+    # SSH/Remote
+    sshpass \
+    openssh-client \
+    hydra \
+    medusa \
+    # Web Testing
+    sqlmap \
+    nikto \
+    dirb \
+    gobuster \
+    wpscan \
+    curl \
+    wget \
+    # Network
+    nmap \
+    netcat-openbsd \
+    smbclient \
+    enum4linux \
+    snmp \
+    nbtscan \
+    # Password Cracking
+    john \
+    hashcat \
+    hash-identifier \
+    # Python
+    python3 \
+    python3-pip \
+    # Utilities
+    jq \
+    git \
+    vim \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# ============================================================================
+# PYTHON TOOLS
+# ============================================================================
+RUN pip3 install --no-cache-dir --break-system-packages \
+    requests \
+    pyyaml \
+    paramiko \
+    python-nmap \
+    impacket \
+    pwntools
+
+# ============================================================================
+# INITIALIZE METASPLOIT DB
+# ============================================================================
+RUN msfdb init || true
+
+# ============================================================================
+# DOWNLOAD ADDITIONAL SCRIPTS
+# ============================================================================
+RUN mkdir -p /opt/scripts && \
+    # LinPEAS
+    curl -L https://github.com/carlospolop/PEASS-ng/releases/latest/download/linpeas.sh -o /opt/scripts/linpeas.sh && \
+    # Linux Exploit Suggester
+    curl -L https://raw.githubusercontent.com/mzet-/linux-exploit-suggester/master/linux-exploit-suggester.sh -o /opt/scripts/linux-exploit-suggester.sh && \
+    chmod +x /opt/scripts/*.sh || true
+
+# ============================================================================
+# WHITEKNIGHT AGENT
+# ============================================================================
+WORKDIR /whiteknight
+
+COPY agent/ /whiteknight/agent/
+COPY requirements.txt /whiteknight/
+
+ENTRYPOINT ["python3", "/whiteknight/agent/main.py"]
+
+# ============================================================================
+# USAGE
+# ============================================================================
+# Build (takes 10-20 minutes):
+#   docker build -f Dockerfile.full -t whiteknight:full .
+#
+# Run with Metasploit:
+#   docker run --rm -it --network host --entrypoint msfconsole whiteknight:full
+#
+# Interactive Kali shell:
+#   docker run --rm -it --network host --entrypoint /bin/bash whiteknight:full
+

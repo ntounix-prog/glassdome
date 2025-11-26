@@ -1,0 +1,27 @@
+version: '3.8'
+
+services:
+  whiteknight:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: whiteknight:latest
+    container_name: whiteknight
+    network_mode: host
+    volumes:
+      - ./agent:/whiteknight/agent:ro
+      - ./scripts:/whiteknight/scripts:ro
+    environment:
+      - PYTHONUNBUFFERED=1
+    # Default command runs the agent
+    # Override with: docker-compose run whiteknight --target 192.168.3.100 --type CREDENTIAL
+    
+  # Persistent Metasploit RPC server (optional, for faster repeated scans)
+  msf-rpc:
+    image: metasploitframework/metasploit-framework:latest
+    container_name: msf-rpc
+    network_mode: host
+    command: msfrpcd -P msf_password -S -a 0.0.0.0 -p 55553
+    profiles:
+      - msf  # Only start with: docker-compose --profile msf up
+

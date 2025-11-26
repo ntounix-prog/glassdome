@@ -493,6 +493,8 @@ async def execute_mission(mission_id: str):
             # Step 1: Get or create target VM
             logger.info(f"[MISSION] {mission_id} - Step 1: Acquiring target VM")
             vm_ip = None
+            acquired_spare = None
+            
             if mission.target_vm_id:
                 # Use existing VM - need to get its IP
                 logger.info(f"[MISSION] {mission_id} - Using existing VM: {mission.target_vm_id}")
@@ -501,27 +503,81 @@ async def execute_mission(mission_id: str):
                 vm_ip = mission.vm_ip_address  # Assume already set
                 logger.info(f"[MISSION] {mission_id} - VM IP: {vm_ip}")
             elif mission.target_vm_config:
-                # Deploy new VM
-                logger.info(f"[MISSION] {mission_id} - Deploying new VM on {mission.platform}")
-                logger.debug(f"[MISSION] {mission_id} - VM Config: {mission.target_vm_config}")
-                mission.current_step = "Deploying new VM..."
-                await session.commit()
+                # Try to get a hot spare first (instant!)
+                vm_config = mission.target_vm_config
+                os_type = vm_config.get("os_type", "ubuntu")
+                use_hot_spare = vm_config.get("use_hot_spare", True)  # Default to using spares
                 
-                vm_result = await deploy_mission_vm(
-                    mission.platform,
-                    mission.target_vm_config
-                )
+                if use_hot_spare:
+                    logger.info(f"[MISSION] {mission_id} - Checking for available hot spare ({os_type})")
+                    mission.current_step = "Checking hot spare pool..."
+                    await session.commit()
+                    
+                    pool = get_hot_spare_pool()
+                    acquired_spare = await pool.acquire_spare(session, os_type=os_type, mission_id=mission_id)
+                    
+                    if acquired_spare:
+                        # Got a spare! Use it immediately
+                        mission.vm_created_id = str(acquired_spare.vmid)
+                        vm_ip = acquired_spare.ip_address
+                        mission.vm_ip_address = vm_ip
+                        mission.progress = 30
+                        logger.info(f"[MISSION] {mission_id} - ⚡ Hot spare acquired: {acquired_spare.name} (VMID {acquired_spare.vmid}, IP {vm_ip})")
+                        
+                        # Rename the spare VM to reflect the mission
+                        # mission_id is like "mission-a5d86d20", extract just the hash part
+                        mission_hash = mission_id.replace("mission-", "")[:8]
+                        new_vm_name = f"reaper-{mission_hash}"
+                        try:
+                            from glassdome.platforms.proxmox_client import ProxmoxClient
+                            from glassdome.core.config import Settings
+                            settings = Settings()
+                            pve_config = settings.get_proxmox_config(acquired_spare.platform_instance)
+                            pve_client = ProxmoxClient(
+                                host=pve_config["host"],
+                                user=pve_config["user"],
+                                password=pve_config.get("password"),
+                                token_name=pve_config.get("token_name"),
+                                token_value=pve_config.get("token_value"),
+                                verify_ssl=pve_config.get("verify_ssl", False),
+                                default_node=acquired_spare.node
+                            )
+                            await pve_client.configure_vm(
+                                acquired_spare.node,
+                                acquired_spare.vmid,
+                                {"name": new_vm_name}
+                            )
+                            # Update spare record with new name
+                            acquired_spare.name = new_vm_name
+                            await session.commit()
+                            logger.info(f"[MISSION] {mission_id} - Renamed VM to {new_vm_name}")
+                        except Exception as e:
+                            logger.warning(f"[MISSION] {mission_id} - Could not rename VM: {e}")
+                    else:
+                        logger.info(f"[MISSION] {mission_id} - No hot spares available, falling back to clone")
                 
-                if vm_result.get("success"):
-                    mission.vm_created_id = vm_result.get("vm_id")
-                    vm_ip = vm_result.get("ip_address")
-                    mission.vm_ip_address = vm_ip
-                    mission.progress = 30
-                    logger.info(f"[MISSION] {mission_id} - VM deployed: ID={mission.vm_created_id}, IP={vm_ip}")
-                else:
-                    error_msg = vm_result.get('error', 'Unknown error')
-                    logger.error(f"[MISSION] {mission_id} - VM deployment failed: {error_msg}")
-                    raise Exception(f"VM deployment failed: {error_msg}")
+                if not vm_ip:
+                    # No spare available or hot spare disabled - deploy new VM (slow path)
+                    logger.info(f"[MISSION] {mission_id} - Deploying new VM on {mission.platform}")
+                    logger.debug(f"[MISSION] {mission_id} - VM Config: {vm_config}")
+                    mission.current_step = "Deploying new VM (this may take a few minutes)..."
+                    await session.commit()
+                    
+                    vm_result = await deploy_mission_vm(
+                        mission.platform,
+                        vm_config
+                    )
+                    
+                    if vm_result.get("success"):
+                        mission.vm_created_id = vm_result.get("vm_id")
+                        vm_ip = vm_result.get("ip_address")
+                        mission.vm_ip_address = vm_ip
+                        mission.progress = 30
+                        logger.info(f"[MISSION] {mission_id} - VM deployed: ID={mission.vm_created_id}, IP={vm_ip}")
+                    else:
+                        error_msg = vm_result.get('error', 'Unknown error')
+                        logger.error(f"[MISSION] {mission_id} - VM deployment failed: {error_msg}")
+                        raise Exception(f"VM deployment failed: {error_msg}")
             else:
                 logger.error(f"[MISSION] {mission_id} - No target VM specified")
                 raise Exception("No target VM specified")
@@ -616,13 +672,18 @@ async def deploy_mission_vm(platform: str, config: Dict[str, Any]) -> Dict[str, 
         if platform == "proxmox":
             from glassdome.platforms.proxmox_client import ProxmoxClient
             
-            # Get first available Proxmox instance
+            # Get Proxmox instance - prefer "02" (pve02) which has working template
             instances = settings.list_proxmox_instances()
             if not instances:
                 return {"success": False, "error": "No Proxmox instances configured"}
             
-            instance_id = instances[0]
+            # Use instance from config, or prefer 02 if available (pve01 TrueNAS is offline)
+            instance_id = config.get("proxmox_instance") or ("02" if "02" in instances else instances[0])
+            logger.info(f"Using Proxmox instance: {instance_id}")
             pve_config = settings.get_proxmox_config(instance_id)
+            
+            # Node name matches instance (pve01 for 01, pve02 for 02)
+            node_name = f"pve{instance_id}" if instance_id.isdigit() else pve_config.get("node", "pve01")
             
             client = ProxmoxClient(
                 host=pve_config["host"],
@@ -631,7 +692,7 @@ async def deploy_mission_vm(platform: str, config: Dict[str, Any]) -> Dict[str, 
                 token_name=pve_config.get("token_name"),
                 token_value=pve_config.get("token_value"),
                 verify_ssl=pve_config.get("verify_ssl", False),
-                node=pve_config.get("node", "pve")
+                default_node=node_name
             )
             
             # Create VM
@@ -753,17 +814,31 @@ async def inject_exploit(vm_ip: str, exploit: Exploit, mission_id: str = "") -> 
         }
 
 
-async def verify_exploit(vm_ip: str, exploit: Exploit) -> Dict[str, Any]:
+async def verify_exploit(vm_ip: str, exploit: Exploit, use_whiteknight: bool = True) -> Dict[str, Any]:
     """
     Verify an exploit works on the target
     
     Args:
         vm_ip: Target VM IP address
         exploit: Exploit to verify
+        use_whiteknight: Use WhiteKnight container for validation
         
     Returns:
         Dict with success, output
     """
+    
+    # Try WhiteKnight first if enabled
+    if use_whiteknight:
+        try:
+            result = await verify_with_whiteknight(vm_ip, exploit)
+            if result.get("status") != "error":
+                return result
+            # Fall through to legacy verification if WhiteKnight fails
+            logger.warning(f"WhiteKnight verification failed, trying legacy method")
+        except Exception as e:
+            logger.warning(f"WhiteKnight not available: {e}")
+    
+    # Legacy SSH-based verification
     import asyncssh
     
     if not exploit.verify_script:
@@ -794,6 +869,57 @@ async def verify_exploit(vm_ip: str, exploit: Exploit) -> Dict[str, Any]:
         return {
             "success": False,
             "output": str(e)
+        }
+
+
+async def verify_with_whiteknight(vm_ip: str, exploit: Exploit) -> Dict[str, Any]:
+    """
+    Verify exploit using WhiteKnight container
+    
+    WhiteKnight runs automated attack tools (nmap, sshpass, sqlmap, etc.)
+    to validate that vulnerabilities are actually exploitable.
+    """
+    from glassdome.whiteknight import WhiteKnightClient, ValidationResult
+    
+    logger.info(f"🛡️ WhiteKnight validating: {exploit.name} on {vm_ip}")
+    
+    # Build exploit config for WhiteKnight
+    exploit_config = {
+        "exploit_type": exploit.exploit_type,
+        "name": exploit.name,
+        "tags": exploit.tags or [],
+    }
+    
+    # Add specific config based on exploit type
+    if exploit.exploit_type == "CREDENTIAL":
+        # Extract credentials if in the exploit config
+        exploit_config["username"] = "user"
+        exploit_config["password"] = "password123"
+    
+    # If exploit has a custom verify command, use it
+    if exploit.verify_script:
+        exploit_config["verify_command"] = exploit.verify_script.replace("{target}", vm_ip)
+    
+    try:
+        client = WhiteKnightClient(use_docker=True)
+        result = await client.validate(vm_ip, exploit_config, timeout=120)
+        
+        logger.info(f"🛡️ WhiteKnight result: {result.status.value}")
+        
+        return {
+            "success": result.status.value == "success",
+            "output": result.evidence,
+            "status": result.status.value,
+            "whiteknight": True,
+            "details": result.details
+        }
+    except Exception as e:
+        logger.error(f"WhiteKnight validation error: {e}")
+        return {
+            "success": False,
+            "output": str(e),
+            "status": "error",
+            "whiteknight": True
         }
 
 
@@ -898,4 +1024,439 @@ async def stream_logs(websocket: WebSocket):
         logger.debug(f"Log stream error: {e}")
     finally:
         logger.info("Log stream closed")
+
+
+# ============================================================================
+# Hot Spare Pool Endpoints
+# ============================================================================
+
+from glassdome.reaper.hot_spare import (
+    HotSpare, HotSparePool, HotSparePoolConfig, SpareStatus,
+    get_hot_spare_pool, initialize_pool
+)
+
+
+class SpareResponse(BaseModel):
+    """Response for a single spare"""
+    id: int
+    vmid: int
+    name: str
+    platform: str
+    platform_instance: str
+    node: str
+    os_type: str
+    ip_address: Optional[str]
+    status: str
+    assigned_to_mission: Optional[str]
+    created_at: Optional[str]
+    ready_at: Optional[str]
+
+
+class PoolStatusResponse(BaseModel):
+    """Response for pool status"""
+    platform_instance: str
+    os_type: str
+    min_spares: int
+    max_spares: int
+    counts: Dict[str, int]
+    ip_range: str
+    spares: List[SpareResponse]
+
+
+@router.get("/pool/status")
+async def get_pool_status(session: AsyncSession = Depends(get_async_session)):
+    """Get hot spare pool status"""
+    pool = get_hot_spare_pool()
+    status = await pool.get_pool_status(session)
+    
+    # Get all spares
+    result = await session.execute(
+        select(HotSpare).where(
+            HotSpare.platform_instance == pool.config.platform_instance
+        ).order_by(HotSpare.vmid)
+    )
+    spares = result.scalars().all()
+    
+    status["spares"] = [
+        {
+            "id": s.id,
+            "vmid": s.vmid,
+            "name": s.name,
+            "platform": s.platform,
+            "platform_instance": s.platform_instance,
+            "node": s.node,
+            "os_type": s.os_type,
+            "ip_address": s.ip_address,
+            "status": s.status,
+            "assigned_to_mission": s.assigned_to_mission,
+            "created_at": s.created_at.isoformat() if s.created_at else None,
+            "ready_at": s.ready_at.isoformat() if s.ready_at else None,
+        }
+        for s in spares
+    ]
+    
+    return status
+
+
+@router.post("/pool/provision")
+async def provision_spare(
+    count: int = 1,
+    os_type: str = "ubuntu",
+    session: AsyncSession = Depends(get_async_session)
+):
+    """
+    Manually provision new spares.
+    
+    This bypasses the automatic pool management and immediately
+    starts provisioning the requested number of spares.
+    """
+    pool = get_hot_spare_pool()
+    
+    provisioned = []
+    for _ in range(count):
+        spare = await pool._provision_spare(session)
+        if spare:
+            provisioned.append({
+                "id": spare.id,
+                "vmid": spare.vmid,
+                "name": spare.name,
+                "ip_address": spare.ip_address,
+                "status": spare.status,
+            })
+    
+    logger.info(f"Manually provisioned {len(provisioned)} spares")
+    
+    return {
+        "message": f"Provisioning {len(provisioned)} spares",
+        "spares": provisioned
+    }
+
+
+@router.post("/pool/start")
+async def start_pool_manager():
+    """Start the pool manager background task"""
+    pool = get_hot_spare_pool()
+    await pool.start()
+    return {"message": "Pool manager started"}
+
+
+@router.post("/pool/stop")
+async def stop_pool_manager():
+    """Stop the pool manager background task"""
+    pool = get_hot_spare_pool()
+    await pool.stop()
+    return {"message": "Pool manager stopped"}
+
+
+@router.delete("/pool/spare/{spare_id}")
+async def delete_spare(
+    spare_id: int,
+    session: AsyncSession = Depends(get_async_session)
+):
+    """Delete a spare from the pool"""
+    pool = get_hot_spare_pool()
+    await pool.release_spare(session, spare_id, destroy=True)
+    return {"message": f"Spare {spare_id} deleted"}
+
+
+@router.post("/pool/spare/{spare_id}/acquire")
+async def acquire_spare(
+    spare_id: int,
+    mission_id: Optional[str] = None,
+    session: AsyncSession = Depends(get_async_session)
+):
+    """Manually acquire a specific spare"""
+    result = await session.execute(select(HotSpare).where(HotSpare.id == spare_id))
+    spare = result.scalar_one_or_none()
+    
+    if not spare:
+        raise HTTPException(status_code=404, detail="Spare not found")
+    
+    if spare.status != SpareStatus.READY.value:
+        raise HTTPException(status_code=400, detail=f"Spare is not ready (status: {spare.status})")
+    
+    spare.status = SpareStatus.IN_USE.value
+    spare.assigned_to_mission = mission_id
+    spare.assigned_at = datetime.utcnow()
+    await session.commit()
+    
+    return {
+        "message": f"Spare {spare.name} acquired",
+        "spare": spare.to_dict()
+    }
+
+
+# ============================================================================
+# Mission History & Logs
+# ============================================================================
+
+from glassdome.reaper.exploit_library import MissionLog, ValidationResult
+from datetime import timedelta
+
+
+@router.get("/missions/{mission_id}/logs")
+async def get_mission_logs(
+    mission_id: str,
+    session: AsyncSession = Depends(get_async_session)
+):
+    """Get all logs for a specific mission"""
+    result = await session.execute(
+        select(MissionLog)
+        .where(MissionLog.mission_id == mission_id)
+        .order_by(MissionLog.timestamp.asc())
+    )
+    logs = result.scalars().all()
+    
+    return {
+        "mission_id": mission_id,
+        "logs": [log.to_dict() for log in logs],
+        "total": len(logs)
+    }
+
+
+@router.get("/missions/{mission_id}/validations")
+async def get_mission_validations(
+    mission_id: str,
+    session: AsyncSession = Depends(get_async_session)
+):
+    """Get all WhiteKnight validation results for a mission"""
+    result = await session.execute(
+        select(ValidationResult)
+        .where(ValidationResult.mission_id == mission_id)
+        .order_by(ValidationResult.validated_at.desc())
+    )
+    validations = result.scalars().all()
+    
+    return {
+        "mission_id": mission_id,
+        "validations": [v.to_dict() for v in validations],
+        "total": len(validations),
+        "summary": {
+            "success": sum(1 for v in validations if v.status == "success"),
+            "failed": sum(1 for v in validations if v.status == "failed"),
+            "error": sum(1 for v in validations if v.status == "error")
+        }
+    }
+
+
+@router.get("/history")
+async def get_mission_history(
+    days: int = 14,
+    limit: int = 100,
+    session: AsyncSession = Depends(get_async_session)
+):
+    """
+    Get mission history with logs and validation summary
+    Default: last 14 days, max 100 missions
+    """
+    cutoff = datetime.utcnow() - timedelta(days=days)
+    
+    result = await session.execute(
+        select(ExploitMission)
+        .where(ExploitMission.created_at >= cutoff)
+        .order_by(ExploitMission.created_at.desc())
+        .limit(limit)
+    )
+    missions = result.scalars().all()
+    
+    history = []
+    for mission in missions:
+        # Get log count
+        log_result = await session.execute(
+            select(MissionLog).where(MissionLog.mission_id == mission.mission_id)
+        )
+        log_count = len(log_result.scalars().all())
+        
+        # Get validation summary
+        val_result = await session.execute(
+            select(ValidationResult).where(ValidationResult.mission_id == mission.mission_id)
+        )
+        validations = val_result.scalars().all()
+        
+        history.append({
+            **mission.to_dict(),
+            "log_count": log_count,
+            "validation_count": len(validations),
+            "validation_summary": {
+                "success": sum(1 for v in validations if v.status == "success"),
+                "failed": sum(1 for v in validations if v.status == "failed"),
+            } if validations else None
+        })
+    
+    return {
+        "history": history,
+        "total": len(history),
+        "retention_days": days
+    }
+
+
+@router.delete("/missions/{mission_id}/destroy")
+async def destroy_mission_vm(
+    mission_id: str,
+    delete_mission: bool = False,
+    session: AsyncSession = Depends(get_async_session)
+):
+    """
+    Destroy the VM associated with a mission and optionally delete the mission record.
+    
+    - Stops and destroys the VM in Proxmox
+    - Optionally deletes the mission record from the database
+    """
+    # Find the mission
+    result = await session.execute(
+        select(ExploitMission).where(ExploitMission.mission_id == mission_id)
+    )
+    mission = result.scalar_one_or_none()
+    
+    if not mission:
+        raise HTTPException(status_code=404, detail=f"Mission {mission_id} not found")
+    
+    if not mission.vm_created_id:
+        raise HTTPException(status_code=400, detail="Mission has no VM to destroy")
+    
+    vm_destroyed = False
+    destroy_error = None
+    
+    # Try to destroy the VM
+    try:
+        from glassdome.platforms.proxmox_client import ProxmoxClient
+        from glassdome.core.config import Settings
+        
+        settings = Settings()
+        # Get the platform instance - default to "02" for pve02
+        pve_config = settings.get_proxmox_config("02")
+        
+        client = ProxmoxClient(
+            host=pve_config["host"],
+            user=pve_config["user"],
+            password=pve_config.get("password"),
+            token_name=pve_config.get("token_name"),
+            token_value=pve_config.get("token_value"),
+            verify_ssl=False,
+            default_node="pve02"
+        )
+        
+        vmid = mission.vm_created_id  # Keep as string
+        
+        # Stop the VM first
+        logger.info(f"[DESTROY] Stopping VM {vmid} for mission {mission_id}")
+        try:
+            await client.stop_vm(vmid)
+            # Wait a bit for it to stop
+            import asyncio
+            await asyncio.sleep(5)
+        except Exception as stop_error:
+            logger.warning(f"[DESTROY] Could not stop VM {vmid}: {stop_error}")
+        
+        # Destroy the VM
+        logger.info(f"[DESTROY] Destroying VM {vmid} for mission {mission_id}")
+        deleted = await client.delete_vm(vmid)
+        if deleted:
+            vm_destroyed = True
+            logger.info(f"[DESTROY] VM {vmid} destroyed successfully")
+        else:
+            raise Exception("delete_vm returned False")
+        
+    except Exception as e:
+        destroy_error = str(e)
+        logger.error(f"[DESTROY] Failed to destroy VM for mission {mission_id}: {e}")
+    
+    # Update mission status
+    mission.status = "destroyed" if vm_destroyed else "destroy_failed"
+    mission.current_step = f"VM destroyed" if vm_destroyed else f"Destroy failed: {destroy_error}"
+    
+    # Optionally delete the mission record
+    if delete_mission and vm_destroyed:
+        await session.execute(
+            delete(MissionLog).where(MissionLog.mission_id == mission_id)
+        )
+        await session.execute(
+            delete(ValidationResult).where(ValidationResult.mission_id == mission_id)
+        )
+        await session.execute(
+            delete(ExploitMission).where(ExploitMission.mission_id == mission_id)
+        )
+        await session.commit()
+        return {
+            "success": True,
+            "message": f"VM {mission.vm_created_id} destroyed and mission deleted",
+            "vm_destroyed": True,
+            "mission_deleted": True
+        }
+    
+    await session.commit()
+    
+    return {
+        "success": vm_destroyed,
+        "message": f"VM {mission.vm_created_id} destroyed" if vm_destroyed else f"Failed to destroy VM: {destroy_error}",
+        "vm_destroyed": vm_destroyed,
+        "mission_deleted": False,
+        "error": destroy_error
+    }
+
+
+@router.delete("/history/cleanup")
+async def cleanup_old_missions(
+    days: int = 14,
+    session: AsyncSession = Depends(get_async_session)
+):
+    """
+    Delete missions older than specified days (default 14)
+    This also deletes associated logs and validation results via CASCADE
+    """
+    cutoff = datetime.utcnow() - timedelta(days=days)
+    
+    # Get count of missions to delete
+    result = await session.execute(
+        select(ExploitMission).where(ExploitMission.created_at < cutoff)
+    )
+    missions_to_delete = result.scalars().all()
+    count = len(missions_to_delete)
+    
+    if count > 0:
+        # Delete logs first (in case CASCADE doesn't work with async)
+        for mission in missions_to_delete:
+            await session.execute(
+                delete(MissionLog).where(MissionLog.mission_id == mission.mission_id)
+            )
+            await session.execute(
+                delete(ValidationResult).where(ValidationResult.mission_id == mission.mission_id)
+            )
+        
+        # Delete missions
+        await session.execute(
+            delete(ExploitMission).where(ExploitMission.created_at < cutoff)
+        )
+        await session.commit()
+        
+        logger.info(f"Cleaned up {count} missions older than {days} days")
+    
+    return {
+        "deleted": count,
+        "cutoff_date": cutoff.isoformat(),
+        "message": f"Deleted {count} missions older than {days} days"
+    }
+
+
+async def add_mission_log(
+    session: AsyncSession,
+    mission_id: str,
+    message: str,
+    level: str = "INFO",
+    step: str = None,
+    exploit_id: int = None,
+    details: Dict = None
+):
+    """Helper function to add a log entry for a mission"""
+    log = MissionLog(
+        mission_id=mission_id,
+        level=level,
+        message=message,
+        step=step,
+        exploit_id=exploit_id,
+        details=details
+    )
+    session.add(log)
+    await session.commit()
+    return log
 

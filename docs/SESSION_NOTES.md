@@ -1,6 +1,159 @@
 # Glassdome Session Notes
 
-## Session: 2025-11-26 (Portability Refactor)
+## Session: 2025-11-26 (Hot Spare Pool & WhiteKnight)
+
+### Summary
+Major feature session implementing Hot Spare VM Pool, WhiteKnight validation engine, mission history with SQL storage, and VM destroy functionality.
+
+---
+
+## Completed Work
+
+### 1. Hot Spare Pool System ✨ NEW
+**Pre-provisioned VM pool for instant Reaper missions**
+
+**Architecture:**
+```
+Pool Manager (Guardian Process)
+       │
+       ├── Maintains min 3 ready spares
+       ├── Auto-provisions replacements
+       ├── Health checks every 30 seconds
+       └── Auto-starts on backend startup
+```
+
+**Features:**
+- Atomic spare acquisition (`SELECT FOR UPDATE SKIP LOCKED`)
+- Immediate replacement dispatch when spare acquired
+- Configurable pool size (min: 3, max: 6)
+- IP range: 192.168.3.100 - 192.168.3.120
+- Ubuntu cloud-init templates with qemu-guest-agent
+- VM renaming to `reaper-{hash}` on acquisition
+
+**API Endpoints:**
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/reaper/pool/status` | GET | Pool statistics and spare list |
+| `/api/reaper/pool/start` | POST | Start pool manager |
+| `/api/reaper/pool/stop` | POST | Stop pool manager |
+| `/api/reaper/pool/provision` | POST | Manually provision spare |
+
+**Database Table:** `hot_spares`
+
+**Files Created:**
+- `glassdome/reaper/hot_spare.py` - HotSpare model + HotSparePoolManager
+
+### 2. WhiteKnight Validation Engine ✨ NEW
+**Automated post-injection vulnerability verification**
+
+**Architecture:**
+```
+WhiteKnight Container (Docker)
+       │
+       ├── SSH credential tests
+       ├── Network scans
+       ├── Web vulnerability checks
+       └── Privilege escalation detection
+```
+
+**Security Control:**
+- **ONLY targets deployed Reaper missions**
+- Validates mission_id + IP match before testing
+- Prevents misuse as attack tool
+
+**Test Categories:**
+| Category | Tests |
+|----------|-------|
+| Connectivity | ping, port scan |
+| Credentials | SSH, MySQL, PostgreSQL, Redis, SMB |
+| Network | SMB anonymous, SNMP public, Redis open |
+| Web | HTTP methods, directory listing, security headers |
+| Privilege Escalation | sudo NOPASSWD, SUID binaries, docker group |
+
+**API Endpoints:**
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/whiteknight/status` | GET | Container status |
+| `/api/whiteknight/tests` | GET | Available tests by category |
+| `/api/whiteknight/validate` | POST | Run validation tests |
+| `/api/whiteknight/logs` | GET | Container logs |
+
+**UI Features:**
+- Test Runner with mission selector dropdown
+- Only shows deployed Reaper missions
+- Real-time test results with evidence
+- Validation history tab (stored in SQL)
+
+**Files Created:**
+- `glassdome/api/whiteknight.py` - WhiteKnight API router
+- `glassdome/whiteknight/client.py` - Docker integration
+- `frontend/src/pages/WhiteKnightDesign.jsx` - Full React UI
+- `frontend/src/styles/WhiteKnightDesign.css` - Dark theme styling
+- `whiteknight/Dockerfile` - Ubuntu-based container with tools
+- `whiteknight/agent/main.py` - Container entry point
+
+### 3. Mission History & Logs (SQL Storage) ✨ NEW
+**Persistent mission tracking with 2-week retention**
+
+**New Database Tables:**
+
+**`mission_logs`:**
+- mission_id (FK)
+- level (DEBUG, INFO, WARNING, ERROR)
+- message, details (JSON)
+- step, exploit_id
+- timestamp
+
+**`validation_results`:**
+- mission_id (FK)
+- test_name, test_type
+- status (success, failed, error)
+- message, evidence
+- target_ip, duration_ms
+- validated_at
+
+**API Endpoints:**
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/reaper/missions/{id}/logs` | GET | Mission log entries |
+| `/api/reaper/missions/{id}/validations` | GET | WhiteKnight results |
+| `/api/reaper/history` | GET | Mission history with summaries |
+| `/api/reaper/history/cleanup` | DELETE | Purge old missions (14 days) |
+
+### 4. VM Destroy Functionality ✨ NEW
+**Destroy mission VMs from Deployments page**
+
+**Features:**
+- Confirmation dialog before destroy
+- Stops VM, waits 5 seconds, then deletes
+- Updates mission status to "destroyed"
+- Works with Proxmox API
+
+**API Endpoint:**
+```
+DELETE /api/reaper/missions/{mission_id}/destroy
+```
+
+### 5. Exploit Script Fixes
+**Ubuntu 22.04 cloud-init compatibility**
+
+**Issue:** Cloud images have `/etc/ssh/sshd_config.d/60-cloudimg-settings.conf` that sets `PasswordAuthentication no`
+
+**Fix:** Updated weak-ssh-password exploit to:
+- Overwrite `60-cloudimg-settings.conf` instead of adding new file
+- Create vulnuser with password authentication
+- Properly restart SSH service
+
+### 6. Auto-Start Pool Manager
+**Guardian process starts on backend startup**
+
+Added to `glassdome/main.py`:
+- `startup_event()` - Starts HotSparePoolManager
+- `shutdown_event()` - Stops HotSparePoolManager gracefully
+
+---
+
+## Previous Session: 2025-11-26 (Portability Refactor)
 
 ### Summary
 Major refactor to make the codebase fully portable - can now run from any directory (e.g., `/opt/glassdome`) without hardcoded paths.
@@ -41,155 +194,6 @@ export GLASSDOME_DATA_DIR=/opt/glassdome
 3. Added `.secrets/` to `.gitignore`
 4. Tested running from `/opt/glassdome` - **SUCCESS**
 
-### 4. Validation
-```
-/opt/glassdome$ source venv/bin/activate
-$ python -c "from glassdome.core.paths import print_paths; print_paths()"
-
-============================================================
-GLASSDOME PATH CONFIGURATION
-============================================================
-PROJECT_ROOT:        /opt/glassdome
-GLASSDOME_DATA_DIR:  /opt/glassdome
-SECRETS_DIR:         /opt/glassdome/.secrets
-LOGS_DIR:            /opt/glassdome/logs
-RAG_INDEX_DIR:       /opt/glassdome/.rag_index
-ENV_FILE:            /opt/glassdome/.env
-============================================================
-```
-
----
-
-## Previous Session: 2025-11-25–26 (Full Feature Session)
-
-### Summary
-Major feature session implementing Overseer chat interface, Reaper vulnerability injection system, multi-platform dashboard connections, and VP demo showcase.
-
----
-
-## Completed Work
-
-### 1. Overseer Chat Interface
-**Core conversational AI for operations**
-
-**Features:**
-- Real-time WebSocket chat with tool calling
-- LLM integration (OpenAI GPT-4o, Anthropic Claude)
-- 12 available tools for operations
-- Confirmation workflow for destructive actions
-- Recursive tool call handling
-- **Draggable floating button** (saves position to localStorage)
-
-**Tools Available:**
-| Tool | Description |
-|------|-------------|
-| `deploy_vm` | Deploy single VM to AWS/Proxmox |
-| `terminate_vm` | Destroy/delete a VM |
-| `deploy_lab` | Deploy multi-VM lab environment |
-| `get_platform_status` | Check AWS/Proxmox/Azure status |
-| `get_status` | System/mission/deployment status |
-| `create_reaper_mission` | Create vulnerability injection mission |
-| `send_email` | Send email notifications via Mailcow |
-| `search_knowledge` | Search knowledge base |
-| `list_resources` | List VMs/hosts/deployments |
-| `stop_resource` | Stop a running resource |
-| `ask_clarification` | Ask for more details |
-| `confirm_action` | Generic confirmation |
-
-### 2. Reaper Vulnerability Injection System ✨ NEW
-**Full exploit library and mission management UI**
-
-**Architecture:**
-```
-Reaper (owns exploits)  ←─────  Architect designs/manages
-       │
-       └── /missions/{id}/start  ←──  Overseer can ONLY call this
-```
-
-**Features:**
-- **Exploit Library Browser** - Grid view with filters (type, severity, OS)
-- **Mission Builder** - 3-step wizard (Configure → Select Exploits → Launch)
-- **Active Missions Tracker** - Progress bars, status updates
-- **Mission History** - Completed/failed missions table
-- **Live Log Viewer** - Semi-transparent panel with WebSocket streaming
-- 6 default exploits pre-loaded (SQL injection, XSS, weak SSH, sudo privesc, SMB anon, DVWA)
-
-**API Endpoints:**
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/api/reaper/exploits` | GET | List all exploits |
-| `/api/reaper/exploits` | POST | Create new exploit |
-| `/api/reaper/exploits/{id}` | GET/PUT/DELETE | CRUD operations |
-| `/api/reaper/exploits/seed` | POST | Load default exploits |
-| `/api/reaper/missions` | GET/POST | List/create missions |
-| `/api/reaper/missions/{id}/start` | POST | Start mission (Overseer access) |
-| `/api/reaper/stats` | GET | Dashboard statistics |
-| `/api/reaper/logs` | GET | Recent log entries |
-| `/api/reaper/logs/stream` | WS | Live log streaming |
-
-**Database Tables:**
-- `exploits` - Exploit definitions (CVE, type, severity, scripts, etc.)
-- `exploit_missions` - Mission tracking (target, exploits, status, results)
-
-**Log File:** `logs/reaper.log`
-
-**Files Created:**
-- `glassdome/reaper/exploit_library.py` - DB models + default exploits
-- `glassdome/api/reaper.py` - REST API + WebSocket endpoints
-- `frontend/src/pages/ReaperDesign.jsx` - Full React UI
-- `frontend/src/styles/ReaperDesign.css` - Dark theme styling
-
-### 3. Platform Status Pages
-**Dashboard → Platform → Status View**
-
-**Routes:**
-- `/platform/proxmox` - Proxmox VE status
-- `/platform/aws` - AWS EC2 instances  
-- `/platform/esxi` - VMware ESXi VMs
-- `/platform/azure` - Azure VMs
-
-**Features:**
-- Summary cards (Total VMs, Running, Stopped, Templates)
-- Filter buttons (All, Running, Stopped, Templates)
-- Search by VM name or ID
-- VM table with status, resources, and actions
-- Auto-refresh every 30 seconds
-- **Multi-Proxmox support:** pve01 + pve02 shown as distinct servers
-- Clickable **Proxmox Servers** cards to filter VMs
-
-### 4. ESXi and Azure Connections
-**Added platform client methods and API integration**
-
-| Platform | Host | Status | VMs |
-|----------|------|--------|-----|
-| ESXi | 192.168.215.76 | ✅ Connected | 11 VMs |
-| Azure | Subscription c93088a4-... | ✅ Connected | 0 VMs |
-
-### 5. Email Integration
-**Overseer can send email notifications**
-
-- Mailbox: `glassdome-ai@xisx.org`
-- SMTP: mail.xisx.org:587
-- Usage: "Send a status email to user@example.com"
-
-### 6. VP Demo Showcase
-**30-second animated demo for presentations**
-
-- Accessible via "▶ Demo" button on Dashboard only
-- Synthwave music with Web Audio API
-- Custom audio upload support
-- Cyberpunk animations
-
-### 7. Version Management
-**Protected MVP with branch strategy**
-
-```
-main (v0.3.0) ← Protected, tagged MVP
-  └── develop ← All new work
-```
-
-**Version:** `0.3.0` (tagged)
-
 ---
 
 ## Current State
@@ -200,114 +204,103 @@ main (v0.3.0) ← Protected, tagged MVP
 | Backend API | 8011 | ✅ Running |
 | Frontend | 5174 | ✅ Running |
 | PostgreSQL | 5432 | ✅ Running (192.168.3.26) |
-| Mailcow | 587 | ✅ Connected |
+| WhiteKnight | Docker | ✅ Available |
 
 ### Platform Connections
 | Platform | Status | Details |
 |----------|--------|---------|
-| Proxmox | ✅ Connected | pve01 (7 VMs) + pve02 (8 VMs) |
-| AWS | ✅ Connected | 2 instances (us-east-1, us-west-2) |
-| ESXi | ✅ Connected | 11 VMs |
-| Azure | ✅ Connected | 0 VMs (glassdome-rg) |
+| Proxmox | ✅ Connected | pve01 + pve02 |
+| AWS | ✅ Connected | us-east-1, us-west-2 |
+| ESXi | ✅ Connected | 192.168.215.76 |
+| Azure | ✅ Connected | glassdome-rg |
 
-### LLM Providers
-- OpenAI (gpt-4o) ✅
-- Anthropic (claude-sonnet-4) ✅
+### Hot Spare Pool
+| Status | Count |
+|--------|-------|
+| Ready | 3 |
+| In Use | 0 |
+| Provisioning | 0 |
 
 ---
 
 ## Files Created This Session
 
 ```
-# Reaper System
-glassdome/reaper/exploit_library.py
-glassdome/api/reaper.py
-frontend/src/pages/ReaperDesign.jsx
-frontend/src/styles/ReaperDesign.css
-logs/reaper.log
+# Hot Spare Pool
+glassdome/reaper/hot_spare.py
 
-# Chat System
-glassdome/chat/__init__.py
-glassdome/chat/agent.py
-glassdome/chat/llm_service.py
-glassdome/chat/tools.py
-glassdome/chat/workflow_engine.py
-glassdome/api/chat.py
-frontend/src/components/OverseerChat/
-
-# Platform Status
-glassdome/api/platforms.py
-frontend/src/pages/PlatformStatus.jsx
-frontend/src/styles/PlatformStatus.css
-
-# Demo
-frontend/src/components/DemoShowcase/
+# WhiteKnight System
+glassdome/api/whiteknight.py
+glassdome/whiteknight/__init__.py
+glassdome/whiteknight/client.py
+frontend/src/pages/WhiteKnightDesign.jsx
+frontend/src/styles/WhiteKnightDesign.css
+whiteknight/Dockerfile
+whiteknight/docker-compose.yml
+whiteknight/requirements.txt
+whiteknight/agent/__init__.py
+whiteknight/agent/main.py
+whiteknight/TOOLS.md
 ```
 
 ## Files Modified This Session
 
 ```
-glassdome/main.py                    # Router registration
-glassdome/core/database.py           # Reaper tables
-glassdome/platforms/esxi_client.py   # list_vms()
-glassdome/platforms/azure_client.py  # list_vms()
-frontend/src/App.jsx                 # Routes + Reaper
-frontend/src/pages/Dashboard.jsx     # Tools section
-frontend/src/styles/Dashboard.css    # Tools styling
-frontend/src/components/OverseerChat/ChatToggle.jsx  # Draggable
-frontend/src/components/OverseerChat/ChatToggle.css
-```
-
----
-
-## Git Commits (develop branch)
-
-```
-feat: Reaper Vulnerability Injection System UI
-feat: Add comprehensive Reaper logging
-feat: Add live log viewer panel to Reaper UI
-feat: Make Overseer chat button draggable
-chore: Bump version to 0.3.0
-feat: Add ESXi and Azure dashboard connections
-fix: Demo button only shows on dashboard page
+glassdome/main.py                    # Auto-start pool manager
+glassdome/core/database.py           # MissionLog, ValidationResult tables
+glassdome/reaper/exploit_library.py  # MissionLog, ValidationResult models
+glassdome/api/reaper.py              # Destroy endpoint, history endpoints
+glassdome/platforms/proxmox_client.py # VM rename support
+frontend/src/App.jsx                 # WhiteKnight route
+frontend/src/pages/Dashboard.jsx     # WhiteKnight link
+frontend/src/pages/Deployments.jsx   # Destroy button
+frontend/src/pages/ReaperDesign.jsx  # Template ID support
+frontend/src/styles/Dashboard.css    # WhiteKnight styling
+frontend/src/styles/Deployments.css  # Compact cards
+requirements.txt                     # asyncssh dependency
 ```
 
 ---
 
 ## Testing Commands
 
-### Reaper API
+### Hot Spare Pool
 ```bash
-# Get stats
-curl http://localhost:8011/api/reaper/stats
+# Pool status
+curl http://localhost:8011/api/reaper/pool/status
 
-# List exploits
-curl http://localhost:8011/api/reaper/exploits
+# Start pool manager
+curl -X POST http://localhost:8011/api/reaper/pool/start
 
-# Seed default exploits
-curl -X POST http://localhost:8011/api/reaper/exploits/seed
-
-# Get recent logs
-curl http://localhost:8011/api/reaper/logs
+# Manually provision spare
+curl -X POST http://localhost:8011/api/reaper/pool/provision
 ```
 
-### Platform APIs
+### WhiteKnight
 ```bash
-curl http://localhost:8011/api/platforms/proxmox/all-instances
-curl http://localhost:8011/api/platforms/esxi
-curl http://localhost:8011/api/platforms/azure
-curl http://localhost:8011/api/platforms/aws/all-regions
+# Container status
+curl http://localhost:8011/api/whiteknight/status
+
+# Available tests
+curl http://localhost:8011/api/whiteknight/tests
+
+# Run validation (requires valid mission)
+curl -X POST http://localhost:8011/api/whiteknight/validate \
+  -H "Content-Type: application/json" \
+  -d '{"mission_id": "mission-xxx", "target_ip": "192.168.3.100", "tests": ["ssh_creds"]}'
 ```
 
----
+### Mission Management
+```bash
+# Mission history
+curl http://localhost:8011/api/reaper/history
 
-## Next Steps (Roadmap)
+# Mission logs
+curl http://localhost:8011/api/reaper/missions/{id}/logs
 
-1. **GitHub Issues Integration** - Track tickets via GitHub API
-2. **Network Architecture** - VM interfaces, bridges, cross-platform mapping
-3. **Cross-Platform Migration** - Move labs between ESXi/AWS/Azure
-4. **User Authentication** - Roles (observer, architect, engineer, admin)
-5. **Enhanced Canvas** - Platform-agnostic lab templates
+# Destroy mission VM
+curl -X DELETE http://localhost:8011/api/reaper/missions/{id}/destroy
+```
 
 ---
 
@@ -315,8 +308,23 @@ curl http://localhost:8011/api/platforms/aws/all-regions
 
 | Version | Features |
 |---------|----------|
-| v0.3.0 | MVP - Current (protected on main) |
-| v0.4.0 | Reaper UI + GitHub Issues |
+| v0.3.0 | MVP - Protected on main |
+| v0.4.0 | Hot Spare Pool + WhiteKnight + Mission History ← **CURRENT** |
 | v0.5.0 | Network tracking |
 | v0.6.0 | Cross-platform migration |
 | v1.0.0 | Production with auth |
+
+---
+
+## Merge Checklist
+
+- [x] Hot Spare Pool working
+- [x] WhiteKnight validation working
+- [x] Mission history stored in SQL
+- [x] VM destroy functionality
+- [x] Pool manager auto-starts
+- [x] Exploit scripts fixed for Ubuntu 22.04
+- [x] All tests passing
+- [ ] Merge develop → main
+- [ ] Tag v0.4.0
+- [ ] Deploy to production

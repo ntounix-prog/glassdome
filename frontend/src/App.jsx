@@ -5,6 +5,7 @@ import LabCanvas from './pages/LabCanvas'
 import Deployments from './pages/Deployments'
 import PlatformStatus from './pages/PlatformStatus'
 import ReaperDesign from './pages/ReaperDesign'
+import WhiteKnightDesign from './pages/WhiteKnightDesign'
 import { ChatModal, ChatToggle } from './components/OverseerChat'
 import './App.css'
 
@@ -59,6 +60,7 @@ function App() {
           <Route path="/platform/:platform" element={<PlatformStatus />} />
           <Route path="/platform/:platform/:instanceId" element={<PlatformStatus />} />
           <Route path="/reaper" element={<ReaperDesign />} />
+          <Route path="/whiteknight" element={<WhiteKnightDesign />} />
         </Routes>
 
         {/* Overseer Chat Interface */}

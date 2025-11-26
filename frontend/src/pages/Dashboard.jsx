@@ -107,6 +107,14 @@ function Dashboard({ healthStatus }) {
             </div>
             <span className="tool-arrow">→</span>
           </Link>
+          <Link to="/whiteknight" className="tool-card whiteknight">
+            <span className="tool-icon">🛡️</span>
+            <div className="tool-info">
+              <h3>WHITE KNIGHT</h3>
+              <p>Automated Validation Engine</p>
+            </div>
+            <span className="tool-arrow">→</span>
+          </Link>
           <Link to="/creator" className="tool-card creator">
             <span className="tool-icon">🎨</span>
             <div className="tool-info">

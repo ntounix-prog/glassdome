@@ -24,6 +24,7 @@ from glassdome.api import auth
 from glassdome.api.chat import router as chat_router
 from glassdome.api.platforms import router as platforms_router
 from glassdome.api.reaper import router as reaper_router
+from glassdome.api.whiteknight import router as whiteknight_router
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -49,20 +50,33 @@ app.include_router(auth.router)
 app.include_router(chat_router)  # Overseer chat interface
 app.include_router(platforms_router)  # Platform status API
 app.include_router(reaper_router)  # Reaper exploit library & missions
+app.include_router(whiteknight_router)  # WhiteKnight validation engine
 
 
 # Startup and shutdown events
 @app.on_event("startup")
 async def startup_event():
     """Initialize services on startup"""
+    import logging
+    logger = logging.getLogger(__name__)
+    
     # Initialize session from cache (no password prompt if cached)
     from glassdome.core.session import get_session
     session = get_session()
     if session.initialize(use_cache=True, interactive=False):
-        import logging
-        logging.getLogger(__name__).info(f"Session loaded with {len(session.secrets)} secrets")
+        logger.info(f"Session loaded with {len(session.secrets)} secrets")
     
     await init_db()
+    
+    # Start Hot Spare Pool Manager (guardian process for spare VMs)
+    try:
+        from glassdome.reaper.hot_spare import get_hot_spare_pool
+        pool = get_hot_spare_pool()
+        await pool.start()
+        logger.info("Hot Spare Pool Manager started - maintaining spare VMs")
+    except Exception as e:
+        logger.warning(f"Could not start Hot Spare Pool Manager: {e}")
+    
     # Start agent manager in background
     # asyncio.create_task(agent_manager.start())
 
@@ -70,6 +84,18 @@ async def startup_event():
 @app.on_event("shutdown")
 async def shutdown_event():
     """Cleanup on shutdown"""
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    # Stop Hot Spare Pool Manager
+    try:
+        from glassdome.reaper.hot_spare import get_hot_spare_pool
+        pool = get_hot_spare_pool()
+        await pool.stop()
+        logger.info("Hot Spare Pool Manager stopped")
+    except Exception as e:
+        logger.warning(f"Error stopping Hot Spare Pool Manager: {e}")
+    
     await agent_manager.stop()
 
 

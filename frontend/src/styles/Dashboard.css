@@ -208,6 +208,16 @@
   box-shadow: 0 8px 30px rgba(255, 45, 85, 0.2);
 }
 
+.tool-card.whiteknight {
+  border-color: rgba(100, 200, 255, 0.3);
+}
+
+.tool-card.whiteknight:hover {
+  background: rgba(100, 200, 255, 0.1);
+  border-color: rgba(100, 200, 255, 0.5);
+  box-shadow: 0 8px 30px rgba(100, 200, 255, 0.2);
+}
+
 .tool-card.creator {
   border-color: rgba(90, 200, 250, 0.3);
 }
@@ -235,6 +245,10 @@
 
 .tool-card.reaper .tool-info h3 {
   color: #ff2d55;
+}
+
+.tool-card.whiteknight .tool-info h3 {
+  color: #64c8ff;
 }
 
 .tool-card.creator .tool-info h3 {

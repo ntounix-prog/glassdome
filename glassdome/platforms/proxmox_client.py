@@ -364,6 +364,11 @@ class ProxmoxClient(PlatformClient):
             "memory": config.get("memory", 2048),
         }
         
+        # Ensure cloud-init drive is configured (required for static IP via ipconfig0)
+        storage = config.get("storage", self.default_storage)
+        vm_config_updates["ide2"] = f"{storage}:cloudinit"
+        logger.info(f"Configuring cloud-init drive on {storage}")
+        
         # Configure network (VLAN tag if specified)
         network = config.get("network", "vmbr0")
         vlan_tag = config.get("vlan_tag")
@@ -650,11 +655,18 @@ class ProxmoxClient(PlatformClient):
                 clone_params["storage"] = target_storage
             
             logger.info(f"API call: nodes('{node}').qemu({vmid}).clone.post({clone_params})")
-            task = self.client.nodes(node).qemu(vmid).clone.post(**clone_params)
+            upid = self.client.nodes(node).qemu(vmid).clone.post(**clone_params)
             
             actual_node = target_node or node
+            logger.info(f"Clone task started: {upid}")
+            
+            # Wait for clone task to complete (cloning can take a while for large disks)
+            task_result = await self.wait_for_task(node, upid, timeout=300)
+            if not task_result.get("success"):
+                raise Exception(f"Clone task failed: {task_result.get('error')}")
+            
             logger.info(f"VM {vmid} cloned to {newid} on node {actual_node}")
-            return {"success": True, "task": task, "vmid": newid, "node": actual_node}
+            return {"success": True, "task": upid, "vmid": newid, "node": actual_node}
         except Exception as e:
             logger.error(f"Failed to clone VM {vmid}: {str(e)}")
             return {"success": False, "error": str(e)}
