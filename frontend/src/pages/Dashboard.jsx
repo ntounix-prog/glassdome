@@ -95,6 +95,29 @@ function Dashboard({ healthStatus }) {
         </div>
       </div>
 
+      {/* Tools Section */}
+      <div className="tools-section">
+        <h2>Tools</h2>
+        <div className="tools-grid">
+          <Link to="/reaper" className="tool-card reaper">
+            <span className="tool-icon">💀</span>
+            <div className="tool-info">
+              <h3>REAPER</h3>
+              <p>Vulnerability Injection System</p>
+            </div>
+            <span className="tool-arrow">→</span>
+          </Link>
+          <Link to="/creator" className="tool-card creator">
+            <span className="tool-icon">🎨</span>
+            <div className="tool-info">
+              <h3>Lab Creator</h3>
+              <p>Design & Deploy Labs</p>
+            </div>
+            <span className="tool-arrow">→</span>
+          </Link>
+        </div>
+      </div>
+
       <div className="status-section">
         <h3>System Status</h3>
         <div className="status-grid">

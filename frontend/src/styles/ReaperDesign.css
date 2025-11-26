@@ -1,0 +1,916 @@
+/**
+ * Reaper Design Page Styles
+ * 
+ * Dark, ominous theme befitting a vulnerability injection system
+ */
+
+.reaper-container {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #0d0d0d 0%, #1a0a0a 50%, #0d0d0d 100%);
+  color: #e0e0e0;
+  padding: 20px;
+}
+
+/* ============================================================================
+   Header
+   ============================================================================ */
+
+.reaper-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 30px;
+  background: rgba(30, 0, 0, 0.5);
+  border: 1px solid rgba(255, 45, 85, 0.3);
+  border-radius: 12px;
+  margin-bottom: 24px;
+}
+
+.reaper-title {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.reaper-icon {
+  font-size: 48px;
+  filter: drop-shadow(0 0 20px rgba(255, 45, 85, 0.5));
+}
+
+.reaper-title h1 {
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 36px;
+  font-weight: 800;
+  letter-spacing: 8px;
+  color: #ff2d55;
+  text-shadow: 0 0 30px rgba(255, 45, 85, 0.5);
+  margin: 0;
+}
+
+.reaper-subtitle {
+  font-size: 14px;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+}
+
+.reaper-stats {
+  display: flex;
+  gap: 32px;
+}
+
+.stat-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 12px 24px;
+  background: rgba(255, 45, 85, 0.1);
+  border: 1px solid rgba(255, 45, 85, 0.2);
+  border-radius: 8px;
+}
+
+.stat-value {
+  font-size: 28px;
+  font-weight: 700;
+  color: #ff2d55;
+}
+
+.stat-label {
+  font-size: 12px;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+/* ============================================================================
+   Tabs
+   ============================================================================ */
+
+.reaper-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 24px;
+  padding: 4px;
+  background: rgba(20, 20, 20, 0.8);
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.reaper-tabs .tab {
+  flex: 1;
+  padding: 14px 24px;
+  background: transparent;
+  border: none;
+  color: #888;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  border-radius: 8px;
+  transition: all 0.3s ease;
+}
+
+.reaper-tabs .tab:hover {
+  background: rgba(255, 45, 85, 0.1);
+  color: #ff2d55;
+}
+
+.reaper-tabs .tab.active {
+  background: linear-gradient(135deg, rgba(255, 45, 85, 0.3), rgba(255, 45, 85, 0.1));
+  color: #ff2d55;
+  border: 1px solid rgba(255, 45, 85, 0.3);
+}
+
+/* ============================================================================
+   Content Area
+   ============================================================================ */
+
+.reaper-content {
+  background: rgba(20, 20, 20, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 24px;
+  min-height: 600px;
+}
+
+.error-banner {
+  background: rgba(255, 45, 85, 0.2);
+  border: 1px solid rgba(255, 45, 85, 0.5);
+  padding: 12px 20px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.error-banner button {
+  background: none;
+  border: none;
+  color: #ff2d55;
+  font-size: 20px;
+  cursor: pointer;
+}
+
+/* ============================================================================
+   Exploit Library
+   ============================================================================ */
+
+.library-toolbar {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 24px;
+}
+
+.filters {
+  display: flex;
+  gap: 12px;
+}
+
+.filters select {
+  padding: 10px 16px;
+  background: rgba(30, 30, 30, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  color: #e0e0e0;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.filters select:hover {
+  border-color: rgba(255, 45, 85, 0.5);
+}
+
+.actions {
+  display: flex;
+  gap: 12px;
+}
+
+.btn-primary {
+  padding: 10px 20px;
+  background: linear-gradient(135deg, #ff2d55, #c41e3a);
+  border: none;
+  border-radius: 8px;
+  color: white;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(255, 45, 85, 0.4);
+}
+
+.btn-secondary {
+  padding: 10px 20px;
+  background: rgba(60, 60, 60, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  color: #e0e0e0;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.btn-secondary:hover {
+  background: rgba(80, 80, 80, 0.8);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.btn-danger {
+  background: linear-gradient(135deg, #ff2d55, #8b0000);
+}
+
+.btn-large {
+  padding: 14px 32px;
+  font-size: 16px;
+}
+
+/* Exploit Grid */
+.exploit-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 20px;
+}
+
+.exploit-card {
+  background: rgba(30, 30, 30, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 20px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.exploit-card:hover {
+  border-color: rgba(255, 45, 85, 0.5);
+  box-shadow: 0 8px 30px rgba(255, 45, 85, 0.2);
+}
+
+.exploit-card.selected {
+  border-color: #ff2d55;
+  box-shadow: 0 0 20px rgba(255, 45, 85, 0.3);
+}
+
+.exploit-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.exploit-type-icon {
+  font-size: 24px;
+}
+
+.exploit-severity {
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 10px;
+  font-weight: 700;
+  color: white;
+  text-transform: uppercase;
+}
+
+.exploit-name {
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0 0 8px 0;
+  color: #fff;
+}
+
+.exploit-cve {
+  display: inline-block;
+  padding: 2px 8px;
+  background: rgba(90, 200, 250, 0.2);
+  color: #5ac8fa;
+  border-radius: 4px;
+  font-size: 12px;
+  font-family: monospace;
+  margin-bottom: 8px;
+}
+
+.exploit-desc {
+  color: #888;
+  font-size: 14px;
+  line-height: 1.5;
+  margin: 0 0 12px 0;
+}
+
+.exploit-meta {
+  display: flex;
+  gap: 12px;
+  font-size: 12px;
+  color: #666;
+}
+
+.exploit-verified {
+  color: #34c759;
+}
+
+.exploit-tags {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+
+.tag {
+  padding: 4px 8px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  font-size: 11px;
+  color: #888;
+}
+
+/* Empty State */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px;
+  text-align: center;
+}
+
+.empty-icon {
+  font-size: 64px;
+  margin-bottom: 20px;
+  opacity: 0.5;
+}
+
+.empty-state h3 {
+  font-size: 20px;
+  margin: 0 0 8px 0;
+}
+
+.empty-state p {
+  color: #888;
+  margin: 0;
+}
+
+.loading {
+  text-align: center;
+  padding: 60px;
+  color: #888;
+  font-size: 18px;
+}
+
+/* ============================================================================
+   Mission Builder
+   ============================================================================ */
+
+.mission-builder {
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.builder-progress {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 40px;
+}
+
+.progress-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.step-num {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(60, 60, 60, 0.8);
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  border-radius: 50%;
+  font-weight: 700;
+  transition: all 0.3s ease;
+}
+
+.progress-step.active .step-num {
+  background: #ff2d55;
+  border-color: #ff2d55;
+  box-shadow: 0 0 20px rgba(255, 45, 85, 0.5);
+}
+
+.step-label {
+  font-size: 12px;
+  color: #888;
+  text-transform: uppercase;
+}
+
+.progress-step.active .step-label {
+  color: #ff2d55;
+}
+
+.progress-line {
+  width: 100px;
+  height: 2px;
+  background: rgba(255, 255, 255, 0.2);
+  margin: 0 20px;
+}
+
+.builder-step {
+  background: rgba(30, 30, 30, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 32px;
+}
+
+.builder-step h2 {
+  margin: 0 0 24px 0;
+  font-size: 24px;
+}
+
+.step-hint {
+  color: #888;
+  margin-bottom: 20px;
+}
+
+.form-group {
+  margin-bottom: 20px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 600;
+  color: #ccc;
+}
+
+.form-group input,
+.form-group select {
+  width: 100%;
+  padding: 12px 16px;
+  background: rgba(20, 20, 20, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  color: #e0e0e0;
+  font-size: 14px;
+}
+
+.form-group input:focus,
+.form-group select:focus {
+  outline: none;
+  border-color: #ff2d55;
+}
+
+.form-row {
+  display: flex;
+  gap: 20px;
+}
+
+.form-row .form-group {
+  flex: 1;
+}
+
+.radio-group {
+  display: flex;
+  gap: 24px;
+}
+
+.radio-group label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.radio-group input {
+  width: auto;
+}
+
+.vm-config {
+  background: rgba(0, 0, 0, 0.3);
+  padding: 20px;
+  border-radius: 8px;
+  margin-top: 12px;
+}
+
+.builder-buttons {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 32px;
+}
+
+.error-message {
+  background: rgba(255, 45, 85, 0.2);
+  border: 1px solid rgba(255, 45, 85, 0.5);
+  padding: 12px;
+  border-radius: 8px;
+  color: #ff6b6b;
+  margin-bottom: 20px;
+}
+
+/* Exploit Selector */
+.exploit-selector {
+  max-height: 400px;
+  overflow-y: auto;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+}
+
+.exploit-select-item {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.exploit-select-item:hover {
+  background: rgba(255, 45, 85, 0.1);
+}
+
+.exploit-select-item.selected {
+  background: rgba(255, 45, 85, 0.2);
+}
+
+.select-checkbox {
+  width: 24px;
+  height: 24px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ff2d55;
+  font-weight: bold;
+}
+
+.exploit-select-item.selected .select-checkbox {
+  background: #ff2d55;
+  border-color: #ff2d55;
+  color: white;
+}
+
+.select-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.select-name {
+  font-weight: 600;
+}
+
+.select-meta {
+  font-size: 12px;
+  color: #888;
+}
+
+/* Mission Summary */
+.mission-summary {
+  background: rgba(0, 0, 0, 0.3);
+  padding: 20px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+}
+
+.summary-item {
+  display: flex;
+  justify-content: space-between;
+  padding: 12px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.summary-item:last-child {
+  border-bottom: none;
+}
+
+.summary-label {
+  color: #888;
+}
+
+.summary-value {
+  font-weight: 600;
+}
+
+.selected-exploits-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 24px;
+}
+
+.selected-exploit-tag {
+  padding: 8px 12px;
+  background: rgba(255, 45, 85, 0.2);
+  border: 1px solid rgba(255, 45, 85, 0.3);
+  border-radius: 20px;
+  font-size: 13px;
+}
+
+/* ============================================================================
+   Active Missions
+   ============================================================================ */
+
+.missions-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.missions-header h2 {
+  margin: 0;
+}
+
+.missions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.mission-card {
+  background: rgba(30, 30, 30, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 20px;
+}
+
+.mission-card-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.mission-status-icon {
+  font-size: 24px;
+}
+
+.mission-card-header h3 {
+  flex: 1;
+  margin: 0;
+  font-size: 18px;
+}
+
+.mission-platform {
+  padding: 4px 10px;
+  background: rgba(90, 200, 250, 0.2);
+  color: #5ac8fa;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.mission-progress {
+  height: 8px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 12px;
+}
+
+.progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #ff2d55, #ff6b35);
+  border-radius: 4px;
+  transition: width 0.5s ease;
+}
+
+.mission-info {
+  display: flex;
+  justify-content: space-between;
+  font-size: 14px;
+}
+
+.mission-step {
+  color: #888;
+}
+
+.mission-progress-text {
+  color: #ff2d55;
+  font-weight: 600;
+}
+
+.mission-vm-info {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  font-size: 13px;
+  color: #888;
+}
+
+/* ============================================================================
+   Mission History
+   ============================================================================ */
+
+.history-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.history-table th {
+  text-align: left;
+  padding: 12px;
+  border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+  color: #888;
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 12px;
+}
+
+.history-table td {
+  padding: 16px 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.status-badge.completed {
+  background: rgba(52, 199, 89, 0.2);
+  color: #34c759;
+}
+
+.status-badge.failed {
+  background: rgba(255, 45, 85, 0.2);
+  color: #ff2d55;
+}
+
+.status-badge.cancelled {
+  background: rgba(142, 142, 147, 0.2);
+  color: #8e8e93;
+}
+
+/* ============================================================================
+   Modal
+   ============================================================================ */
+
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+}
+
+.modal-content {
+  background: #1a1a1a;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  max-width: 800px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  position: relative;
+}
+
+.modal-close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  background: none;
+  border: none;
+  color: #888;
+  font-size: 28px;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.modal-close:hover {
+  color: #ff2d55;
+}
+
+.exploit-detail {
+  padding: 32px;
+}
+
+.exploit-detail-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.exploit-detail-header h2 {
+  margin: 0;
+  font-size: 24px;
+}
+
+.cve-badge {
+  padding: 4px 12px;
+  background: rgba(90, 200, 250, 0.2);
+  color: #5ac8fa;
+  border-radius: 4px;
+  font-family: monospace;
+  font-size: 14px;
+}
+
+.exploit-detail-meta {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.severity-badge,
+.type-badge,
+.os-badge,
+.cvss-badge {
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.severity-badge.critical { background: rgba(255, 45, 85, 0.3); color: #ff2d55; }
+.severity-badge.high { background: rgba(255, 107, 53, 0.3); color: #ff6b35; }
+.severity-badge.medium { background: rgba(255, 204, 0, 0.3); color: #ffcc00; }
+.severity-badge.low { background: rgba(52, 199, 89, 0.3); color: #34c759; }
+.severity-badge.info { background: rgba(90, 200, 250, 0.3); color: #5ac8fa; }
+
+.type-badge { background: rgba(175, 82, 222, 0.3); color: #af52de; }
+.os-badge { background: rgba(88, 86, 214, 0.3); color: #5856d6; }
+.cvss-badge { background: rgba(255, 149, 0, 0.3); color: #ff9500; }
+
+.exploit-detail-desc {
+  color: #ccc;
+  line-height: 1.6;
+  margin-bottom: 24px;
+}
+
+.detail-section {
+  margin-bottom: 24px;
+}
+
+.detail-section h3 {
+  font-size: 16px;
+  color: #ff2d55;
+  margin: 0 0 12px 0;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.service-tags {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.service-tag {
+  padding: 6px 12px;
+  background: rgba(52, 199, 89, 0.2);
+  color: #34c759;
+  border-radius: 4px;
+  font-family: monospace;
+  font-size: 13px;
+}
+
+.code-block {
+  background: rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 16px;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 13px;
+  line-height: 1.6;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  color: #ccc;
+}
+
+/* ============================================================================
+   Scrollbar
+   ============================================================================ */
+
+.reaper-container ::-webkit-scrollbar {
+  width: 8px;
+}
+
+.reaper-container ::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 4px;
+}
+
+.reaper-container ::-webkit-scrollbar-thumb {
+  background: rgba(255, 45, 85, 0.5);
+  border-radius: 4px;
+}
+
+.reaper-container ::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 45, 85, 0.7);
+}
+

@@ -164,3 +164,97 @@
   color: #ff6b6b;
 }
 
+/* Tools Section */
+.tools-section {
+  margin-bottom: 32px;
+}
+
+.tools-section h2 {
+  font-size: 1.5rem;
+  margin-bottom: 16px;
+  color: #fff;
+}
+
+.tools-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+.tool-card {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 20px 24px;
+  background: rgba(30, 30, 30, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  text-decoration: none;
+  transition: all 0.3s ease;
+}
+
+.tool-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3);
+}
+
+.tool-card.reaper {
+  border-color: rgba(255, 45, 85, 0.3);
+}
+
+.tool-card.reaper:hover {
+  background: rgba(255, 45, 85, 0.1);
+  border-color: rgba(255, 45, 85, 0.5);
+  box-shadow: 0 8px 30px rgba(255, 45, 85, 0.2);
+}
+
+.tool-card.creator {
+  border-color: rgba(90, 200, 250, 0.3);
+}
+
+.tool-card.creator:hover {
+  background: rgba(90, 200, 250, 0.1);
+  border-color: rgba(90, 200, 250, 0.5);
+  box-shadow: 0 8px 30px rgba(90, 200, 250, 0.2);
+}
+
+.tool-icon {
+  font-size: 32px;
+}
+
+.tool-info {
+  flex: 1;
+}
+
+.tool-info h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: #fff;
+}
+
+.tool-card.reaper .tool-info h3 {
+  color: #ff2d55;
+}
+
+.tool-card.creator .tool-info h3 {
+  color: #5ac8fa;
+}
+
+.tool-info p {
+  margin: 4px 0 0 0;
+  font-size: 13px;
+  color: #888;
+}
+
+.tool-arrow {
+  font-size: 20px;
+  color: #666;
+  transition: transform 0.2s;
+}
+
+.tool-card:hover .tool-arrow {
+  transform: translateX(4px);
+  color: #fff;
+}
+

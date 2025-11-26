@@ -23,6 +23,7 @@ from glassdome.api.ansible import router as ansible_router
 from glassdome.api import auth
 from glassdome.api.chat import router as chat_router
 from glassdome.api.platforms import router as platforms_router
+from glassdome.api.reaper import router as reaper_router
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -47,6 +48,7 @@ app.include_router(ansible_router)
 app.include_router(auth.router)
 app.include_router(chat_router)  # Overseer chat interface
 app.include_router(platforms_router)  # Platform status API
+app.include_router(reaper_router)  # Reaper exploit library & missions
 
 
 # Startup and shutdown events
