@@ -25,6 +25,7 @@ from glassdome.api.chat import router as chat_router
 from glassdome.api.platforms import router as platforms_router
 from glassdome.api.reaper import router as reaper_router
 from glassdome.api.whiteknight import router as whiteknight_router
+from glassdome.api.networks import router as networks_router
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -51,6 +52,7 @@ app.include_router(chat_router)  # Overseer chat interface
 app.include_router(platforms_router)  # Platform status API
 app.include_router(reaper_router)  # Reaper exploit library & missions
 app.include_router(whiteknight_router)  # WhiteKnight validation engine
+app.include_router(networks_router)  # Network management
 
 
 # Startup and shutdown events

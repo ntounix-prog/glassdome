@@ -198,3 +198,96 @@
   border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
+/* Network Node Styling */
+.network-node {
+  text-align: center;
+}
+
+.network-node .node-details {
+  margin-top: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.network-node .cidr {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.75rem;
+  color: #64c8ff;
+}
+
+.network-node .vlan {
+  font-size: 0.7rem;
+  color: #888;
+  background: rgba(100, 200, 255, 0.1);
+  padding: 0.1rem 0.4rem;
+  border-radius: 4px;
+}
+
+.element-button.network-button {
+  border-color: rgba(100, 200, 255, 0.3);
+}
+
+.element-button.network-button:hover {
+  border-color: rgba(100, 200, 255, 0.6);
+  background: rgba(100, 200, 255, 0.1);
+}
+
+/* Network Config Panel */
+.network-config-section {
+  background: rgba(100, 200, 255, 0.05);
+  border-top: 1px solid rgba(100, 200, 255, 0.2);
+  border-bottom: 1px solid rgba(100, 200, 255, 0.2);
+}
+
+.network-config-section h4 {
+  color: #64c8ff;
+}
+
+.config-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.config-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.8rem;
+  color: #888;
+}
+
+.config-form input[type="text"],
+.config-form input[type="number"] {
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(100, 200, 255, 0.2);
+  border-radius: 4px;
+  padding: 0.5rem;
+  color: #fff;
+  font-size: 0.85rem;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.config-form input:focus {
+  outline: none;
+  border-color: #64c8ff;
+}
+
+.config-form .checkbox-label {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+}
+
+.config-form input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: #64c8ff;
+}
+
+.vm-node {
+  text-align: center;
+}
+
