@@ -14,6 +14,7 @@ from glassdome.networking.models import (
     NetworkDefinition,
     PlatformNetworkMapping,
     VMInterface,
+    DeployedVM,
     NetworkType,
 )
 
@@ -246,7 +247,8 @@ class NetworkOrchestrator:
         interface_index: int = 0,
         ip_address: Optional[str] = None,
         ip_method: str = "dhcp",
-        mac_address: Optional[str] = None
+        mac_address: Optional[str] = None,
+        lab_id: Optional[str] = None
     ) -> VMInterface:
         """
         Attach a VM to a network.
@@ -257,6 +259,10 @@ class NetworkOrchestrator:
         network = await self.get_network(session, network_id=network_id)
         if not network:
             raise ValueError(f"Network {network_id} not found")
+        
+        # Inherit lab_id from network if not provided
+        if not lab_id and network.lab_id:
+            lab_id = network.lab_id
         
         # Check if already attached at this interface index
         existing = await session.execute(
@@ -270,6 +276,7 @@ class NetworkOrchestrator:
             raise ValueError(f"VM {vm_id} already has an interface at index {interface_index}")
         
         interface = VMInterface(
+            lab_id=lab_id,
             vm_id=vm_id,
             platform=platform,
             platform_instance=platform_instance,
@@ -380,6 +387,202 @@ class NetworkOrchestrator:
         
         await session.commit()
         return interfaces
+    
+    # =========================================================================
+    # Lab Resource Tracking (for migration/orchestration)
+    # =========================================================================
+    
+    async def register_deployed_vm(
+        self,
+        session: AsyncSession,
+        lab_id: str,
+        name: str,
+        vm_id: str,
+        platform: str,
+        platform_instance: Optional[str] = None,
+        os_type: Optional[str] = None,
+        template_id: Optional[str] = None,
+        cpu_cores: Optional[int] = None,
+        memory_mb: Optional[int] = None,
+        disk_gb: Optional[int] = None,
+        ip_address: Optional[str] = None
+    ) -> DeployedVM:
+        """
+        Register a deployed VM as part of a lab.
+        
+        This is called after VM deployment to track it for orchestration.
+        """
+        deployed_vm = DeployedVM(
+            lab_id=lab_id,
+            name=name,
+            vm_id=vm_id,
+            platform=platform,
+            platform_instance=platform_instance,
+            os_type=os_type,
+            template_id=template_id,
+            cpu_cores=cpu_cores,
+            memory_mb=memory_mb,
+            disk_gb=disk_gb,
+            ip_address=ip_address,
+            status="deployed"
+        )
+        
+        session.add(deployed_vm)
+        await session.commit()
+        await session.refresh(deployed_vm)
+        
+        logger.info(f"Registered VM {name} ({vm_id}) for lab {lab_id}")
+        return deployed_vm
+    
+    async def get_lab_resources(
+        self,
+        session: AsyncSession,
+        lab_id: str
+    ) -> Dict[str, Any]:
+        """
+        Get ALL resources associated with a lab.
+        
+        This is THE KEY for migration - everything with this lab_id moves together.
+        
+        Returns:
+            {
+                "lab_id": "xxx",
+                "vms": [DeployedVM, ...],
+                "networks": [NetworkDefinition, ...],
+                "interfaces": [VMInterface, ...]
+            }
+        """
+        # Get VMs
+        vms_result = await session.execute(
+            select(DeployedVM).where(DeployedVM.lab_id == lab_id)
+        )
+        vms = list(vms_result.scalars().all())
+        
+        # Get Networks
+        networks_result = await session.execute(
+            select(NetworkDefinition).where(NetworkDefinition.lab_id == lab_id)
+        )
+        networks = list(networks_result.scalars().all())
+        
+        # Get Interfaces (from the VMs)
+        vm_ids = [vm.vm_id for vm in vms]
+        if vm_ids:
+            interfaces_result = await session.execute(
+                select(VMInterface).where(VMInterface.vm_id.in_(vm_ids))
+            )
+            interfaces = list(interfaces_result.scalars().all())
+        else:
+            interfaces = []
+        
+        logger.info(f"Lab {lab_id}: {len(vms)} VMs, {len(networks)} networks, {len(interfaces)} interfaces")
+        
+        return {
+            "lab_id": lab_id,
+            "vms": vms,
+            "networks": networks,
+            "interfaces": interfaces
+        }
+    
+    async def get_lab_vms(
+        self,
+        session: AsyncSession,
+        lab_id: str
+    ) -> List[DeployedVM]:
+        """Get all VMs for a lab"""
+        result = await session.execute(
+            select(DeployedVM).where(DeployedVM.lab_id == lab_id)
+        )
+        return list(result.scalars().all())
+    
+    async def update_vm_status(
+        self,
+        session: AsyncSession,
+        vm_id: str,
+        status: str,
+        ip_address: Optional[str] = None
+    ) -> Optional[DeployedVM]:
+        """Update a deployed VM's status"""
+        result = await session.execute(
+            select(DeployedVM).where(DeployedVM.vm_id == vm_id)
+        )
+        vm = result.scalar_one_or_none()
+        if not vm:
+            return None
+        
+        vm.status = status
+        if ip_address:
+            vm.ip_address = ip_address
+        
+        await session.commit()
+        await session.refresh(vm)
+        return vm
+    
+    async def prepare_lab_migration(
+        self,
+        session: AsyncSession,
+        lab_id: str,
+        target_platform: str,
+        target_instance: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Prepare a lab for migration to another platform.
+        
+        Returns a migration plan with all resources and their target configs.
+        """
+        resources = await self.get_lab_resources(session, lab_id)
+        
+        # Build migration plan
+        migration_plan = {
+            "lab_id": lab_id,
+            "source": {
+                "vms": [(vm.platform, vm.platform_instance, vm.vm_id) for vm in resources["vms"]],
+                "networks": [(n.name, n.cidr, n.vlan_id) for n in resources["networks"]]
+            },
+            "target": {
+                "platform": target_platform,
+                "platform_instance": target_instance
+            },
+            "steps": []
+        }
+        
+        # Plan network creation on target
+        for network in resources["networks"]:
+            migration_plan["steps"].append({
+                "type": "create_network",
+                "network": network.name,
+                "cidr": network.cidr,
+                "vlan_id": network.vlan_id
+            })
+        
+        # Plan VM migration
+        for vm in resources["vms"]:
+            migration_plan["steps"].append({
+                "type": "migrate_vm",
+                "name": vm.name,
+                "source_vm_id": vm.vm_id,
+                "source_platform": vm.platform,
+                "os_type": vm.os_type,
+                "template_id": vm.template_id,
+                "cpu_cores": vm.cpu_cores,
+                "memory_mb": vm.memory_mb
+            })
+        
+        # Plan interface reattachment
+        for interface in resources["interfaces"]:
+            network = next(
+                (n for n in resources["networks"] if n.id == interface.network_id),
+                None
+            )
+            migration_plan["steps"].append({
+                "type": "attach_interface",
+                "vm_id": interface.vm_id,
+                "network": network.name if network else None,
+                "ip_address": interface.ip_address,
+                "interface_index": interface.interface_index
+            })
+        
+        logger.info(f"Prepared migration plan for lab {lab_id}: {len(migration_plan['steps'])} steps")
+        return migration_plan
 
 
 # ============================================================================

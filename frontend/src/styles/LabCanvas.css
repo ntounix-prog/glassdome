@@ -291,3 +291,16 @@
   text-align: center;
 }
 
+/* Lab ID Display */
+.lab-id-display {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  padding-bottom: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.info-value.mono {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.75rem;
+  color: #64c8ff;
+}
+

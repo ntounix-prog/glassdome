@@ -43,7 +43,7 @@ async def init_db():
     # Import models to register them with Base
     from glassdome.reaper.exploit_library import Exploit, ExploitMission, MissionLog, ValidationResult
     from glassdome.reaper.hot_spare import HotSpare
-    from glassdome.networking.models import NetworkDefinition, PlatformNetworkMapping, VMInterface
+    from glassdome.networking.models import NetworkDefinition, PlatformNetworkMapping, VMInterface, DeployedVM
     
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)

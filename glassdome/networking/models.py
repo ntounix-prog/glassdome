@@ -161,6 +161,9 @@ class VMInterface(Base):
     
     id = Column(Integer, primary_key=True, autoincrement=True)
     
+    # Lab Association (for orchestration - pick up all resources for a lab)
+    lab_id = Column(String(100), nullable=True, index=True)
+    
     # VM Identification
     vm_id = Column(String(100), nullable=False, index=True)  # Platform VM ID
     platform = Column(String(50), nullable=False)            # proxmox, esxi, aws, azure
@@ -200,6 +203,7 @@ class VMInterface(Base):
     def to_dict(self) -> Dict[str, Any]:
         return {
             "id": self.id,
+            "lab_id": self.lab_id,
             "vm_id": self.vm_id,
             "platform": self.platform,
             "platform_instance": self.platform_instance,
@@ -214,6 +218,75 @@ class VMInterface(Base):
             "platform_config": self.platform_config,
             "connected": self.connected,
             "last_seen": self.last_seen.isoformat() if self.last_seen else None,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
+
+
+class DeployedVM(Base):
+    """
+    Tracks deployed VMs per lab
+    
+    This is the key for orchestration - when moving a lab,
+    the orchestrator queries all DeployedVMs with the same lab_id.
+    """
+    __tablename__ = "deployed_vms"
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    
+    # Lab Association - THE KEY for migration
+    lab_id = Column(String(100), nullable=False, index=True)
+    
+    # VM Identity
+    name = Column(String(255), nullable=False)              # Human-readable name
+    vm_id = Column(String(100), nullable=False, index=True) # Platform VM ID (e.g., "101", "i-0abc123")
+    
+    # Platform Location
+    platform = Column(String(50), nullable=False)           # proxmox, esxi, aws, azure
+    platform_instance = Column(String(50), nullable=True)   # "01", "02", "us-east-1"
+    
+    # VM Configuration (for migration/recreation)
+    os_type = Column(String(50), nullable=True)             # linux, windows
+    template_id = Column(String(100), nullable=True)        # Source template used
+    cpu_cores = Column(Integer, nullable=True)
+    memory_mb = Column(Integer, nullable=True)
+    disk_gb = Column(Integer, nullable=True)
+    
+    # State
+    status = Column(String(50), default="deployed")         # deployed, migrating, stopped, deleted
+    ip_address = Column(String(50), nullable=True)          # Primary IP
+    
+    # Migration tracking
+    source_platform = Column(String(50), nullable=True)     # Original platform if migrated
+    source_vm_id = Column(String(100), nullable=True)       # Original VM ID if migrated
+    migrated_at = Column(DateTime, nullable=True)
+    
+    # Metadata
+    created_at = Column(DateTime, default=func.now())
+    updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
+    
+    # Relationships
+    interfaces = relationship("VMInterface", 
+                            primaryjoin="DeployedVM.vm_id == foreign(VMInterface.vm_id)",
+                            viewonly=True)
+    
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "id": self.id,
+            "lab_id": self.lab_id,
+            "name": self.name,
+            "vm_id": self.vm_id,
+            "platform": self.platform,
+            "platform_instance": self.platform_instance,
+            "os_type": self.os_type,
+            "template_id": self.template_id,
+            "cpu_cores": self.cpu_cores,
+            "memory_mb": self.memory_mb,
+            "disk_gb": self.disk_gb,
+            "status": self.status,
+            "ip_address": self.ip_address,
+            "source_platform": self.source_platform,
+            "source_vm_id": self.source_vm_id,
+            "migrated_at": self.migrated_at.isoformat() if self.migrated_at else None,
             "created_at": self.created_at.isoformat() if self.created_at else None,
         }
 

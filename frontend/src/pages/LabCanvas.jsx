@@ -36,11 +36,15 @@ const DEFAULT_NETWORK_CONFIGS = {
   bridged: { cidr: '192.168.1.0/24', vlan_id: null, gateway: '192.168.1.1' },
 }
 
+// Generate a unique lab ID
+const generateLabId = () => `lab-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+
 function LabCanvas() {
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes)
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges)
   const [selectedNode, setSelectedNode] = useState(null)
   const [labName, setLabName] = useState('New Cyber Range Lab')
+  const [labId, setLabId] = useState(() => generateLabId()) // Unique lab identifier
   const [platform, setPlatform] = useState('1') // Default to Proxmox
   const [isDeploying, setIsDeploying] = useState(false)
   const [networkDefinitions, setNetworkDefinitions] = useState({})
@@ -210,10 +214,12 @@ function LabCanvas() {
     setEdges([])
     setSelectedNode(null)
     setShowNetworkConfig(false)
+    setLabId(generateLabId())  // New lab = new ID
+    setLabName('New Cyber Range Lab')
   }
 
   const saveLab = async () => {
-    // First, save network definitions to the backend
+    // First, save network definitions to the backend with the lab_id
     const networks = nodes.filter(n => n.data.nodeType === 'network')
     
     for (const netNode of networks) {
@@ -224,12 +230,13 @@ function LabCanvas() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             name: config.name,
+            display_name: config.displayName,
             cidr: config.cidr,
             vlan_id: config.vlan_id,
             gateway: config.gateway,
             network_type: config.network_type,
             dhcp_enabled: config.dhcp_enabled,
-            lab_id: labName
+            lab_id: labId  // Use the unique lab ID for tracking
           })
         })
       } catch (error) {
@@ -237,13 +244,16 @@ function LabCanvas() {
       }
     }
 
+    // Save lab with all element data including lab_id
     const labData = {
+      id: labId,  // Unique lab identifier
       name: labName,
       canvas_data: {
         nodes: nodes.map(n => ({
           ...n,
           data: {
             ...n.data,
+            lab_id: labId,  // Tag each element with lab_id
             label: undefined // Don't save React components
           }
         })),
@@ -258,7 +268,7 @@ function LabCanvas() {
         body: JSON.stringify(labData)
       })
       const result = await response.json()
-      alert(`Lab saved successfully! ID: ${result.lab_id}`)
+      alert(`Lab saved successfully!\n\nID: ${labId}\nName: ${labName}`)
     } catch (error) {
       console.error('Error saving lab:', error)
       alert('Failed to save lab')
@@ -487,6 +497,10 @@ function LabCanvas() {
             <Background variant="dots" gap={12} size={1} />
             <Panel position="top-left">
               <div className="info-panel">
+                <div className="info-item lab-id-display">
+                  <span className="info-label">Lab ID:</span>
+                  <span className="info-value mono">{labId.slice(0, 12)}...</span>
+                </div>
                 <div className="info-item">
                   <span className="info-label">VMs:</span>
                   <span className="info-value">{nodes.filter(n => n.data?.nodeType === 'vm').length}</span>
