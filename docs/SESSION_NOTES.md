@@ -1,6 +1,66 @@
 # Glassdome Session Notes
 
-## Session: 2025-11-25–26 (Full Feature Session)
+## Session: 2025-11-26 (Portability Refactor)
+
+### Summary
+Major refactor to make the codebase fully portable - can now run from any directory (e.g., `/opt/glassdome`) without hardcoded paths.
+
+---
+
+## Completed Work
+
+### 1. Centralized Path Management
+**New file: `glassdome/core/paths.py`**
+
+All paths in the application now derive from a single source of truth:
+- `PROJECT_ROOT` - Auto-detected from module location
+- `GLASSDOME_DATA_DIR` - Overridable via environment variable
+- `SECRETS_DIR` - Now in `PROJECT_ROOT/.secrets/` (not `~/.glassdome/`)
+- `LOGS_DIR`, `RAG_INDEX_DIR`, `ENV_FILE` - All centralized
+
+**Environment Variable Override:**
+```bash
+export GLASSDOME_ROOT=/opt/glassdome
+export GLASSDOME_DATA_DIR=/opt/glassdome
+```
+
+### 2. Files Updated
+| File | Change |
+|------|--------|
+| `glassdome/core/secrets.py` | Use `SECRETS_DIR`, `MASTER_KEY_PATH` |
+| `glassdome/core/session.py` | Use `SESSION_CACHE_PATH`, `SESSION_KEY_PATH` |
+| `glassdome/core/config.py` | Use `ENV_FILE` for .env loading |
+| `glassdome/api/secrets_web.py` | Replace all `Path.home()` references |
+| `glassdome/knowledge/*.py` | Use `PROJECT_ROOT`, `RAG_INDEX_DIR` |
+| `glassdome/overseer/state.py` | Use `OVERSEER_STATE_FILE` |
+| `scripts/network_discovery/*.py` | Use `PROJECT_ROOT` for output files |
+
+### 3. Migration Steps Completed
+1. Created `.secrets/` directory in project root
+2. Migrated existing secrets from `~/.glassdome/`
+3. Added `.secrets/` to `.gitignore`
+4. Tested running from `/opt/glassdome` - **SUCCESS**
+
+### 4. Validation
+```
+/opt/glassdome$ source venv/bin/activate
+$ python -c "from glassdome.core.paths import print_paths; print_paths()"
+
+============================================================
+GLASSDOME PATH CONFIGURATION
+============================================================
+PROJECT_ROOT:        /opt/glassdome
+GLASSDOME_DATA_DIR:  /opt/glassdome
+SECRETS_DIR:         /opt/glassdome/.secrets
+LOGS_DIR:            /opt/glassdome/logs
+RAG_INDEX_DIR:       /opt/glassdome/.rag_index
+ENV_FILE:            /opt/glassdome/.env
+============================================================
+```
+
+---
+
+## Previous Session: 2025-11-25–26 (Full Feature Session)
 
 ### Summary
 Major feature session implementing Overseer chat interface, Reaper vulnerability injection system, multi-platform dashboard connections, and VP demo showcase.
