@@ -303,10 +303,14 @@ class ProxmoxClient(PlatformClient):
     async def list_vms(self, node: str) -> List[Dict[str, Any]]:
         """List all VMs on a node"""
         try:
+            logger.debug(f"Listing VMs on node '{node}' (host: {self.host})")
             vms = self.client.nodes(node).qemu.get()
+            logger.debug(f"Found {len(vms)} VMs on node '{node}'")
             return vms
         except Exception as e:
-            logger.error(f"Failed to list VMs on node {node}: {str(e)}")
+            logger.error(f"Failed to list VMs on node {node} (host: {self.host}): {str(e)}")
+            import traceback
+            logger.error(traceback.format_exc())
             return []
     
     async def create_vm_raw(self, node: str, vmid: int, config: Dict[str, Any]) -> Dict[str, Any]:
