@@ -839,3 +839,63 @@ async def get_reaper_stats(
         }
     }
 
+
+# ============================================================================
+# Live Log Streaming
+# ============================================================================
+
+from fastapi import WebSocket
+from starlette.websockets import WebSocketDisconnect
+
+@router.get("/logs")
+async def get_recent_logs(lines: int = 100):
+    """Get recent Reaper log entries"""
+    try:
+        if reaper_log_file.exists():
+            with open(reaper_log_file, 'r') as f:
+                all_lines = f.readlines()
+                return {
+                    "logs": all_lines[-lines:],
+                    "total_lines": len(all_lines)
+                }
+        return {"logs": [], "total_lines": 0}
+    except Exception as e:
+        logger.error(f"Failed to read logs: {e}")
+        return {"logs": [], "error": str(e)}
+
+
+@router.websocket("/logs/stream")
+async def stream_logs(websocket: WebSocket):
+    """WebSocket endpoint for live log streaming"""
+    await websocket.accept()
+    logger.info("Log stream client connected")
+    
+    try:
+        last_position = 0
+        if reaper_log_file.exists():
+            last_position = reaper_log_file.stat().st_size
+        
+        while True:
+            await asyncio.sleep(1)  # Check every second
+            
+            if reaper_log_file.exists():
+                current_size = reaper_log_file.stat().st_size
+                
+                if current_size > last_position:
+                    with open(reaper_log_file, 'r') as f:
+                        f.seek(last_position)
+                        new_lines = f.read()
+                        if new_lines:
+                            await websocket.send_text(new_lines)
+                        last_position = f.tell()
+                elif current_size < last_position:
+                    # File was truncated/rotated
+                    last_position = 0
+                    
+    except WebSocketDisconnect:
+        logger.info("Log stream client disconnected")
+    except Exception as e:
+        logger.debug(f"Log stream error: {e}")
+    finally:
+        logger.info("Log stream closed")
+

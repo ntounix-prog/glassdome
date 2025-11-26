@@ -5,7 +5,7 @@
  * Architects define exploits here, then Overseer can trigger missions.
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import '../styles/ReaperDesign.css';
 
@@ -23,6 +23,7 @@ export default function ReaperDesign() {
   const [selectedExploit, setSelectedExploit] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [showLogs, setShowLogs] = useState(false);
 
   // Filters
   const [typeFilter, setTypeFilter] = useState('');
@@ -202,6 +203,21 @@ export default function ReaperDesign() {
           onClose={() => setSelectedExploit(null)}
         />
       )}
+
+      {/* Log Viewer Toggle Button */}
+      <button 
+        className="show-logs-btn"
+        onClick={() => setShowLogs(!showLogs)}
+      >
+        {showLogs ? '📜 Hide Logs' : '📜 Show Logs'}
+      </button>
+
+      {/* Log Viewer Panel */}
+      <AnimatePresence>
+        {showLogs && (
+          <LogViewer isOpen={showLogs} onClose={() => setShowLogs(false)} />
+        )}
+      </AnimatePresence>
     </div>
   );
 }
@@ -844,6 +860,99 @@ function ExploitDetailModal({ exploit, onClose }) {
         )}
       </motion.div>
     </div>
+  );
+}
+
+
+// ============================================================================
+// Log Viewer Component
+// ============================================================================
+
+function LogViewer({ isOpen, onClose }) {
+  const [logs, setLogs] = useState([]);
+  const [connected, setConnected] = useState(false);
+  const logsEndRef = useRef(null);
+  const wsRef = useRef(null);
+
+  useEffect(() => {
+    if (isOpen) {
+      // Fetch initial logs
+      fetch(`${API_BASE}/api/reaper/logs?lines=50`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.logs) {
+            setLogs(data.logs);
+          }
+        })
+        .catch(err => console.error('Failed to fetch logs:', err));
+
+      // Connect WebSocket for live updates
+      const wsUrl = API_BASE.replace('http', 'ws') + '/api/reaper/logs/stream';
+      wsRef.current = new WebSocket(wsUrl);
+      
+      wsRef.current.onopen = () => setConnected(true);
+      wsRef.current.onclose = () => setConnected(false);
+      wsRef.current.onerror = () => setConnected(false);
+      wsRef.current.onmessage = (event) => {
+        const newLines = event.data.split('\n').filter(l => l.trim());
+        setLogs(prev => [...prev.slice(-200), ...newLines]); // Keep last 200 lines
+      };
+    }
+
+    return () => {
+      if (wsRef.current) {
+        wsRef.current.close();
+      }
+    };
+  }, [isOpen]);
+
+  useEffect(() => {
+    logsEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [logs]);
+
+  if (!isOpen) return null;
+
+  const getLineClass = (line) => {
+    if (line.includes('[ERROR]') || line.includes('ERROR')) return 'error';
+    if (line.includes('[WARNING]') || line.includes('WARNING')) return 'warning';
+    if (line.includes('✓') || line.includes('success')) return 'success';
+    if (line.includes('[MISSION')) return 'mission';
+    return '';
+  };
+
+  return (
+    <motion.div 
+      className="log-viewer"
+      initial={{ y: '100%' }}
+      animate={{ y: 0 }}
+      exit={{ y: '100%' }}
+      transition={{ type: 'spring', damping: 25 }}
+    >
+      <div className="log-header">
+        <span className="log-title">
+          📜 Reaper Logs
+          <span className={`connection-status ${connected ? 'connected' : ''}`}>
+            {connected ? '● Live' : '○ Disconnected'}
+          </span>
+        </span>
+        <div className="log-actions">
+          <button onClick={() => setLogs([])}>Clear</button>
+          <button onClick={onClose}>✕</button>
+        </div>
+      </div>
+      <div className="log-content">
+        {logs.length === 0 ? (
+          <div className="log-empty">No logs yet. Run a mission to see activity.</div>
+        ) : (
+          logs.map((line, i) => (
+            <div key={i} className={`log-line ${getLineClass(line)}`}>
+              {line}
+            </div>
+          ))
+        )}
+        <div ref={logsEndRef} />
+      </div>
+    </motion.div>
   );
 }
 
