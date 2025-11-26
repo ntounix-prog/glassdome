@@ -50,75 +50,75 @@
 
 .deployments-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
-  gap: 2rem;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1rem;
 }
 
 .deployment-card {
   background: rgba(255, 255, 255, 0.05);
   backdrop-filter: blur(10px);
-  border-radius: 15px;
-  padding: 1.5rem;
+  border-radius: 10px;
+  padding: 1rem;
   border: 1px solid rgba(255, 255, 255, 0.1);
   transition: transform 0.2s, border-color 0.2s;
 }
 
 .deployment-card:hover {
-  transform: translateY(-5px);
+  transform: translateY(-2px);
   border-color: rgba(102, 126, 234, 0.5);
 }
 
 .deployment-header {
   display: flex;
   justify-content: space-between;
-  align-items: start;
-  margin-bottom: 1.5rem;
+  align-items: center;
+  margin-bottom: 0.75rem;
 }
 
 .deployment-header h3 {
   margin: 0;
-  font-size: 1.25rem;
+  font-size: 1rem;
 }
 
 .status-badge {
-  padding: 0.25rem 0.75rem;
-  border-radius: 12px;
-  font-size: 0.75rem;
+  padding: 0.15rem 0.5rem;
+  border-radius: 10px;
+  font-size: 0.65rem;
   font-weight: 600;
   text-transform: uppercase;
 }
 
 .deployment-info {
-  margin-bottom: 1.5rem;
+  margin-bottom: 0.75rem;
 }
 
 .info-row {
   display: flex;
   justify-content: space-between;
-  margin-bottom: 0.75rem;
+  margin-bottom: 0.35rem;
 }
 
 .info-row .label {
   color: #888;
-  font-size: 0.875rem;
+  font-size: 0.75rem;
 }
 
 .info-row .value {
   color: #fff;
   font-weight: 600;
-  font-size: 0.875rem;
+  font-size: 0.75rem;
 }
 
-.progress-bar {
+.deployment-card .deployment-progress {
   width: 100%;
-  height: 6px;
+  height: 4px;
   background: rgba(255, 255, 255, 0.1);
-  border-radius: 3px;
+  border-radius: 2px;
   overflow: hidden;
-  margin-bottom: 1.5rem;
+  margin-bottom: 0.75rem;
 }
 
-.progress-fill {
+.deployment-card .deployment-progress-fill {
   height: 100%;
   background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
   transition: width 0.3s ease;
@@ -126,10 +126,104 @@
 
 .deployment-actions {
   display: flex;
-  gap: 0.75rem;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
 }
 
 .deployment-actions button {
   flex: 1;
+  padding: 0.35rem 0.5rem;
+  font-size: 0.7rem;
+}
+
+.deployment-meta {
+  padding-top: 0.5rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.deployment-meta .timestamp {
+  font-size: 0.65rem;
+  color: #666;
+}
+
+.error-message {
+  background: rgba(255, 107, 107, 0.1);
+  border: 1px solid rgba(255, 107, 107, 0.3);
+  color: #ff6b6b;
+  padding: 0.4rem 0.6rem;
+  border-radius: 6px;
+  margin-bottom: 0.5rem;
+  font-size: 0.7rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.info-row .value.vm-id {
+  font-family: 'Fira Code', monospace;
+  background: rgba(102, 126, 234, 0.2);
+  padding: 0.1rem 0.35rem;
+  border-radius: 3px;
+  font-size: 0.7rem;
+}
+
+.info-row .value.ip-address {
+  font-family: 'Fira Code', monospace;
+  color: #6bcf7f;
+  font-size: 0.7rem;
+}
+
+.info-row .value.step {
+  font-size: 0.65rem;
+  color: #a29bfe;
+  max-width: 150px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.page-header h1 {
+  font-size: 1.75rem;
+}
+
+.page-header p {
+  margin: 0.25rem 0 0;
+}
+
+.page-header .btn-primary {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.page-header .btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+}
+
+.empty-state .btn-primary {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 1rem;
 }
 

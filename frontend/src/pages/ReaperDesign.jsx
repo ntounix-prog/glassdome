@@ -372,6 +372,7 @@ function MissionBuilder({ exploits, onMissionCreated }) {
   const [vmConfig, setVmConfig] = useState({
     name: 'reaper-target',
     os_type: 'ubuntu',
+    template_id: 9000,  // Ubuntu 22.04 template
     cores: 2,
     memory: 2048
   });
