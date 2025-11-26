@@ -238,13 +238,36 @@ curl -X POST http://localhost:8011/api/chat/conversations/test/messages \
 
 ---
 
+### 7. ESXi and Azure Dashboard Connections
+**Added platform client methods and API integration**
+
+**ESXi:**
+- Host: `192.168.215.76`
+- User: `root`
+- Password stored in `.env`
+- Added `list_vms()` method to ESXiClient
+- **Status:** ✅ Connected (11 VMs detected)
+
+**Azure:**
+- Subscription: `c93088a4-...`
+- Tenant: `f5b89107-...`
+- Client ID: `ee2f1e19-...`
+- Client Secret stored in `.env`
+- Added `list_vms()` and `list_all_vms()` methods to AzureClient
+- **Status:** ✅ Connected (0 VMs in glassdome-rg)
+
+**Files Modified:**
+- `glassdome/platforms/esxi_client.py` - Added list_vms()
+- `glassdome/platforms/azure_client.py` - Added list_vms(), list_all_vms()
+- `glassdome/api/platforms.py` - Fixed ESXi status mapping
+
+---
+
 ## Next Steps
 
-1. **Proxmox Integration:** Wire up VM actions (start/stop)
-2. **Reaper Testing:** Test vulnerability injection via chat
-3. **ESXi/Azure:** Add credentials to secrets
-4. **Monitoring:** Add Overseer background monitoring
-5. **Lab Templates:** Pre-built lab configurations
+1. **Reaper Testing:** Test vulnerability injection via chat
+2. **Monitoring:** Add Overseer background monitoring
+3. **Lab Templates:** Pre-built lab configurations
 
 ---
 
@@ -253,5 +276,7 @@ curl -X POST http://localhost:8011/api/chat/conversations/test/messages \
 ```
 feat: Overseer Chat Interface + Reaper System + Platform Status
 feat: Add email tool to Overseer + fix Creator deployment
+fix: Demo button only shows on dashboard page
+feat: Add ESXi and Azure dashboard connections
 ```
 
