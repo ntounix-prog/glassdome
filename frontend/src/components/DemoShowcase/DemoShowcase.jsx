@@ -9,12 +9,133 @@ import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import './DemoShowcase.css'
 
-// Royalty-free synthwave/cyberpunk music URLs (multiple fallbacks)
-const MUSIC_TRACKS = [
-  'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3',
-  'https://file-examples.com/storage/feb05093336712e49e0b030/2017/11/file_example_MP3_700KB.mp3',
-  'https://assets.mixkit.co/music/preview/mixkit-tech-house-vibes-130.mp3',
-]
+// Synthwave music generator using Web Audio API
+class SynthwaveGenerator {
+  constructor() {
+    this.audioContext = null
+    this.isPlaying = false
+    this.nodes = []
+  }
+
+  start() {
+    if (this.isPlaying) return
+    
+    this.audioContext = new (window.AudioContext || window.webkitAudioContext)()
+    this.isPlaying = true
+    
+    // Create a dark synthwave pattern
+    this.playBassline()
+    this.playPad()
+    this.playArpeggio()
+  }
+
+  playBassline() {
+    const bassNotes = [55, 55, 73.42, 55, 82.41, 55, 73.42, 55] // A1, D2, E2 pattern
+    let noteIndex = 0
+    
+    const playNote = () => {
+      if (!this.isPlaying) return
+      
+      const osc = this.audioContext.createOscillator()
+      const gain = this.audioContext.createGain()
+      const filter = this.audioContext.createBiquadFilter()
+      
+      osc.type = 'sawtooth'
+      osc.frequency.value = bassNotes[noteIndex]
+      
+      filter.type = 'lowpass'
+      filter.frequency.value = 400
+      filter.Q.value = 5
+      
+      gain.gain.setValueAtTime(0.3, this.audioContext.currentTime)
+      gain.gain.exponentialRampToValueAtTime(0.01, this.audioContext.currentTime + 0.4)
+      
+      osc.connect(filter)
+      filter.connect(gain)
+      gain.connect(this.audioContext.destination)
+      
+      osc.start()
+      osc.stop(this.audioContext.currentTime + 0.5)
+      
+      this.nodes.push(osc)
+      noteIndex = (noteIndex + 1) % bassNotes.length
+      
+      setTimeout(playNote, 500)
+    }
+    playNote()
+  }
+
+  playPad() {
+    const osc1 = this.audioContext.createOscillator()
+    const osc2 = this.audioContext.createOscillator()
+    const gain = this.audioContext.createGain()
+    const filter = this.audioContext.createBiquadFilter()
+    
+    osc1.type = 'sawtooth'
+    osc2.type = 'sawtooth'
+    osc1.frequency.value = 220 // A3
+    osc2.frequency.value = 277.18 // C#4
+    osc2.detune.value = 10
+    
+    filter.type = 'lowpass'
+    filter.frequency.value = 800
+    
+    gain.gain.value = 0.08
+    
+    osc1.connect(filter)
+    osc2.connect(filter)
+    filter.connect(gain)
+    gain.connect(this.audioContext.destination)
+    
+    osc1.start()
+    osc2.start()
+    
+    this.nodes.push(osc1, osc2)
+  }
+
+  playArpeggio() {
+    const notes = [440, 554.37, 659.25, 554.37, 440, 329.63, 440, 554.37] // A4, C#5, E5 arp
+    let noteIndex = 0
+    
+    const playNote = () => {
+      if (!this.isPlaying) return
+      
+      const osc = this.audioContext.createOscillator()
+      const gain = this.audioContext.createGain()
+      
+      osc.type = 'triangle'
+      osc.frequency.value = notes[noteIndex]
+      
+      gain.gain.setValueAtTime(0.15, this.audioContext.currentTime)
+      gain.gain.exponentialRampToValueAtTime(0.01, this.audioContext.currentTime + 0.2)
+      
+      osc.connect(gain)
+      gain.connect(this.audioContext.destination)
+      
+      osc.start()
+      osc.stop(this.audioContext.currentTime + 0.25)
+      
+      this.nodes.push(osc)
+      noteIndex = (noteIndex + 1) % notes.length
+      
+      setTimeout(playNote, 250)
+    }
+    
+    setTimeout(playNote, 125) // Offset from bass
+  }
+
+  stop() {
+    this.isPlaying = false
+    this.nodes.forEach(node => {
+      try { node.stop() } catch(e) {}
+    })
+    this.nodes = []
+    if (this.audioContext) {
+      this.audioContext.close()
+      this.audioContext = null
+    }
+  }
+}
 
 const PHASES = [
   { id: 'intro', duration: 4000 },
@@ -32,92 +153,39 @@ export default function DemoShowcase({ isOpen, onClose }) {
   const [currentPhase, setCurrentPhase] = useState(0)
   const [progress, setProgress] = useState(0)
   const [isPlaying, setIsPlaying] = useState(false)
-  const [audioStatus, setAudioStatus] = useState('Click to play')
-  const [trackIndex, setTrackIndex] = useState(0)
-  const audioRef = useRef(null)
+  const [audioStatus, setAudioStatus] = useState('🎵 Click for Music')
+  const synthRef = useRef(null)
 
-  // Initialize audio when demo opens
+  // Cleanup when demo closes
   useEffect(() => {
-    if (isOpen && !audioRef.current) {
-      createAudio(0)
-    }
-    
     return () => {
-      if (!isOpen && audioRef.current) {
-        audioRef.current.pause()
-        audioRef.current = null
+      if (synthRef.current) {
+        synthRef.current.stop()
+        synthRef.current = null
         setIsPlaying(false)
-        setAudioStatus('Click to play')
       }
     }
   }, [isOpen])
 
-  const createAudio = (index) => {
-    if (index >= MUSIC_TRACKS.length) {
-      setAudioStatus('❌ No audio available')
-      return
-    }
-    
-    const audio = new Audio()
-    audio.volume = 0.5
-    audio.loop = true
-    audio.crossOrigin = 'anonymous'
-    
-    audio.oncanplaythrough = () => {
-      console.log('Audio ready:', MUSIC_TRACKS[index])
-      setAudioStatus('🎵 Ready - Click to play')
-    }
-    
-    audio.onerror = (e) => {
-      console.error('Audio error on track', index, ':', e)
-      setAudioStatus(`Trying backup track...`)
-      // Try next track
-      createAudio(index + 1)
-    }
-    
-    audio.onplay = () => {
-      setIsPlaying(true)
-      setAudioStatus('🔊 Playing')
-    }
-    
-    audio.onpause = () => {
-      if (audioRef.current) {
+  // Toggle synthwave music
+  const toggleSound = () => {
+    try {
+      if (isPlaying) {
+        if (synthRef.current) {
+          synthRef.current.stop()
+          synthRef.current = null
+        }
         setIsPlaying(false)
-        setAudioStatus('⏸️ Paused')
+        setAudioStatus('🎵 Click for Music')
+      } else {
+        synthRef.current = new SynthwaveGenerator()
+        synthRef.current.start()
+        setIsPlaying(true)
+        setAudioStatus('🔊 Synthwave Playing')
       }
-    }
-    
-    audio.src = MUSIC_TRACKS[index]
-    audio.load()
-    audioRef.current = audio
-    setTrackIndex(index)
-  }
-
-  // Toggle sound - this is the user interaction that enables playback
-  const toggleSound = async () => {
-    if (!audioRef.current) {
-      setAudioStatus('Creating audio...')
-      createAudio(0)
-      return
-    }
-    
-    if (isPlaying) {
-      audioRef.current.pause()
-    } else {
-      setAudioStatus('Starting...')
-      try {
-        const playPromise = audioRef.current.play()
-        if (playPromise !== undefined) {
-          await playPromise
-        }
-      } catch (e) {
-        console.error('Play failed:', e.name, e.message)
-        setAudioStatus(`❌ ${e.name}: ${e.message}`)
-        // Try next track on error
-        if (trackIndex < MUSIC_TRACKS.length - 1) {
-          createAudio(trackIndex + 1)
-        }
-      }
+    } catch (e) {
+      console.error('Audio error:', e)
+      setAudioStatus(`❌ ${e.message}`)
     }
   }
 
