@@ -9,11 +9,11 @@ import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import './DemoShowcase.css'
 
-// Royalty-free synthwave/cyberpunk music URLs
+// Royalty-free synthwave/cyberpunk music URLs (multiple fallbacks)
 const MUSIC_TRACKS = [
+  'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3',
+  'https://file-examples.com/storage/feb05093336712e49e0b030/2017/11/file_example_MP3_700KB.mp3',
   'https://assets.mixkit.co/music/preview/mixkit-tech-house-vibes-130.mp3',
-  'https://assets.mixkit.co/music/preview/mixkit-driving-ambition-32.mp3',
-  'https://assets.mixkit.co/music/preview/mixkit-hip-hop-02-738.mp3',
 ]
 
 const PHASES = [
@@ -32,43 +32,90 @@ export default function DemoShowcase({ isOpen, onClose }) {
   const [currentPhase, setCurrentPhase] = useState(0)
   const [progress, setProgress] = useState(0)
   const [isPlaying, setIsPlaying] = useState(false)
-  const [audioReady, setAudioReady] = useState(false)
+  const [audioStatus, setAudioStatus] = useState('Click to play')
+  const [trackIndex, setTrackIndex] = useState(0)
   const audioRef = useRef(null)
 
   // Initialize audio when demo opens
   useEffect(() => {
     if (isOpen && !audioRef.current) {
-      const audio = new Audio(MUSIC_TRACKS[0])
-      audio.volume = 0.4
-      audio.loop = true
-      audio.preload = 'auto'
-      audioRef.current = audio
-      setAudioReady(true)
+      createAudio(0)
     }
     
     return () => {
       if (!isOpen && audioRef.current) {
         audioRef.current.pause()
-        audioRef.current.currentTime = 0
         audioRef.current = null
-        setAudioReady(false)
         setIsPlaying(false)
+        setAudioStatus('Click to play')
       }
     }
   }, [isOpen])
 
+  const createAudio = (index) => {
+    if (index >= MUSIC_TRACKS.length) {
+      setAudioStatus('❌ No audio available')
+      return
+    }
+    
+    const audio = new Audio()
+    audio.volume = 0.5
+    audio.loop = true
+    audio.crossOrigin = 'anonymous'
+    
+    audio.oncanplaythrough = () => {
+      console.log('Audio ready:', MUSIC_TRACKS[index])
+      setAudioStatus('🎵 Ready - Click to play')
+    }
+    
+    audio.onerror = (e) => {
+      console.error('Audio error on track', index, ':', e)
+      setAudioStatus(`Trying backup track...`)
+      // Try next track
+      createAudio(index + 1)
+    }
+    
+    audio.onplay = () => {
+      setIsPlaying(true)
+      setAudioStatus('🔊 Playing')
+    }
+    
+    audio.onpause = () => {
+      if (audioRef.current) {
+        setIsPlaying(false)
+        setAudioStatus('⏸️ Paused')
+      }
+    }
+    
+    audio.src = MUSIC_TRACKS[index]
+    audio.load()
+    audioRef.current = audio
+    setTrackIndex(index)
+  }
+
   // Toggle sound - this is the user interaction that enables playback
   const toggleSound = async () => {
-    if (audioRef.current) {
-      if (isPlaying) {
-        audioRef.current.pause()
-        setIsPlaying(false)
-      } else {
-        try {
-          await audioRef.current.play()
-          setIsPlaying(true)
-        } catch (e) {
-          console.log('Audio play failed:', e)
+    if (!audioRef.current) {
+      setAudioStatus('Creating audio...')
+      createAudio(0)
+      return
+    }
+    
+    if (isPlaying) {
+      audioRef.current.pause()
+    } else {
+      setAudioStatus('Starting...')
+      try {
+        const playPromise = audioRef.current.play()
+        if (playPromise !== undefined) {
+          await playPromise
+        }
+      } catch (e) {
+        console.error('Play failed:', e.name, e.message)
+        setAudioStatus(`❌ ${e.name}: ${e.message}`)
+        // Try next track on error
+        if (trackIndex < MUSIC_TRACKS.length - 1) {
+          createAudio(trackIndex + 1)
         }
       }
     }
@@ -127,8 +174,9 @@ export default function DemoShowcase({ isOpen, onClose }) {
         <button 
           className={`demo-sound ${isPlaying ? 'playing' : ''}`} 
           onClick={toggleSound}
+          title={audioStatus}
         >
-          {isPlaying ? '🔊 Playing' : '🎵 Play Music'}
+          {audioStatus}
         </button>
         <button className="demo-skip" onClick={onClose}>
           Skip Demo →

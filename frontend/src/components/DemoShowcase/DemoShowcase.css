@@ -58,6 +58,7 @@
 }
 
 .demo-sound {
+  min-width: 160px;
   background: linear-gradient(135deg, rgba(123, 47, 255, 0.3), rgba(0, 212, 255, 0.3));
   border-color: rgba(123, 47, 255, 0.5);
   animation: pulse-sound 2s ease-in-out infinite;
@@ -67,6 +68,7 @@
   background: linear-gradient(135deg, rgba(0, 255, 100, 0.3), rgba(0, 212, 255, 0.3));
   border-color: rgba(0, 255, 100, 0.5);
   animation: none;
+  color: #00ff64;
 }
 
 @keyframes pulse-sound {
