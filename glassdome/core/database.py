@@ -44,6 +44,7 @@ async def init_db():
     from glassdome.reaper.exploit_library import Exploit, ExploitMission, MissionLog, ValidationResult
     from glassdome.reaper.hot_spare import HotSpare
     from glassdome.networking.models import NetworkDefinition, PlatformNetworkMapping, VMInterface, DeployedVM
+    from glassdome.whitepawn.models import WhitePawnDeployment, NetworkAlert, MonitoringEvent, ConnectivityMatrix
     
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)

@@ -26,6 +26,7 @@ from glassdome.api.platforms import router as platforms_router
 from glassdome.api.reaper import router as reaper_router
 from glassdome.api.whiteknight import router as whiteknight_router
 from glassdome.api.networks import router as networks_router
+from glassdome.api.whitepawn import router as whitepawn_router
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -53,6 +54,7 @@ app.include_router(platforms_router)  # Platform status API
 app.include_router(reaper_router)  # Reaper exploit library & missions
 app.include_router(whiteknight_router)  # WhiteKnight validation engine
 app.include_router(networks_router)  # Network management
+app.include_router(whitepawn_router)  # WhitePawn continuous monitoring
 
 
 # Startup and shutdown events
@@ -79,6 +81,24 @@ async def startup_event():
     except Exception as e:
         logger.warning(f"Could not start Hot Spare Pool Manager: {e}")
     
+    # Start Network Reconciler (checks DB state vs platform state every 30s)
+    try:
+        from glassdome.networking.reconciler import get_network_reconciler
+        reconciler = get_network_reconciler(interval=30)
+        await reconciler.start()
+        logger.info("Network Reconciler started - monitoring state drift")
+    except Exception as e:
+        logger.warning(f"Could not start Network Reconciler: {e}")
+    
+    # Start WhitePawn Orchestrator (continuous network monitoring)
+    try:
+        from glassdome.whitepawn.orchestrator import get_whitepawn_orchestrator
+        whitepawn = get_whitepawn_orchestrator()
+        await whitepawn.start()
+        logger.info("WhitePawn Orchestrator started - network monitoring active")
+    except Exception as e:
+        logger.warning(f"Could not start WhitePawn Orchestrator: {e}")
+    
     # Start agent manager in background
     # asyncio.create_task(agent_manager.start())
 
@@ -97,6 +117,24 @@ async def shutdown_event():
         logger.info("Hot Spare Pool Manager stopped")
     except Exception as e:
         logger.warning(f"Error stopping Hot Spare Pool Manager: {e}")
+    
+    # Stop Network Reconciler
+    try:
+        from glassdome.networking.reconciler import get_network_reconciler
+        reconciler = get_network_reconciler()
+        await reconciler.stop()
+        logger.info("Network Reconciler stopped")
+    except Exception as e:
+        logger.warning(f"Error stopping Network Reconciler: {e}")
+    
+    # Stop WhitePawn Orchestrator
+    try:
+        from glassdome.whitepawn.orchestrator import get_whitepawn_orchestrator
+        whitepawn = get_whitepawn_orchestrator()
+        await whitepawn.stop()
+        logger.info("WhitePawn Orchestrator stopped")
+    except Exception as e:
+        logger.warning(f"Error stopping WhitePawn Orchestrator: {e}")
     
     await agent_manager.stop()
 
