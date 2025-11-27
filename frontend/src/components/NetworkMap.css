@@ -1,0 +1,34 @@
+.network-map-container {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 400px;
+  background: linear-gradient(180deg, #0a0e1a 0%, #0d1220 100%);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.network-map-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.no-targets-overlay {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  color: #666;
+  font-size: 1.1rem;
+}
+
+.no-targets-overlay .hint {
+  font-size: 0.85rem;
+  color: #444;
+}
+
