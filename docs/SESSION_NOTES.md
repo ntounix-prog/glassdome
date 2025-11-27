@@ -1,198 +1,161 @@
 # Glassdome Session Notes
 
-## Session: 2025-11-26 (Hot Spare Pool & WhiteKnight)
+## Session: 2025-11-27 (Distributed Worker Architecture & Simplified Networking)
 
 ### Summary
-Major feature session implementing Hot Spare VM Pool, WhiteKnight validation engine, mission history with SQL storage, and VM destroy functionality.
+Major architecture session implementing distributed Celery workers, simplified lab networking (CIDR-driven auto-configuration), and pfSense integration planning. Pivoted from complex Docker container builds to simpler native Python workers.
 
 ---
 
 ## Completed Work
 
-### 1. Hot Spare Pool System ✨ NEW
-**Pre-provisioned VM pool for instant Reaper missions**
+### 1. Distributed Worker Architecture ✨ NEW
+**Celery + Redis task queue for parallel lab deployments**
 
 **Architecture:**
 ```
-Pool Manager (Guardian Process)
-       │
-       ├── Maintains min 3 ready spares
-       ├── Auto-provisions replacements
-       ├── Health checks every 30 seconds
-       └── Auto-starts on backend startup
+┌─────────────────────────────────────────────────────────────────┐
+│                    Glassdome Distributed System                  │
+│                                                                  │
+│  ┌─────────────────┐                                            │
+│  │  Redis (Docker) │ ← Task Queue (localhost:6379)             │
+│  └────────┬────────┘                                            │
+│           │                                                      │
+│  ┌────────┴────────────────────────────────────────────────┐    │
+│  │              Python Celery Workers                       │    │
+│  │                                                          │    │
+│  │  orchestrator@agentX .... 8 threads (deploy/config)     │    │
+│  │  reaper-1@agentX ........ 4 threads (inject/exploit)    │    │
+│  │  reaper-2@agentX ........ 4 threads (inject/exploit)    │    │
+│  │  whiteknight-1@agentX ... 4 threads (validate/test)     │    │
+│  │                                                          │    │
+│  │  Total Capacity: 20+ parallel tasks                      │    │
+│  └──────────────────────────────────────────────────────────┘    │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
-**Features:**
-- Atomic spare acquisition (`SELECT FOR UPDATE SKIP LOCKED`)
-- Immediate replacement dispatch when spare acquired
-- Configurable pool size (min: 3, max: 6)
-- IP range: 192.168.3.100 - 192.168.3.120
-- Ubuntu cloud-init templates with qemu-guest-agent
-- VM renaming to `reaper-{hash}` on acquisition
-
-**API Endpoints:**
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/api/reaper/pool/status` | GET | Pool statistics and spare list |
-| `/api/reaper/pool/start` | POST | Start pool manager |
-| `/api/reaper/pool/stop` | POST | Stop pool manager |
-| `/api/reaper/pool/provision` | POST | Manually provision spare |
-
-**Database Table:** `hot_spares`
+**Key Features:**
+- Native Python workers (no Docker build required!)
+- Celery task queue with Redis backend
+- Parallel VM deployments via `celery group()`
+- Automatic VLAN attachment for isolated network access
+- JSON structured logging for debugging
 
 **Files Created:**
-- `glassdome/reaper/hot_spare.py` - HotSpare model + HotSparePoolManager
+- `glassdome/workers/__init__.py` - Worker package init
+- `glassdome/workers/celery_app.py` - Celery configuration
+- `glassdome/workers/orchestrator.py` - Lab deployment tasks
+- `glassdome/workers/reaper.py` - Vulnerability injection tasks  
+- `glassdome/workers/whiteknight.py` - Validation tasks
+- `glassdome/workers/whitepawn_monitor.py` - Continuous monitoring
+- `glassdome/workers/logging_config.py` - Structured JSON logging
+- `glassdome/api/container_dispatch.py` - Dispatch API
+- `scripts/start_workers.sh` - Worker fleet management
 
-### 2. WhiteKnight Validation Engine ✨ NEW
-**Automated post-injection vulnerability verification**
-
-**Architecture:**
-```
-WhiteKnight Container (Docker)
-       │
-       ├── SSH credential tests
-       ├── Network scans
-       ├── Web vulnerability checks
-       └── Privilege escalation detection
-```
-
-**Security Control:**
-- **ONLY targets deployed Reaper missions**
-- Validates mission_id + IP match before testing
-- Prevents misuse as attack tool
-
-**Test Categories:**
-| Category | Tests |
-|----------|-------|
-| Connectivity | ping, port scan |
-| Credentials | SSH, MySQL, PostgreSQL, Redis, SMB |
-| Network | SMB anonymous, SNMP public, Redis open |
-| Web | HTTP methods, directory listing, security headers |
-| Privilege Escalation | sudo NOPASSWD, SUID binaries, docker group |
-
-**API Endpoints:**
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/api/whiteknight/status` | GET | Container status |
-| `/api/whiteknight/tests` | GET | Available tests by category |
-| `/api/whiteknight/validate` | POST | Run validation tests |
-| `/api/whiteknight/logs` | GET | Container logs |
-
-**UI Features:**
-- Test Runner with mission selector dropdown
-- Only shows deployed Reaper missions
-- Real-time test results with evidence
-- Validation history tab (stored in SQL)
-
-**Files Created:**
-- `glassdome/api/whiteknight.py` - WhiteKnight API router
-- `glassdome/whiteknight/client.py` - Docker integration
-- `frontend/src/pages/WhiteKnightDesign.jsx` - Full React UI
-- `frontend/src/styles/WhiteKnightDesign.css` - Dark theme styling
-- `whiteknight/Dockerfile` - Ubuntu-based container with tools
-- `whiteknight/agent/main.py` - Container entry point
-
-### 3. Mission History & Logs (SQL Storage) ✨ NEW
-**Persistent mission tracking with 2-week retention**
-
-**New Database Tables:**
-
-**`mission_logs`:**
-- mission_id (FK)
-- level (DEBUG, INFO, WARNING, ERROR)
-- message, details (JSON)
-- step, exploit_id
-- timestamp
-
-**`validation_results`:**
-- mission_id (FK)
-- test_name, test_type
-- status (success, failed, error)
-- message, evidence
-- target_ip, duration_ms
-- validated_at
-
-**API Endpoints:**
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/api/reaper/missions/{id}/logs` | GET | Mission log entries |
-| `/api/reaper/missions/{id}/validations` | GET | WhiteKnight results |
-| `/api/reaper/history` | GET | Mission history with summaries |
-| `/api/reaper/history/cleanup` | DELETE | Purge old missions (14 days) |
-
-### 4. VM Destroy Functionality ✨ NEW
-**Destroy mission VMs from Deployments page**
-
-**Features:**
-- Confirmation dialog before destroy
-- Stops VM, waits 5 seconds, then deletes
-- Updates mission status to "destroyed"
-- Works with Proxmox API
-
-**API Endpoint:**
-```
-DELETE /api/reaper/missions/{mission_id}/destroy
-```
-
-### 5. Exploit Script Fixes
-**Ubuntu 22.04 cloud-init compatibility**
-
-**Issue:** Cloud images have `/etc/ssh/sshd_config.d/60-cloudimg-settings.conf` that sets `PasswordAuthentication no`
-
-**Fix:** Updated weak-ssh-password exploit to:
-- Overwrite `60-cloudimg-settings.conf` instead of adding new file
-- Create vulnuser with password authentication
-- Properly restart SSH service
-
-### 6. Auto-Start Pool Manager
-**Guardian process starts on backend startup**
-
-Added to `glassdome/main.py`:
-- `startup_event()` - Starts HotSparePoolManager
-- `shutdown_event()` - Stops HotSparePoolManager gracefully
-
----
-
-## Previous Session: 2025-11-26 (Portability Refactor)
-
-### Summary
-Major refactor to make the codebase fully portable - can now run from any directory (e.g., `/opt/glassdome`) without hardcoded paths.
-
----
-
-## Completed Work
-
-### 1. Centralized Path Management
-**New file: `glassdome/core/paths.py`**
-
-All paths in the application now derive from a single source of truth:
-- `PROJECT_ROOT` - Auto-detected from module location
-- `GLASSDOME_DATA_DIR` - Overridable via environment variable
-- `SECRETS_DIR` - Now in `PROJECT_ROOT/.secrets/` (not `~/.glassdome/`)
-- `LOGS_DIR`, `RAG_INDEX_DIR`, `ENV_FILE` - All centralized
-
-**Environment Variable Override:**
+**Startup Script:**
 ```bash
-export GLASSDOME_ROOT=/opt/glassdome
-export GLASSDOME_DATA_DIR=/opt/glassdome
+./scripts/start_workers.sh start   # Start all workers
+./scripts/start_workers.sh status  # Check worker status
+./scripts/start_workers.sh stop    # Stop all workers
 ```
 
-### 2. Files Updated
-| File | Change |
-|------|--------|
-| `glassdome/core/secrets.py` | Use `SECRETS_DIR`, `MASTER_KEY_PATH` |
-| `glassdome/core/session.py` | Use `SESSION_CACHE_PATH`, `SESSION_KEY_PATH` |
-| `glassdome/core/config.py` | Use `ENV_FILE` for .env loading |
-| `glassdome/api/secrets_web.py` | Replace all `Path.home()` references |
-| `glassdome/knowledge/*.py` | Use `PROJECT_ROOT`, `RAG_INDEX_DIR` |
-| `glassdome/overseer/state.py` | Use `OVERSEER_STATE_FILE` |
-| `scripts/network_discovery/*.py` | Use `PROJECT_ROOT` for output files |
+**API Endpoints:**
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/dispatch/health` | GET | Worker fleet health check |
+| `/api/dispatch/lab` | POST | Dispatch lab deployment |
+| `/api/dispatch/mission` | POST | Dispatch Reaper mission |
+| `/api/dispatch/validate` | POST | Dispatch WhiteKnight validation |
+| `/api/dispatch/task/{id}` | GET | Get task status |
 
-### 3. Migration Steps Completed
-1. Created `.secrets/` directory in project root
-2. Migrated existing secrets from `~/.glassdome/`
-3. Added `.secrets/` to `.gitignore`
-4. Tested running from `/opt/glassdome` - **SUCCESS**
+### 2. Simplified Lab Networking ✨ NEW
+**CIDR-driven auto-configuration for lab networks**
+
+**User Experience:**
+```
+User: Drag 3 Ubuntu + 1 Network Hub → Click Deploy
+
+System automatically:
+1. Picks available VLAN (100-170)
+2. Creates bridge vmbr{vlan}
+3. Assigns 192.168.{vlan}.0/24 CIDR
+4. Configures gateway at .1
+5. Assigns VM IPs: .10, .11, .12...
+```
+
+**Key Changes:**
+- Removed manual CIDR/VLAN configuration from Canvas UI
+- Single "Lab Network" element - system handles the rest
+- VLAN pool: 100-170 (70 possible isolated labs)
+- VMs get only lab network (no management NIC)
+
+**Network Derivation:**
+```python
+VLAN 142 → {
+    "cidr": "192.168.142.0/24",
+    "gateway": "192.168.142.1", 
+    "bridge": "vmbr142",
+    "vm_ips": ["192.168.142.10", ".11", ".12", ...]
+}
+```
+
+### 3. pfSense Integration (Planned) ✨ NEW
+**Firewall/DHCP at the edge of each lab**
+
+**Architecture:**
+```
+┌────────────────────────────────────────────┐
+│              Lab VLAN 142                  │
+│                                            │
+│   ┌────────┐  ┌────────┐  ┌────────┐      │
+│   │Ubuntu  │  │Ubuntu  │  │ Kali   │      │
+│   │  .10   │  │  .11   │  │  .12   │      │
+│   └───┬────┘  └───┬────┘  └───┬────┘      │
+│       └───────────┼───────────┘            │
+│                   │                        │
+│            ┌──────┴──────┐                 │
+│            │   pfSense   │ ← Gateway       │
+│            │     .1      │   DHCP          │
+│            │             │   Firewall      │
+│            └──────┬──────┘                 │
+└───────────────────┼────────────────────────┘
+                    │ BLOCKED (no escape!)
+```
+
+**Features Added:**
+- pfSense added to Canvas palette (🛡️)
+- pfSense gets gateway IP (.1) automatically
+- Deployed first in lab sequence
+- Template ID 9020 (needs creation on Proxmox)
+
+### 4. Docker Compose Infrastructure (Prepared)
+**Container definitions ready for production**
+
+**Files Created:**
+- `docker-compose.yml` - Full 16-container fleet
+- `docker-compose.minimal.yml` - Redis + orchestrator only
+- `containers/orchestrator/Dockerfile` - Base worker image
+- `containers/orchestrator/entrypoint.sh` - Mode switching
+- `containers/reaper/Dockerfile` - Reaper worker
+- `containers/whiteknight/Dockerfile` - WhiteKnight worker
+- `containers/whitepawn/Dockerfile` - WhitePawn monitor
+- `containers/env.template` - Environment template
+
+**Note:** Docker builds were complex; pivoted to native Python workers for dev. Docker containers ready for production deployment.
+
+---
+
+## Previous Session: 2025-11-26 (Hot Spare Pool & WhiteKnight)
+
+### Summary
+Implemented Hot Spare VM Pool, WhiteKnight validation engine, mission history with SQL storage, and VM destroy functionality.
+
+### Key Features:
+- Hot Spare Pool with 3 pre-provisioned VMs
+- WhiteKnight container for vulnerability validation
+- Mission logs stored in SQL (2-week retention)
+- VM destroy from Deployments page
+- Pool manager auto-starts on backend startup
 
 ---
 
@@ -204,7 +167,16 @@ export GLASSDOME_DATA_DIR=/opt/glassdome
 | Backend API | 8011 | ✅ Running |
 | Frontend | 5174 | ✅ Running |
 | PostgreSQL | 5432 | ✅ Running (192.168.3.26) |
-| WhiteKnight | Docker | ✅ Available |
+| Redis | 6379 | ✅ Running (Docker) |
+| Celery Workers | - | ✅ 5 workers online |
+
+### Worker Fleet
+| Worker | Concurrency | Queues |
+|--------|-------------|--------|
+| orchestrator@agentX | 8 | deploy, configure, network |
+| reaper-1@agentX | 4 | inject, exploit |
+| reaper-2@agentX | 4 | inject, exploit |
+| whiteknight-1@agentX | 4 | validate, test |
 
 ### Platform Connections
 | Platform | Status | Details |
@@ -214,93 +186,100 @@ export GLASSDOME_DATA_DIR=/opt/glassdome
 | ESXi | ✅ Connected | 192.168.215.76 |
 | Azure | ✅ Connected | glassdome-rg |
 
-### Hot Spare Pool
-| Status | Count |
-|--------|-------|
-| Ready | 3 |
-| In Use | 0 |
-| Provisioning | 0 |
-
 ---
 
 ## Files Created This Session
 
 ```
-# Hot Spare Pool
-glassdome/reaper/hot_spare.py
+# Distributed Workers
+glassdome/workers/__init__.py
+glassdome/workers/celery_app.py
+glassdome/workers/orchestrator.py
+glassdome/workers/reaper.py
+glassdome/workers/whiteknight.py
+glassdome/workers/whitepawn_monitor.py
+glassdome/workers/logging_config.py
 
-# WhiteKnight System
-glassdome/api/whiteknight.py
-glassdome/whiteknight/__init__.py
-glassdome/whiteknight/client.py
-frontend/src/pages/WhiteKnightDesign.jsx
-frontend/src/styles/WhiteKnightDesign.css
-whiteknight/Dockerfile
-whiteknight/docker-compose.yml
-whiteknight/requirements.txt
-whiteknight/agent/__init__.py
-whiteknight/agent/main.py
-whiteknight/TOOLS.md
+# API
+glassdome/api/container_dispatch.py
+
+# Scripts
+scripts/start_workers.sh
+
+# Docker (prepared for production)
+docker-compose.yml
+docker-compose.minimal.yml
+containers/orchestrator/Dockerfile
+containers/orchestrator/entrypoint.sh
+containers/reaper/Dockerfile
+containers/whiteknight/Dockerfile
+containers/whitepawn/Dockerfile
+containers/env.template
 ```
 
 ## Files Modified This Session
 
 ```
-glassdome/main.py                    # Auto-start pool manager
-glassdome/core/database.py           # MissionLog, ValidationResult tables
-glassdome/reaper/exploit_library.py  # MissionLog, ValidationResult models
-glassdome/api/reaper.py              # Destroy endpoint, history endpoints
-glassdome/platforms/proxmox_client.py # VM rename support
-frontend/src/App.jsx                 # WhiteKnight route
-frontend/src/pages/Dashboard.jsx     # WhiteKnight link
-frontend/src/pages/Deployments.jsx   # Destroy button
-frontend/src/pages/ReaperDesign.jsx  # Template ID support
-frontend/src/styles/Dashboard.css    # WhiteKnight styling
-frontend/src/styles/Deployments.css  # Compact cards
-requirements.txt                     # asyncssh dependency
+glassdome/main.py                    # Added dispatch_router
+glassdome/api/canvas_deploy.py       # VLAN auto-allocation, pfSense support
+frontend/src/pages/LabCanvas.jsx     # Simplified networking, pfSense palette
 ```
 
 ---
 
 ## Testing Commands
 
-### Hot Spare Pool
+### Worker Fleet
 ```bash
-# Pool status
-curl http://localhost:8011/api/reaper/pool/status
+# Start all workers
+./scripts/start_workers.sh start
 
-# Start pool manager
-curl -X POST http://localhost:8011/api/reaper/pool/start
+# Check status
+./scripts/start_workers.sh status
 
-# Manually provision spare
-curl -X POST http://localhost:8011/api/reaper/pool/provision
+# Stop all workers
+./scripts/start_workers.sh stop
+
+# Health check via API
+curl http://localhost:8011/api/dispatch/health | jq
 ```
 
-### WhiteKnight
+### Deploy Lab via Dispatch
 ```bash
-# Container status
-curl http://localhost:8011/api/whiteknight/status
-
-# Available tests
-curl http://localhost:8011/api/whiteknight/tests
-
-# Run validation (requires valid mission)
-curl -X POST http://localhost:8011/api/whiteknight/validate \
+# Queue lab deployment
+curl -X POST http://localhost:8011/api/dispatch/lab \
   -H "Content-Type: application/json" \
-  -d '{"mission_id": "mission-xxx", "target_ip": "192.168.3.100", "tests": ["ssh_creds"]}'
+  -d '{
+    "lab_id": "test-lab-001",
+    "lab_data": {"nodes": [...], "edges": [...]},
+    "platform_id": "1"
+  }'
+
+# Check task status
+curl http://localhost:8011/api/dispatch/task/{task_id}
 ```
 
-### Mission Management
-```bash
-# Mission history
-curl http://localhost:8011/api/reaper/history
+---
 
-# Mission logs
-curl http://localhost:8011/api/reaper/missions/{id}/logs
+## Architecture Decisions
 
-# Destroy mission VM
-curl -X DELETE http://localhost:8011/api/reaper/missions/{id}/destroy
-```
+### Why Native Workers vs Docker Containers?
+
+| Approach | Pros | Cons |
+|----------|------|------|
+| **Native Workers** | No build time, easy debug, same code | Less isolation |
+| **Docker Containers** | Isolated, production-ready | Build complexity, 16 containers |
+
+**Decision:** Use native workers for development, Docker for production.
+
+### Why CIDR-Driven Networking?
+
+| Approach | Pros | Cons |
+|----------|------|------|
+| **Manual Config** | Full control | Error-prone, slow |
+| **CIDR-Driven** | Zero config, fast | Less flexibility |
+
+**Decision:** Auto-derive everything from CIDR for 90% use case. Manual config can be added later.
 
 ---
 
@@ -309,22 +288,18 @@ curl -X DELETE http://localhost:8011/api/reaper/missions/{id}/destroy
 | Version | Features |
 |---------|----------|
 | v0.3.0 | MVP - Protected on main |
-| v0.4.0 | Hot Spare Pool + WhiteKnight + Mission History ← **CURRENT** |
-| v0.5.0 | Network tracking |
+| v0.4.0 | Hot Spare Pool + WhiteKnight + Mission History |
+| v0.4.1 | Distributed Workers + Simplified Networking ← **CURRENT** |
+| v0.5.0 | Network orchestration + pfSense integration |
 | v0.6.0 | Cross-platform migration |
 | v1.0.0 | Production with auth |
 
 ---
 
-## Merge Checklist
+## Next Steps
 
-- [x] Hot Spare Pool working
-- [x] WhiteKnight validation working
-- [x] Mission history stored in SQL
-- [x] VM destroy functionality
-- [x] Pool manager auto-starts
-- [x] Exploit scripts fixed for Ubuntu 22.04
-- [x] All tests passing
-- [ ] Merge develop → main
-- [ ] Tag v0.4.0
-- [ ] Deploy to production
+1. [ ] Create pfSense template on Proxmox (VMID 9020)
+2. [ ] Test full lab deployment with distributed workers
+3. [ ] Implement VLAN bridge creation on Proxmox
+4. [ ] Add WhitePawn continuous monitoring to worker fleet
+5. [ ] Merge to main and tag v0.4.1

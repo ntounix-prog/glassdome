@@ -1,0 +1,40 @@
+version: '3.8'
+
+# Minimal Glassdome Fleet - Just Redis + Orchestrator
+# Start here, scale up once it works
+
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: glassdome-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    networks:
+      - glassdome
+
+  orchestrator:
+    build:
+      context: .
+      dockerfile: containers/orchestrator/Dockerfile
+    container_name: glassdome-orchestrator
+    restart: unless-stopped
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - DATABASE_URL=${DATABASE_URL}
+      - GLASSDOME_MODE=orchestrator
+      - WORKER_CONCURRENCY=8
+      - PROXMOX_HOST=${PROXMOX_HOST}
+      - PROXMOX_USER=${PROXMOX_USER}
+      - PROXMOX_PASSWORD=${PROXMOX_PASSWORD}
+      - LOG_LEVEL=INFO
+    depends_on:
+      - redis
+    volumes:
+      - ./logs:/app/logs
+    networks:
+      - glassdome
+
+networks:
+  glassdome:
+    driver: bridge

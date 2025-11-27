@@ -5,36 +5,56 @@ import './NetworkMap.css'
  * NetworkMap - PewPew-style network visualization
  * 
  * Shows real-time traffic between VMs in a lab network.
+ * Hub-and-spoke topology with central network switch.
  * Animated beams show ping activity, color-coded by latency.
  */
-function NetworkMap({ matrix, targets, labId }) {
+function NetworkMap({ matrix, targets, labId, networkName }) {
   const canvasRef = useRef(null)
   const animationRef = useRef(null)
   const [dimensions, setDimensions] = useState({ width: 800, height: 500 })
   const nodesRef = useRef([])
+  const hubRef = useRef(null)
   const beamsRef = useRef([])
 
-  // Calculate node positions in a circle layout
+  // Calculate node positions in a circle around central hub
   const calculateNodePositions = useCallback((nodes, width, height) => {
     const centerX = width / 2
     const centerY = height / 2
     const radius = Math.min(width, height) * 0.35
     
+    // Create central hub/switch node
+    hubRef.current = {
+      id: 'hub',
+      name: networkName || 'Network Switch',
+      type: 'hub',
+      x: centerX,
+      y: centerY,
+      radius: 35,
+      status: 'online',
+      pulsePhase: 0
+    }
+    
+    // Position VM nodes around the hub
     return nodes.map((node, index) => {
       const angle = (2 * Math.PI * index) / nodes.length - Math.PI / 2
       return {
         ...node,
+        type: 'vm',
         x: centerX + radius * Math.cos(angle),
         y: centerY + radius * Math.sin(angle),
         radius: 25,
         pulsePhase: Math.random() * Math.PI * 2
       }
     })
-  }, [])
+  }, [networkName])
 
   // Initialize nodes when targets change
   useEffect(() => {
-    if (!targets || targets.length === 0) return
+    if (!targets || targets.length === 0) {
+      nodesRef.current = []
+      hubRef.current = null
+      return
+    }
     
     const nodeData = targets.map(t => ({
       ip: t.ip || t,
@@ -63,41 +83,49 @@ function NetworkMap({ matrix, targets, labId }) {
     })
   }, [matrix])
 
-  // Create beam between two nodes
+  // Create beam between node and hub (and optionally to another node)
   const createBeam = useCallback((sourceNode, targetNode, latency) => {
     const color = getLatencyColor(latency)
+    const hub = hubRef.current
+    
     return {
-      id: `${sourceNode.ip}-${targetNode.ip}-${Date.now()}`,
+      id: `${sourceNode.ip}-${targetNode?.ip || 'hub'}-${Date.now()}`,
       source: sourceNode,
+      hub: hub,
       target: targetNode,
       progress: 0,
+      phase: 'to-hub', // 'to-hub' then 'from-hub'
       color,
       latency,
       createdAt: Date.now()
     }
   }, [])
 
-  // Generate random beams to simulate traffic
+  // Generate random beams to simulate traffic (through hub)
   useEffect(() => {
-    if (nodesRef.current.length < 2) return
+    if (nodesRef.current.length < 1 || !hubRef.current) return
     
     const beamInterval = setInterval(() => {
       const onlineNodes = nodesRef.current.filter(n => n.status === 'online')
-      if (onlineNodes.length < 2) return
+      if (onlineNodes.length < 1) return
       
-      // Create 1-3 random beams
-      const numBeams = Math.floor(Math.random() * 3) + 1
+      // Create 1-2 random beams
+      const numBeams = Math.floor(Math.random() * 2) + 1
       for (let i = 0; i < numBeams; i++) {
         const sourceIdx = Math.floor(Math.random() * onlineNodes.length)
-        let targetIdx = Math.floor(Math.random() * onlineNodes.length)
-        while (targetIdx === sourceIdx) {
-          targetIdx = Math.floor(Math.random() * onlineNodes.length)
+        const source = onlineNodes[sourceIdx]
+        
+        // Sometimes just ping the hub, sometimes go to another node
+        let target = null
+        if (onlineNodes.length > 1 && Math.random() > 0.3) {
+          let targetIdx = Math.floor(Math.random() * onlineNodes.length)
+          while (targetIdx === sourceIdx) {
+            targetIdx = Math.floor(Math.random() * onlineNodes.length)
+          }
+          target = onlineNodes[targetIdx]
         }
         
-        const source = onlineNodes[sourceIdx]
-        const target = onlineNodes[targetIdx]
-        const latency = source.latency || target.latency || Math.random() * 50
-        
+        const latency = source.latency || (target?.latency) || Math.random() * 50
         beamsRef.current.push(createBeam(source, target, latency))
       }
       
@@ -105,7 +133,7 @@ function NetworkMap({ matrix, targets, labId }) {
       if (beamsRef.current.length > 50) {
         beamsRef.current = beamsRef.current.slice(-30)
       }
-    }, 500)
+    }, 600)
     
     return () => clearInterval(beamInterval)
   }, [createBeam])
@@ -129,22 +157,43 @@ function NetworkMap({ matrix, targets, labId }) {
       // Draw grid
       drawGrid(ctx, dimensions.width, dimensions.height)
       
-      // Draw connections (faint lines between all nodes)
-      drawConnections(ctx, nodesRef.current)
+      // Draw connections (spoke lines from hub to each node)
+      if (hubRef.current) {
+        drawHubConnections(ctx, hubRef.current, nodesRef.current)
+      }
       
       // Update and draw beams
       beamsRef.current = beamsRef.current.filter(beam => {
-        beam.progress += (deltaTime / 1000) * 2 // 0.5 second travel time
+        const speed = 3 // Faster travel
+        beam.progress += (deltaTime / 1000) * speed
         
-        if (beam.progress >= 1) {
-          return false // Remove completed beams
+        if (beam.phase === 'to-hub') {
+          if (beam.progress >= 1) {
+            if (beam.target) {
+              // Continue to target
+              beam.phase = 'from-hub'
+              beam.progress = 0
+            } else {
+              return false // Just hub ping, done
+            }
+          }
+        } else if (beam.phase === 'from-hub') {
+          if (beam.progress >= 1) {
+            return false // Completed full journey
+          }
         }
         
         drawBeam(ctx, beam)
         return true
       })
       
-      // Draw nodes
+      // Draw hub node
+      if (hubRef.current) {
+        hubRef.current.pulsePhase += deltaTime / 400
+        drawHubNode(ctx, hubRef.current, timestamp)
+      }
+      
+      // Draw VM nodes
       nodesRef.current.forEach(node => {
         node.pulsePhase += deltaTime / 500
         drawNode(ctx, node, timestamp)
@@ -222,18 +271,82 @@ function drawGrid(ctx, width, height) {
   }
 }
 
-function drawConnections(ctx, nodes) {
-  ctx.strokeStyle = 'rgba(100, 200, 255, 0.1)'
-  ctx.lineWidth = 1
+function drawHubConnections(ctx, hub, nodes) {
+  ctx.strokeStyle = 'rgba(100, 200, 255, 0.15)'
+  ctx.lineWidth = 2
   
-  for (let i = 0; i < nodes.length; i++) {
-    for (let j = i + 1; j < nodes.length; j++) {
-      ctx.beginPath()
-      ctx.moveTo(nodes[i].x, nodes[i].y)
-      ctx.lineTo(nodes[j].x, nodes[j].y)
-      ctx.stroke()
-    }
+  nodes.forEach(node => {
+    ctx.beginPath()
+    ctx.moveTo(hub.x, hub.y)
+    ctx.lineTo(node.x, node.y)
+    ctx.stroke()
+  })
+}
+
+function drawHubNode(ctx, hub, timestamp) {
+  const pulseSize = Math.sin(hub.pulsePhase) * 4
+  const baseRadius = hub.radius + pulseSize
+  
+  // Outer glow ring
+  const gradient = ctx.createRadialGradient(
+    hub.x, hub.y, baseRadius * 0.5,
+    hub.x, hub.y, baseRadius * 2.5
+  )
+  gradient.addColorStop(0, 'rgba(64, 196, 255, 0.4)')
+  gradient.addColorStop(0.5, 'rgba(64, 196, 255, 0.15)')
+  gradient.addColorStop(1, 'transparent')
+  
+  ctx.fillStyle = gradient
+  ctx.beginPath()
+  ctx.arc(hub.x, hub.y, baseRadius * 2.5, 0, Math.PI * 2)
+  ctx.fill()
+  
+  // Hub body (hexagon-ish shape for switch look)
+  ctx.fillStyle = 'rgba(30, 40, 60, 0.95)'
+  ctx.strokeStyle = '#40c4ff'
+  ctx.lineWidth = 3
+  
+  const sides = 6
+  ctx.beginPath()
+  for (let i = 0; i < sides; i++) {
+    const angle = (2 * Math.PI * i) / sides - Math.PI / 2
+    const x = hub.x + baseRadius * Math.cos(angle)
+    const y = hub.y + baseRadius * Math.sin(angle)
+    if (i === 0) ctx.moveTo(x, y)
+    else ctx.lineTo(x, y)
   }
+  ctx.closePath()
+  ctx.fill()
+  ctx.stroke()
+  
+  // Inner detail - port lights
+  const innerRadius = baseRadius * 0.5
+  for (let i = 0; i < 4; i++) {
+    const angle = (2 * Math.PI * i) / 4
+    const x = hub.x + innerRadius * Math.cos(angle)
+    const y = hub.y + innerRadius * Math.sin(angle)
+    
+    ctx.fillStyle = i % 2 === 0 ? '#00ff88' : '#40c4ff'
+    ctx.beginPath()
+    ctx.arc(x, y, 3, 0, Math.PI * 2)
+    ctx.fill()
+  }
+  
+  // Center icon (network symbol)
+  ctx.fillStyle = '#40c4ff'
+  ctx.beginPath()
+  ctx.arc(hub.x, hub.y, 5, 0, Math.PI * 2)
+  ctx.fill()
+  
+  // Label
+  ctx.font = 'bold 12px JetBrains Mono, monospace'
+  ctx.textAlign = 'center'
+  ctx.fillStyle = '#40c4ff'
+  ctx.fillText('⬡', hub.x, hub.y + 4) // Unicode hexagon as switch icon
+  
+  ctx.font = '11px JetBrains Mono, monospace'
+  ctx.fillStyle = '#fff'
+  ctx.fillText(hub.name, hub.x, hub.y + baseRadius + 25)
 }
 
 function drawNode(ctx, node, timestamp) {
@@ -265,11 +378,17 @@ function drawNode(ctx, node, timestamp) {
   ctx.fill()
   ctx.stroke()
   
-  // Inner highlight
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.1)'
-  ctx.beginPath()
-  ctx.arc(node.x - 5, node.y - 5, baseRadius * 0.4, 0, Math.PI * 2)
-  ctx.fill()
+  // Server icon (simple rectangle)
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.3)'
+  ctx.fillRect(node.x - 8, node.y - 6, 16, 12)
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)'
+  ctx.lineWidth = 1
+  ctx.strokeRect(node.x - 8, node.y - 6, 16, 12)
+  
+  // Server lines
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.6)'
+  ctx.fillRect(node.x - 5, node.y - 3, 10, 2)
+  ctx.fillRect(node.x - 5, node.y + 1, 10, 2)
   
   // Label
   ctx.font = '11px JetBrains Mono, monospace'
@@ -287,19 +406,30 @@ function drawNode(ctx, node, timestamp) {
 }
 
 function drawBeam(ctx, beam) {
-  const { source, target, progress, color } = beam
+  const { source, hub, target, progress, phase, color } = beam
+  
+  let startNode, endNode
+  if (phase === 'to-hub') {
+    startNode = source
+    endNode = hub
+  } else {
+    startNode = hub
+    endNode = target
+  }
+  
+  if (!startNode || !endNode) return
   
   // Calculate current position
-  const x = source.x + (target.x - source.x) * progress
-  const y = source.y + (target.y - source.y) * progress
+  const x = startNode.x + (endNode.x - startNode.x) * progress
+  const y = startNode.y + (endNode.y - startNode.y) * progress
   
   // Draw beam trail
-  const trailLength = 0.15
+  const trailLength = 0.2
   const trailStart = Math.max(0, progress - trailLength)
   
   const gradient = ctx.createLinearGradient(
-    source.x + (target.x - source.x) * trailStart,
-    source.y + (target.y - source.y) * trailStart,
+    startNode.x + (endNode.x - startNode.x) * trailStart,
+    startNode.y + (endNode.y - startNode.y) * trailStart,
     x, y
   )
   
@@ -311,8 +441,8 @@ function drawBeam(ctx, beam) {
   ctx.lineCap = 'round'
   ctx.beginPath()
   ctx.moveTo(
-    source.x + (target.x - source.x) * trailStart,
-    source.y + (target.y - source.y) * trailStart
+    startNode.x + (endNode.x - startNode.x) * trailStart,
+    startNode.y + (endNode.y - startNode.y) * trailStart
   )
   ctx.lineTo(x, y)
   ctx.stroke()
@@ -391,4 +521,3 @@ function getLatencyColor(latency) {
 }
 
 export default NetworkMap
-

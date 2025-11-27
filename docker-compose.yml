@@ -1,75 +1,394 @@
 version: '3.8'
 
+# Glassdome Container Fleet
+# =========================
+# Always-on orchestrators ready to deploy labs, inject vulns, validate, monitor
+
 services:
+  # ============================================================================
+  # Core Infrastructure
+  # ============================================================================
+  
+  redis:
+    image: redis:7-alpine
+    container_name: glassdome-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - glassdome-internal
+
+  # ============================================================================
+  # Glassdome Backend (API Server)
+  # ============================================================================
+  
   backend:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: containers/orchestrator/Dockerfile
     container_name: glassdome-backend
-    ports:
-      - "8001:8001"
-    environment:
-      - ENVIRONMENT=development
-      - PYTHONUNBUFFERED=1
-      # Pass environment variables for API keys
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
-      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
-      - XAI_API_KEY=${XAI_API_KEY}
-      - PERPLEXITY_API_KEY=${PERPLEXITY_API_KEY}
-    env_file:
-      - .env
-    volumes:
-      - ./glassdome:/app/glassdome
-      - ./frontend/dist:/app/frontend/dist
-      - ./configs:/app/configs
     restart: unless-stopped
-    networks:
-      - glassdome-network
-
-  frontend-dev:
-    image: node:20-alpine
-    container_name: glassdome-frontend
-    working_dir: /app
-    volumes:
-      - ./frontend:/app
-    ports:
-      - "5174:5174"
-    command: sh -c "npm install && npm run dev -- --host 0.0.0.0 --port 5174"
     environment:
-      - NODE_ENV=development
+      - REDIS_URL=redis://redis:6379/0
+      - DATABASE_URL=${DATABASE_URL}
+      - GLASSDOME_MODE=backend
+      - PROXMOX_HOST=${PROXMOX_HOST}
+      - PROXMOX_USER=${PROXMOX_USER}
+      - PROXMOX_PASSWORD=${PROXMOX_PASSWORD}
+    ports:
+      - "8011:8000"
+    depends_on:
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./logs:/app/logs
     networks:
-      - glassdome-network
-    profiles:
-      - dev
+      - glassdome-internal
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
-  # Uncomment to add PostgreSQL
-  # postgres:
-  #   image: postgres:16-alpine
-  #   container_name: glassdome-db
-  #   environment:
-  #     POSTGRES_USER: glassdome
-  #     POSTGRES_PASSWORD: glassdome
-  #     POSTGRES_DB: glassdome
-  #   volumes:
-  #     - postgres_data:/var/lib/postgresql/data
-  #   ports:
-  #     - "5432:5432"
-  #   networks:
-  #     - glassdome-network
+  # ============================================================================
+  # Orchestrator Workers (Always Running)
+  # ============================================================================
+  
+  # Lab Deployment Orchestrator (concurrency=8 for parallel VM deploys)
+  orchestrator:
+    build:
+      context: .
+      dockerfile: containers/orchestrator/Dockerfile
+    container_name: glassdome-orchestrator
+    restart: unless-stopped
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - DATABASE_URL=${DATABASE_URL}
+      - GLASSDOME_MODE=orchestrator
+      - WORKER_CONCURRENCY=8
+      - PROXMOX_HOST=${PROXMOX_HOST}
+      - PROXMOX_USER=${PROXMOX_USER}
+      - PROXMOX_PASSWORD=${PROXMOX_PASSWORD}
+    depends_on:
+      - redis
+      - backend
+    volumes:
+      - ./logs:/app/logs
+    networks:
+      - glassdome-internal
+    cap_add:
+      - NET_ADMIN
 
-  # Uncomment to add Redis
-  # redis:
-  #   image: redis:7-alpine
-  #   container_name: glassdome-redis
-  #   ports:
-  #     - "6379:6379"
-  #   networks:
-  #     - glassdome-network
+  # ============================================================================
+  # Reaper Workers (Vulnerability Injection) - 8 workers for parallel injection
+  # ============================================================================
+  
+  reaper-1:
+    build:
+      context: .
+      dockerfile: containers/reaper/Dockerfile
+    container_name: glassdome-reaper-1
+    restart: unless-stopped
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - DATABASE_URL=${DATABASE_URL}
+      - GLASSDOME_MODE=reaper
+      - WORKER_ID=reaper-1
+    depends_on:
+      - redis
+      - orchestrator
+    volumes:
+      - ./logs:/app/logs
+    networks:
+      - glassdome-internal
+    cap_add:
+      - NET_ADMIN
+
+  reaper-2:
+    build:
+      context: .
+      dockerfile: containers/reaper/Dockerfile
+    container_name: glassdome-reaper-2
+    restart: unless-stopped
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - DATABASE_URL=${DATABASE_URL}
+      - GLASSDOME_MODE=reaper
+      - WORKER_ID=reaper-2
+    depends_on:
+      - redis
+      - orchestrator
+    volumes:
+      - ./logs:/app/logs
+    networks:
+      - glassdome-internal
+    cap_add:
+      - NET_ADMIN
+
+  reaper-3:
+    build:
+      context: .
+      dockerfile: containers/reaper/Dockerfile
+    container_name: glassdome-reaper-3
+    restart: unless-stopped
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - DATABASE_URL=${DATABASE_URL}
+      - GLASSDOME_MODE=reaper
+      - WORKER_ID=reaper-3
+    depends_on:
+      - redis
+      - orchestrator
+    volumes:
+      - ./logs:/app/logs
+    networks:
+      - glassdome-internal
+    cap_add:
+      - NET_ADMIN
+
+  reaper-4:
+    build:
+      context: .
+      dockerfile: containers/reaper/Dockerfile
+    container_name: glassdome-reaper-4
+    restart: unless-stopped
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - DATABASE_URL=${DATABASE_URL}
+      - GLASSDOME_MODE=reaper
+      - WORKER_ID=reaper-4
+    depends_on:
+      - redis
+      - orchestrator
+    volumes:
+      - ./logs:/app/logs
+    networks:
+      - glassdome-internal
+    cap_add:
+      - NET_ADMIN
+
+  reaper-5:
+    build:
+      context: .
+      dockerfile: containers/reaper/Dockerfile
+    container_name: glassdome-reaper-5
+    restart: unless-stopped
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - DATABASE_URL=${DATABASE_URL}
+      - GLASSDOME_MODE=reaper
+      - WORKER_ID=reaper-5
+    depends_on:
+      - redis
+      - orchestrator
+    volumes:
+      - ./logs:/app/logs
+    networks:
+      - glassdome-internal
+    cap_add:
+      - NET_ADMIN
+
+  reaper-6:
+    build:
+      context: .
+      dockerfile: containers/reaper/Dockerfile
+    container_name: glassdome-reaper-6
+    restart: unless-stopped
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - DATABASE_URL=${DATABASE_URL}
+      - GLASSDOME_MODE=reaper
+      - WORKER_ID=reaper-6
+    depends_on:
+      - redis
+      - orchestrator
+    volumes:
+      - ./logs:/app/logs
+    networks:
+      - glassdome-internal
+    cap_add:
+      - NET_ADMIN
+
+  reaper-7:
+    build:
+      context: .
+      dockerfile: containers/reaper/Dockerfile
+    container_name: glassdome-reaper-7
+    restart: unless-stopped
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - DATABASE_URL=${DATABASE_URL}
+      - GLASSDOME_MODE=reaper
+      - WORKER_ID=reaper-7
+    depends_on:
+      - redis
+      - orchestrator
+    volumes:
+      - ./logs:/app/logs
+    networks:
+      - glassdome-internal
+    cap_add:
+      - NET_ADMIN
+
+  reaper-8:
+    build:
+      context: .
+      dockerfile: containers/reaper/Dockerfile
+    container_name: glassdome-reaper-8
+    restart: unless-stopped
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - DATABASE_URL=${DATABASE_URL}
+      - GLASSDOME_MODE=reaper
+      - WORKER_ID=reaper-8
+    depends_on:
+      - redis
+      - orchestrator
+    volumes:
+      - ./logs:/app/logs
+    networks:
+      - glassdome-internal
+    cap_add:
+      - NET_ADMIN
+
+  # ============================================================================
+  # WhiteKnight Workers (Vulnerability Validation)
+  # ============================================================================
+  
+  whiteknight-1:
+    build:
+      context: .
+      dockerfile: containers/whiteknight/Dockerfile
+    container_name: glassdome-whiteknight-1
+    restart: unless-stopped
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - DATABASE_URL=${DATABASE_URL}
+      - GLASSDOME_MODE=whiteknight
+      - WORKER_ID=whiteknight-1
+    depends_on:
+      - redis
+      - orchestrator
+    volumes:
+      - ./logs:/app/logs
+    networks:
+      - glassdome-internal
+    cap_add:
+      - NET_ADMIN
+
+  # ============================================================================
+  # WhitePawn Monitors (Continuous Network Monitoring) - 4 monitors
+  # ============================================================================
+  
+  whitepawn-1:
+    build:
+      context: .
+      dockerfile: containers/whitepawn/Dockerfile
+    container_name: glassdome-whitepawn-1
+    restart: unless-stopped
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - DATABASE_URL=${DATABASE_URL}
+      - GLASSDOME_MODE=whitepawn
+      - WORKER_ID=whitepawn-1
+      - MONITOR_INTERVAL=15
+    depends_on:
+      - redis
+      - orchestrator
+    volumes:
+      - ./logs:/app/logs
+    networks:
+      - glassdome-internal
+    cap_add:
+      - NET_ADMIN
+
+  whitepawn-2:
+    build:
+      context: .
+      dockerfile: containers/whitepawn/Dockerfile
+    container_name: glassdome-whitepawn-2
+    restart: unless-stopped
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - DATABASE_URL=${DATABASE_URL}
+      - GLASSDOME_MODE=whitepawn
+      - WORKER_ID=whitepawn-2
+      - MONITOR_INTERVAL=15
+    depends_on:
+      - redis
+      - orchestrator
+    volumes:
+      - ./logs:/app/logs
+    networks:
+      - glassdome-internal
+    cap_add:
+      - NET_ADMIN
+
+  whitepawn-3:
+    build:
+      context: .
+      dockerfile: containers/whitepawn/Dockerfile
+    container_name: glassdome-whitepawn-3
+    restart: unless-stopped
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - DATABASE_URL=${DATABASE_URL}
+      - GLASSDOME_MODE=whitepawn
+      - WORKER_ID=whitepawn-3
+      - MONITOR_INTERVAL=15
+    depends_on:
+      - redis
+      - orchestrator
+    volumes:
+      - ./logs:/app/logs
+    networks:
+      - glassdome-internal
+    cap_add:
+      - NET_ADMIN
+
+  whitepawn-4:
+    build:
+      context: .
+      dockerfile: containers/whitepawn/Dockerfile
+    container_name: glassdome-whitepawn-4
+    restart: unless-stopped
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - DATABASE_URL=${DATABASE_URL}
+      - GLASSDOME_MODE=whitepawn
+      - WORKER_ID=whitepawn-4
+      - MONITOR_INTERVAL=15
+    depends_on:
+      - redis
+      - orchestrator
+    volumes:
+      - ./logs:/app/logs
+    networks:
+      - glassdome-internal
+    cap_add:
+      - NET_ADMIN
+
+# ============================================================================
+# Networks
+# ============================================================================
 
 networks:
-  glassdome-network:
+  glassdome-internal:
     driver: bridge
+    ipam:
+      config:
+        - subnet: 172.30.0.0/24
 
-# volumes:
-#   postgres_data:
+# ============================================================================
+# Volumes
+# ============================================================================
 
+volumes:
+  redis_data:

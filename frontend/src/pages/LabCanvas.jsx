@@ -21,19 +21,12 @@ const elementTypes = {
     { id: 'metasploitable', name: 'Metasploitable', type: 'vulnerable', icon: '🎯', os: 'linux' },
     { id: 'ubuntu', name: 'Ubuntu Server', type: 'base', icon: '🖥️', os: 'linux' },
     { id: 'windows', name: 'Windows Server', type: 'base', icon: '🪟', os: 'windows' },
+    { id: 'pfsense', name: 'pfSense Firewall', type: 'firewall', icon: '🛡️', os: 'bsd' },
   ],
   networks: [
-    { id: 'isolated', name: 'Isolated Network', icon: '🔒', type: 'isolated' },
-    { id: 'nat', name: 'NAT Network', icon: '🌐', type: 'nat' },
-    { id: 'bridged', name: 'Bridged Network', icon: '🔗', type: 'bridged' },
+    // Single network type - system auto-assigns VLAN/CIDR on deploy
+    { id: 'lab-network', name: 'Lab Network', icon: '🔗', type: 'isolated' },
   ]
-}
-
-// Default network configurations
-const DEFAULT_NETWORK_CONFIGS = {
-  isolated: { cidr: '192.168.100.0/24', vlan_id: 100, gateway: '192.168.100.1' },
-  nat: { cidr: '10.0.1.0/24', vlan_id: 10, gateway: '10.0.1.1' },
-  bridged: { cidr: '192.168.1.0/24', vlan_id: null, gateway: '192.168.1.1' },
 }
 
 // Generate a unique lab ID
@@ -47,30 +40,7 @@ function LabCanvas() {
   const [labId, setLabId] = useState(() => generateLabId()) // Unique lab identifier
   const [platform, setPlatform] = useState('1') // Default to Proxmox
   const [isDeploying, setIsDeploying] = useState(false)
-  const [networkDefinitions, setNetworkDefinitions] = useState({})
-  const [showNetworkConfig, setShowNetworkConfig] = useState(false)
-  const [editingNetwork, setEditingNetwork] = useState(null)
   const nodeIdCounter = useRef(1)
-
-  // Fetch existing networks on mount
-  useEffect(() => {
-    fetchNetworks()
-  }, [])
-
-  const fetchNetworks = async () => {
-    try {
-      const response = await fetch('/api/networks')
-      const data = await response.json()
-      // Build a map of network definitions
-      const netMap = {}
-      data.networks.forEach(net => {
-        netMap[net.name] = net
-      })
-      setNetworkDefinitions(netMap)
-    } catch (error) {
-      console.error('Failed to fetch networks:', error)
-    }
-  }
 
   const onConnect = useCallback(
     (params) => {
@@ -103,18 +73,15 @@ function LabCanvas() {
     const isNetwork = category === 'network'
     const nodeId = `node_${nodeIdCounter.current++}`
     
-    // For networks, create a config object
+    // For networks, just mark it - VLAN/CIDR auto-assigned on deploy
     let networkConfig = null
     if (isNetwork) {
-      const defaults = DEFAULT_NETWORK_CONFIGS[elementType.id] || DEFAULT_NETWORK_CONFIGS.isolated
       networkConfig = {
-        name: `${elementType.id}-${nodeId}`,
-        displayName: elementType.name,
-        cidr: defaults.cidr,
-        vlan_id: defaults.vlan_id,
-        gateway: defaults.gateway,
-        network_type: elementType.type || 'isolated',
-        dhcp_enabled: false
+        name: `lab-network-${nodeId}`,
+        displayName: 'Lab Network',
+        network_type: 'isolated',
+        // VLAN and CIDR will be auto-assigned on deploy
+        auto_assign: true
       }
     }
 
@@ -128,14 +95,11 @@ function LabCanvas() {
       data: { 
         label: isNetwork ? (
           <div className="custom-node network-node">
-            <div className="node-icon">{elementType.icon}</div>
-            <div className="node-label">{elementType.name}</div>
-            {networkConfig && (
-              <div className="node-details">
-                <span className="cidr">{networkConfig.cidr}</span>
-                {networkConfig.vlan_id && <span className="vlan">VLAN {networkConfig.vlan_id}</span>}
-              </div>
-            )}
+            <div className="node-icon">🔗</div>
+            <div className="node-label">Lab Network</div>
+            <div className="node-details">
+              <span className="auto-assign">Auto-configured</span>
+            </div>
           </div>
         ) : (
           <div className="custom-node vm-node">
@@ -165,6 +129,7 @@ function LabCanvas() {
       attack: '#ff6b6b',
       vulnerable: '#ffd93d',
       base: '#6bcf7f',
+      firewall: '#ff9f43',  // Orange for firewall/gateway
       default: '#74b9ff'
     }
     return colors[type] || colors.default
@@ -172,88 +137,28 @@ function LabCanvas() {
 
   const onNodeClick = (event, node) => {
     setSelectedNode(node)
-    if (node.data.nodeType === 'network') {
-      setEditingNetwork(node.data.networkConfig)
-      setShowNetworkConfig(true)
-    }
-  }
-
-  const updateNetworkConfig = (field, value) => {
-    if (!editingNetwork) return
-    
-    const updated = { ...editingNetwork, [field]: value }
-    setEditingNetwork(updated)
-    
-    // Update the node
-    setNodes(nds => nds.map(n => {
-      if (n.id === selectedNode.id) {
-        return {
-          ...n,
-          data: {
-            ...n.data,
-            networkConfig: updated,
-            label: (
-              <div className="custom-node network-node">
-                <div className="node-icon">🔒</div>
-                <div className="node-label">{updated.displayName}</div>
-                <div className="node-details">
-                  <span className="cidr">{updated.cidr}</span>
-                  {updated.vlan_id && <span className="vlan">VLAN {updated.vlan_id}</span>}
-                </div>
-              </div>
-            )
-          }
-        }
-      }
-      return n
-    }))
+    // Network config is auto-assigned - no editing needed
   }
 
   const clearCanvas = () => {
     setNodes([])
     setEdges([])
     setSelectedNode(null)
-    setShowNetworkConfig(false)
     setLabId(generateLabId())  // New lab = new ID
     setLabName('New Cyber Range Lab')
   }
 
   const saveLab = async () => {
-    // First, save network definitions to the backend with the lab_id
-    const networks = nodes.filter(n => n.data.nodeType === 'network')
-    
-    for (const netNode of networks) {
-      const config = netNode.data.networkConfig
-      try {
-        await fetch('/api/networks', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            name: config.name,
-            display_name: config.displayName,
-            cidr: config.cidr,
-            vlan_id: config.vlan_id,
-            gateway: config.gateway,
-            network_type: config.network_type,
-            dhcp_enabled: config.dhcp_enabled,
-            lab_id: labId  // Use the unique lab ID for tracking
-          })
-        })
-      } catch (error) {
-        console.error('Failed to save network:', error)
-      }
-    }
-
-    // Save lab with all element data including lab_id
+    // Save lab with all element data - network config auto-assigned on deploy
     const labData = {
-      id: labId,  // Unique lab identifier
+      id: labId,
       name: labName,
       canvas_data: {
         nodes: nodes.map(n => ({
           ...n,
           data: {
             ...n.data,
-            lab_id: labId,  // Tag each element with lab_id
+            lab_id: labId,
             label: undefined // Don't save React components
           }
         })),
@@ -268,7 +173,11 @@ function LabCanvas() {
         body: JSON.stringify(labData)
       })
       const result = await response.json()
-      alert(`Lab saved successfully!\n\nID: ${labId}\nName: ${labName}`)
+      
+      const vmCount = nodes.filter(n => n.data.nodeType === 'vm').length
+      const hasNetwork = nodes.some(n => n.data.nodeType === 'network')
+      
+      alert(`Lab saved!\n\nID: ${labId}\nName: ${labName}\nVMs: ${vmCount}\nNetwork: ${hasNetwork ? 'Yes (auto-configured on deploy)' : 'No'}`)
     } catch (error) {
       console.error('Error saving lab:', error)
       alert('Failed to save lab')
@@ -297,7 +206,7 @@ function LabCanvas() {
       try {
         // Build deployment data with network info
         const deploymentData = {
-          lab_id: 'current',
+          lab_id: labId,  // Use the unique lab ID
           platform_id: platform,
           lab_data: { 
             nodes: nodes.map(n => ({
@@ -380,64 +289,6 @@ function LabCanvas() {
             </button>
           ))}
         </div>
-
-        {/* Network Config Panel */}
-        {showNetworkConfig && editingNetwork && (
-          <div className="element-section network-config-section">
-            <h4>🔧 Network Config</h4>
-            <div className="config-form">
-              <label>
-                Name
-                <input 
-                  type="text" 
-                  value={editingNetwork.displayName}
-                  onChange={(e) => updateNetworkConfig('displayName', e.target.value)}
-                />
-              </label>
-              <label>
-                CIDR
-                <input 
-                  type="text" 
-                  value={editingNetwork.cidr}
-                  onChange={(e) => updateNetworkConfig('cidr', e.target.value)}
-                  placeholder="192.168.100.0/24"
-                />
-              </label>
-              <label>
-                VLAN ID
-                <input 
-                  type="number" 
-                  value={editingNetwork.vlan_id || ''}
-                  onChange={(e) => updateNetworkConfig('vlan_id', e.target.value ? parseInt(e.target.value) : null)}
-                  placeholder="100"
-                />
-              </label>
-              <label>
-                Gateway
-                <input 
-                  type="text" 
-                  value={editingNetwork.gateway}
-                  onChange={(e) => updateNetworkConfig('gateway', e.target.value)}
-                  placeholder="192.168.100.1"
-                />
-              </label>
-              <label className="checkbox-label">
-                <input 
-                  type="checkbox" 
-                  checked={editingNetwork.dhcp_enabled}
-                  onChange={(e) => updateNetworkConfig('dhcp_enabled', e.target.checked)}
-                />
-                Enable DHCP
-              </label>
-              <button 
-                className="btn-secondary"
-                onClick={() => setShowNetworkConfig(false)}
-              >
-                Done
-              </button>
-            </div>
-          </div>
-        )}
 
         <div className="sidebar-footer">
           <button className="btn-secondary" onClick={clearCanvas}>

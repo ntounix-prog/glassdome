@@ -13,6 +13,7 @@ import os
 from glassdome.core.config import settings
 from glassdome.core.session import get_session
 from glassdome.core.database import get_db, init_db
+from sqlalchemy.ext.asyncio import AsyncSession
 from glassdome.agents.manager import agent_manager
 from glassdome.orchestration import OrchestrationEngine
 
@@ -27,6 +28,8 @@ from glassdome.api.reaper import router as reaper_router
 from glassdome.api.whiteknight import router as whiteknight_router
 from glassdome.api.networks import router as networks_router
 from glassdome.api.whitepawn import router as whitepawn_router
+from glassdome.api.canvas_deploy import router as canvas_deploy_router
+from glassdome.api.container_dispatch import router as dispatch_router
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -55,6 +58,8 @@ app.include_router(reaper_router)  # Reaper exploit library & missions
 app.include_router(whiteknight_router)  # WhiteKnight validation engine
 app.include_router(networks_router)  # Network management
 app.include_router(whitepawn_router)  # WhitePawn continuous monitoring
+app.include_router(canvas_deploy_router)  # Canvas lab deployment
+app.include_router(dispatch_router)  # Container worker dispatch
 
 
 # Startup and shutdown events
@@ -162,214 +167,118 @@ async def root():
 
 # Lab Management Endpoints
 @app.post(f"{settings.api_prefix}/labs")
-async def create_lab(lab_data: Dict[str, Any]):
-    """Create a new lab configuration"""
-    # TODO: Implement lab creation logic
-    return {
-        "success": True,
-        "lab_id": "lab_123",
-        "message": "Lab created successfully"
-    }
+async def create_lab(lab_data: Dict[str, Any], db: AsyncSession = Depends(get_db)):
+    """Create or update a lab configuration"""
+    from glassdome.models.lab import Lab
+    from sqlalchemy import select
+    
+    lab_id = lab_data.get("id")
+    name = lab_data.get("name", "Untitled Lab")
+    canvas_data = lab_data.get("canvas_data")
+    
+    # Check if lab exists (upsert)
+    result = await db.execute(select(Lab).where(Lab.id == lab_id))
+    existing = result.scalar_one_or_none()
+    
+    if existing:
+        existing.name = name
+        existing.canvas_data = canvas_data
+        await db.commit()
+        return {"success": True, "lab_id": lab_id, "message": "Lab updated"}
+    else:
+        lab = Lab(id=lab_id, name=name, canvas_data=canvas_data)
+        db.add(lab)
+        await db.commit()
+        return {"success": True, "lab_id": lab_id, "message": "Lab created"}
 
 
 @app.get(f"{settings.api_prefix}/labs")
-async def list_labs():
+async def list_labs(db: AsyncSession = Depends(get_db)):
     """List all lab configurations"""
-    # TODO: Implement lab listing
+    from glassdome.models.lab import Lab
+    from sqlalchemy import select
+    
+    result = await db.execute(select(Lab).order_by(Lab.created_at.desc()))
+    labs = result.scalars().all()
+    
     return {
-        "labs": [],
-        "total": 0
+        "labs": [
+            {
+                "id": lab.id,
+                "name": lab.name,
+                "description": lab.description,
+                "created_at": lab.created_at.isoformat() if lab.created_at else None,
+                "node_count": len(lab.canvas_data.get("nodes", [])) if lab.canvas_data else 0
+            }
+            for lab in labs
+        ],
+        "total": len(labs)
     }
 
 
 @app.get(settings.api_prefix + "/labs/{lab_id}")
-async def get_lab(lab_id: str):
+async def get_lab(lab_id: str, db: AsyncSession = Depends(get_db)):
     """Get lab configuration by ID"""
-    # TODO: Implement lab retrieval
+    from glassdome.models.lab import Lab
+    from sqlalchemy import select
+    
+    result = await db.execute(select(Lab).where(Lab.id == lab_id))
+    lab = result.scalar_one_or_none()
+    
+    if not lab:
+        raise HTTPException(status_code=404, detail=f"Lab {lab_id} not found")
+    
     return {
-        "lab_id": lab_id,
-        "name": "Example Lab",
-        "elements": []
+        "id": lab.id,
+        "name": lab.name,
+        "description": lab.description,
+        "canvas_data": lab.canvas_data,
+        "created_at": lab.created_at.isoformat() if lab.created_at else None
     }
 
 
 @app.put(settings.api_prefix + "/labs/{lab_id}")
-async def update_lab(lab_id: str, lab_data: Dict[str, Any]):
+async def update_lab(lab_id: str, lab_data: Dict[str, Any], db: AsyncSession = Depends(get_db)):
     """Update lab configuration"""
-    # TODO: Implement lab update
-    return {
-        "success": True,
-        "lab_id": lab_id
-    }
+    from glassdome.models.lab import Lab
+    from sqlalchemy import select
+    
+    result = await db.execute(select(Lab).where(Lab.id == lab_id))
+    lab = result.scalar_one_or_none()
+    
+    if not lab:
+        raise HTTPException(status_code=404, detail=f"Lab {lab_id} not found")
+    
+    if "name" in lab_data:
+        lab.name = lab_data["name"]
+    if "canvas_data" in lab_data:
+        lab.canvas_data = lab_data["canvas_data"]
+    if "description" in lab_data:
+        lab.description = lab_data["description"]
+    
+    await db.commit()
+    return {"success": True, "lab_id": lab_id}
 
 
 @app.delete(settings.api_prefix + "/labs/{lab_id}")
-async def delete_lab(lab_id: str):
+async def delete_lab(lab_id: str, db: AsyncSession = Depends(get_db)):
     """Delete a lab configuration"""
-    # TODO: Implement lab deletion
-    return {
-        "success": True,
-        "lab_id": lab_id
-    }
+    from glassdome.models.lab import Lab
+    from sqlalchemy import select, delete
+    
+    result = await db.execute(select(Lab).where(Lab.id == lab_id))
+    lab = result.scalar_one_or_none()
+    
+    if not lab:
+        raise HTTPException(status_code=404, detail=f"Lab {lab_id} not found")
+    
+    await db.execute(delete(Lab).where(Lab.id == lab_id))
+    await db.commit()
+    return {"success": True, "lab_id": lab_id}
 
 
-# Deployment Endpoints
-@app.post(f"{settings.api_prefix}/deployments")
-async def create_deployment(deployment_data: Dict[str, Any]):
-    """
-    Create a new deployment from a lab configuration
-    This triggers the agentic deployment process
-    """
-    import uuid
-    import logging
-    from glassdome.core.session import get_session
-    from glassdome.platforms.aws_client import AWSClient
-    
-    logger = logging.getLogger(__name__)
-    
-    lab_id = deployment_data.get("lab_id")
-    platform_id = deployment_data.get("platform_id")
-    lab_data = deployment_data.get("lab_data", {})
-    
-    if not lab_id or not platform_id:
-        raise HTTPException(status_code=400, detail="lab_id and platform_id required")
-    
-    nodes = lab_data.get("nodes", [])
-    deployment_id = f"deploy-{uuid.uuid4().hex[:8]}"
-    
-    logger.info(f"Creating deployment {deployment_id} with {len(nodes)} nodes on platform {platform_id}")
-    
-    # Count VMs to deploy - check both type and data.elementType
-    vm_nodes = [n for n in nodes if n.get("type") == "vm" or 
-                n.get("data", {}).get("elementType") in ["attack", "vulnerable", "base"]]
-    network_nodes = [n for n in nodes if n.get("type") == "network" or
-                     n.get("data", {}).get("elementId") in ["isolated", "nat"]]
-    
-    if not vm_nodes and not network_nodes:
-        return {
-            "success": False,
-            "deployment_id": deployment_id,
-            "status": "failed",
-            "message": "No VMs or networks found in lab configuration"
-        }
-    
-    # For now, deploy to AWS if platform_id indicates AWS, otherwise Proxmox
-    deployed_vms = []
-    errors = []
-    
-    try:
-        session = get_session()
-        
-        # Platform 1 = Proxmox, 2 = AWS (based on typical ordering)
-        if platform_id == "2" or "aws" in str(platform_id).lower():
-            aws_key = session.secrets.get('aws_access_key_id')
-            aws_secret = session.secrets.get('aws_secret_access_key')
-            
-            if aws_key and aws_secret:
-                aws_client = AWSClient(
-                    access_key_id=aws_key,
-                    secret_access_key=aws_secret,
-                    region="us-east-1"
-                )
-                
-                for vm_node in vm_nodes:
-                    # Get VM name from elementId or generate one
-                    data = vm_node.get("data", {})
-                    element_id = data.get("elementId", "ubuntu")
-                    vm_name = f"{deployment_id}-{element_id}-{uuid.uuid4().hex[:4]}"
-                    vm_config = {
-                        "name": vm_name,
-                        "os_type": "ubuntu",
-                        "os_version": "22.04",
-                        "instance_type": "t2.micro",
-                        "disk_size_gb": 8,
-                        "tags": {
-                            "Name": vm_name,
-                            "CreatedBy": "Glassdome-LabCanvas",
-                            "DeploymentId": deployment_id
-                        }
-                    }
-                    
-                    try:
-                        result = await aws_client.create_vm(vm_config)
-                        deployed_vms.append({
-                            "name": vm_name,
-                            "instance_id": result.get("instance_id"),
-                            "status": "deploying"
-                        })
-                        logger.info(f"Deployed VM: {vm_name} -> {result.get('instance_id')}")
-                    except Exception as e:
-                        errors.append(f"Failed to deploy {vm_name}: {e}")
-                        logger.error(f"Failed to deploy {vm_name}: {e}")
-            else:
-                errors.append("AWS credentials not configured")
-        else:
-            # Proxmox deployment - placeholder for now
-            for vm_node in vm_nodes:
-                data = vm_node.get("data", {})
-                element_id = data.get("elementId", "ubuntu")
-                vm_name = f"{deployment_id}-{element_id}-{uuid.uuid4().hex[:4]}"
-                deployed_vms.append({
-                    "name": vm_name,
-                    "vmid": f"proxmox-{uuid.uuid4().hex[:6]}",
-                    "status": "pending",
-                    "note": "Proxmox deployment not yet implemented"
-                })
-    
-    except Exception as e:
-        logger.error(f"Deployment error: {e}")
-        errors.append(str(e))
-    
-    return {
-        "success": len(deployed_vms) > 0,
-        "deployment_id": deployment_id,
-        "status": "deploying" if deployed_vms else "failed",
-        "message": f"Deploying {len(deployed_vms)} VMs" if deployed_vms else "Deployment failed",
-        "vms": deployed_vms,
-        "errors": errors if errors else None
-    }
-
-
-@app.get(f"{settings.api_prefix}/deployments")
-async def list_deployments():
-    """List all deployments"""
-    # TODO: Implement deployment listing
-    return {
-        "deployments": [],
-        "total": 0
-    }
-
-
-@app.get(settings.api_prefix + "/deployments/{deployment_id}")
-async def get_deployment(deployment_id: str):
-    """Get deployment status and details"""
-    # TODO: Implement deployment retrieval
-    return {
-        "deployment_id": deployment_id,
-        "status": "in_progress",
-        "progress": 45,
-        "resources": []
-    }
-
-
-@app.post(settings.api_prefix + "/deployments/{deployment_id}/stop")
-async def stop_deployment(deployment_id: str):
-    """Stop all resources in a deployment"""
-    # TODO: Implement deployment stop
-    return {
-        "success": True,
-        "deployment_id": deployment_id
-    }
-
-
-@app.delete(settings.api_prefix + "/deployments/{deployment_id}")
-async def destroy_deployment(deployment_id: str):
-    """Destroy a deployment and all its resources"""
-    # TODO: Implement deployment destruction
-    return {
-        "success": True,
-        "deployment_id": deployment_id
-    }
+# NOTE: Canvas lab deployment endpoints moved to glassdome/api/canvas_deploy.py
+# Uses hot spare pool (fast) or build agents (fallback)
 
 
 # Platform Management Endpoints

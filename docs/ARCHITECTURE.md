@@ -9,30 +9,32 @@
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                    React Dashboard (Frontend)               │
-│  Home │ Scenarios │ Deployments │ Network Topology │ Logs   │
+│  Home │ Lab Canvas │ Deployments │ Reaper │ WhiteKnight    │
 └────────────────────────┬────────────────────────────────────┘
-                         │ WebSocket + REST API
+                         │ REST API (port 5174 → 8011)
 ┌────────────────────────┴────────────────────────────────────┐
-│                     FastAPI Backend                          │
+│                     FastAPI Backend (port 8011)             │
 │  ┌──────────────┬──────────────┬────────────────────────┐  │
-│  │ API Endpoints│ Auth/RBAC    │ WebSocket Notifier     │  │
+│  │ API Routers  │ Dispatch API │ WebSocket Notifier     │  │
+│  │ (labs,reaper)│ (/dispatch/*) │                        │  │
 │  └──────────────┴──────────────┴────────────────────────┘  │
-│  ┌──────────────────────────────────────────────────────┐  │
-│  │           Orchestration Layer                         │  │
-│  │  - Scenario Parser (YAML)                            │  │
-│  │  - Multi-VM Deployer (Parallel)                       │  │
-│  │  - Network Manager (4 VLANs)                          │  │
-│  │  - State Tracker (SQLAlchemy)                         │  │
-│  └──────────────────────────────────────────────────────┘  │
 └─────────────────────────┬───────────────────────────────────┘
                           │
 ┌─────────────────────────┴───────────────────────────────────┐
-│                    Agent Framework                           │
-│  ┌─────────────┬──────────────┬────────────┬─────────────┐ │
-│  │ Ubuntu      │ Windows      │ Reaper     │ Research    │ │
-│  │ Installer   │ Installer    │ (Vuln)     │ (AI/CVE)    │ │
-│  └─────────────┴──────────────┴────────────┴─────────────┘ │
-│  └─────────────── BaseAgent (Abstract) ───────────────────┘ │
+│              Distributed Task Queue (Celery + Redis)         │
+│  ┌─────────────────────────────────────────────────────────┐│
+│  │  Redis (Docker, port 6379) - Task Queue & Results      ││
+│  └─────────────────────────────────────────────────────────┘│
+│  ┌─────────────────────────────────────────────────────────┐│
+│  │  Celery Workers (Native Python Processes)               ││
+│  │                                                         ││
+│  │  orchestrator@agentX .... 8 threads (deploy/config)    ││
+│  │  reaper-1@agentX ........ 4 threads (inject/exploit)   ││
+│  │  reaper-2@agentX ........ 4 threads (inject/exploit)   ││
+│  │  whiteknight-1@agentX ... 4 threads (validate/test)    ││
+│  │                                                         ││
+│  │  Total Capacity: 20+ parallel tasks                     ││
+│  └─────────────────────────────────────────────────────────┘│
 └─────────────────────────┬───────────────────────────────────┘
                           │
 ┌─────────────────────────┴───────────────────────────────────┐
@@ -43,6 +45,48 @@
 │  └──────────┴──────────┴──────────┴──────────┴───────────┘ │
 │  └──────────── PlatformClient (Abstract) ──────────────────┘│
 └─────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Distributed Worker Architecture (NEW)
+
+The system uses Celery workers for parallel task execution:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    Task Flow                                 │
+│                                                             │
+│  POST /api/dispatch/lab                                     │
+│         │                                                   │
+│         ▼                                                   │
+│  ┌─────────────┐                                           │
+│  │   Redis     │  Task queued                              │
+│  │  (Broker)   │                                           │
+│  └──────┬──────┘                                           │
+│         │                                                   │
+│    ┌────┴────┬────────┬────────┐                           │
+│    ▼         ▼        ▼        ▼                           │
+│  Worker1   Worker2  Worker3  Worker4   (Parallel!)         │
+│  (VM 1)    (VM 2)   (VM 3)   (VM 4)                        │
+│    │         │        │        │                           │
+│    └────┬────┴────────┴────────┘                           │
+│         ▼                                                   │
+│  All VMs deployed simultaneously                            │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**Worker Types:**
+- **Orchestrator**: Lab deployment, network creation
+- **Reaper**: Vulnerability injection via SSH
+- **WhiteKnight**: Post-injection validation
+- **WhitePawn**: Continuous network monitoring
+
+**Commands:**
+```bash
+./scripts/start_workers.sh start   # Start all workers
+./scripts/start_workers.sh status  # Check status
+./scripts/start_workers.sh stop    # Stop workers
 ```
 
 ---
