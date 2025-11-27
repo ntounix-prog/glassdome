@@ -1,0 +1,24 @@
+# GitGuardian Configuration
+# These patterns are INTENTIONAL - they are test credentials for vulnerability injection
+# The Reaper system injects known-weak credentials to create exploitable VMs for training
+
+version: 2
+
+secret:
+  # Ignore the exploit library - contains intentional weak credentials
+  ignored-paths:
+    - "glassdome/reaper/exploit_library.py"
+    - "glassdome/reaper/exploits/**"
+  
+  # Ignore specific patterns that are intentional test data
+  ignored-matches:
+    # Weak SSH password exploit
+    - match: "vulnuser:password123"
+      reason: "Intentional weak credential for SSH vulnerability training"
+    - match: "privuser:privuser123"  
+      reason: "Intentional weak credential for privilege escalation training"
+    - match: "password123"
+      reason: "Test password for vulnerability injection"
+    - match: "privuser123"
+      reason: "Test password for sudo exploit"
+
