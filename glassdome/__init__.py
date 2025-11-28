@@ -1,15 +1,9 @@
 """
-Glassdome - Autonomous Cyber Range Deployment Framework
+  Init   module
 
-A Python package for autonomous deployment and vulnerability research of
-cybersecurity lab environments across Proxmox, Azure, and AWS platforms.
-
-Key Features:
-- Autonomous VM deployment and orchestration
-- AI-powered CVE research and analysis (Research Agent)
-- Automated vulnerability injection for training (Reaper Agent)
-- Multi-platform support (Proxmox, Azure, AWS)
-- Real-time infrastructure monitoring (Overseer Agent)
+Author: Brett Turner (ntounix-prog)
+Created: November 2024
+Copyright (c) 2024 Brett Turner. All rights reserved.
 """
 
 __version__ = "0.1.0"

@@ -1,17 +1,9 @@
 """
-Secrets Backend Abstraction
+Secrets Backend module
 
-Provides a pluggable interface for secrets management.
-Supports multiple backends:
-- local: Keyring/encrypted file (dev, single-server)
-- vault: HashiCorp Vault (multi-server production)
-- env: Environment variables only (simple deployments)
-
-Usage:
-    from glassdome.core.secrets_backend import get_secrets_backend
-    
-    secrets = get_secrets_backend()
-    api_key = secrets.get("openai_api_key")
+Author: Brett Turner (ntounix-prog)
+Created: November 2024
+Copyright (c) 2024 Brett Turner. All rights reserved.
 """
 
 from abc import ABC, abstractmethod

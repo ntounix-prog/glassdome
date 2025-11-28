@@ -1,7 +1,9 @@
 """
-Mailcow Agent
+Mailcow Agent module
 
-Autonomous agent for managing mailboxes and email operations on xisx.org domain.
+Author: Brett Turner (ntounix-prog)
+Created: November 2024
+Copyright (c) 2024 Brett Turner. All rights reserved.
 """
 import logging
 import asyncio

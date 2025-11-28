@@ -1,11 +1,9 @@
 """
-RAG Helper - Simple interface for agents
+Rag Helper module
 
-Layer 3 Usage Pattern:
-1. Agent attempts task with base knowledge
-2. If confused/error -> call consult_rag()
-3. Agent uses RAG context to resolve confusion
-4. Continue with task
+Author: Brett Turner (ntounix-prog)
+Created: November 2024
+Copyright (c) 2024 Brett Turner. All rights reserved.
 """
 
 from typing import Dict, Any, Optional

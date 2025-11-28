@@ -1,9 +1,9 @@
 """
-Overseer Chat Agent
+Agent module
 
-Main conversational agent that enables operators to interact with 
-Glassdome systems using natural language. Acts as a "copilot" for
-creating Reaper missions, lab deployments, and querying system status.
+Author: Brett Turner (ntounix-prog)
+Created: November 2024
+Copyright (c) 2024 Brett Turner. All rights reserved.
 """
 
 import uuid

@@ -1,8 +1,9 @@
 """
-Windows Installer Agent
+Windows Installer module
 
-Deploys Windows Server 2022 and Windows 11 VMs across all platforms.
-Platform-agnostic design using PlatformClient abstraction.
+Author: Brett Turner (ntounix-prog)
+Created: November 2024
+Copyright (c) 2024 Brett Turner. All rights reserved.
 """
 
 import logging

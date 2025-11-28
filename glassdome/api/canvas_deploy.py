@@ -1,13 +1,9 @@
 """
-Canvas Lab Deployment API
+API endpoints for canvas_deploy
 
-Lab Network Architecture:
-- pfSense acts as the gateway/DHCP server for each lab
-- pfSense: Dual-NIC (WAN=management DHCP, LAN=lab gateway + DHCP server)
-- Lab VMs: Single-NIC on lab network, get IP from pfSense DHCP
-- Multi-LAN support: pfSense can have additional interfaces for segmented networks
-
-VLAN Pool: 100-170 (auto-assigned per lab)
+Author: Brett Turner (ntounix-prog)
+Created: November 2024
+Copyright (c) 2024 Brett Turner. All rights reserved.
 """
 
 import asyncio

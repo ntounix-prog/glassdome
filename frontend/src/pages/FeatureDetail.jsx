@@ -1,3 +1,11 @@
+/**
+ * Featuredetail page component
+ * 
+ * @author Brett Turner (ntounix-prog)
+ * @created November 2024
+ * @copyright (c) 2024 Brett Turner. All rights reserved.
+ */
+
 import { useParams, useNavigate } from 'react-router-dom'
 import '../styles/FeatureDetail.css'
 

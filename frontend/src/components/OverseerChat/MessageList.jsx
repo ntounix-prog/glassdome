@@ -1,4 +1,12 @@
 /**
+ * Messagelist component
+ * 
+ * @author Brett Turner (ntounix-prog)
+ * @created November 2024
+ * @copyright (c) 2024 Brett Turner. All rights reserved.
+ */
+
+/**
  * MessageList Component
  * 
  * Displays the chat message history with auto-scroll.

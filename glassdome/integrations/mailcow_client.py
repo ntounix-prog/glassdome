@@ -1,8 +1,9 @@
 """
-Mailcow API Client
+Mailcow Client module
 
-Handles mailbox creation, email monitoring (IMAP), and email sending (SMTP)
-for the xisx.org domain.
+Author: Brett Turner (ntounix-prog)
+Created: November 2024
+Copyright (c) 2024 Brett Turner. All rights reserved.
 """
 import logging
 import imaplib

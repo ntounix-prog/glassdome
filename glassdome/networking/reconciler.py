@@ -1,10 +1,9 @@
 """
-Network State Reconciler
+Reconciler module
 
-Continuously compares DB state to actual platform state.
-Detects drift and triggers alerts/remediation.
-
-Runs every 30 seconds to ensure accuracy over resources.
+Author: Brett Turner (ntounix-prog)
+Created: November 2024
+Copyright (c) 2024 Brett Turner. All rights reserved.
 """
 
 import asyncio

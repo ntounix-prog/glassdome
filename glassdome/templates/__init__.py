@@ -1,14 +1,9 @@
 """
-Template rendering and management for Glassdome.
+  Init   module
 
-This package contains template engines and utilities for rendering
-configuration files, scripts, and documentation.
-
-Future components:
-- Jinja2 template engine
-- Cloud-init template generator
-- Ansible playbook generator
-- Documentation generator
+Author: Brett Turner (ntounix-prog)
+Created: November 2024
+Copyright (c) 2024 Brett Turner. All rights reserved.
 """
 
 __all__ = []  # Will be populated as template engines are added

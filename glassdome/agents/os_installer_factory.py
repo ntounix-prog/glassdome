@@ -1,6 +1,9 @@
 """
-OS Installer Agent Factory
-Routes requests to the appropriate specialized agent
+Os Installer Factory module
+
+Author: Brett Turner (ntounix-prog)
+Created: November 2024
+Copyright (c) 2024 Brett Turner. All rights reserved.
 """
 from typing import Dict, Any, Optional
 import logging

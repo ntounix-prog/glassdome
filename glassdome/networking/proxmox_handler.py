@@ -1,12 +1,9 @@
 """
-Proxmox Network Handler
+Proxmox Handler module
 
-Implements platform-specific networking for Proxmox VE.
-
-Proxmox Networking Model:
-- Linux bridges (vmbr0, vmbr1, etc.)
-- VLAN tagging on bridges
-- VMs attach to bridges with optional VLAN tag
+Author: Brett Turner (ntounix-prog)
+Created: November 2024
+Copyright (c) 2024 Brett Turner. All rights reserved.
 """
 
 import logging

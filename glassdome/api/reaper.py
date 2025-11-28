@@ -1,11 +1,9 @@
 """
-Reaper API Endpoints
+API endpoints for reaper
 
-REST API for managing the exploit library and running injection missions.
-This is the interface between the Reaper UI and the Reaper engine.
-
-Overseer can only call: POST /missions/{id}/start
-All other operations require direct Reaper UI access (architect role)
+Author: Brett Turner (ntounix-prog)
+Created: November 2024
+Copyright (c) 2024 Brett Turner. All rights reserved.
 """
 
 from fastapi import APIRouter, HTTPException, Depends, BackgroundTasks

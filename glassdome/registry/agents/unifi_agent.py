@@ -1,8 +1,9 @@
 """
-Unifi Agent
+Unifi Agent module
 
-Polls Ubiquiti Dream Router for DHCP leases and client information.
-Used for IP address discovery and network client tracking.
+Author: Brett Turner (ntounix-prog)
+Created: November 2024
+Copyright (c) 2024 Brett Turner. All rights reserved.
 """
 
 import asyncio

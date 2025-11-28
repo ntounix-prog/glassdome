@@ -1,3 +1,11 @@
+/**
+ * Dashboard page component
+ * 
+ * @author Brett Turner (ntounix-prog)
+ * @created November 2024
+ * @copyright (c) 2024 Brett Turner. All rights reserved.
+ */
+
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import DemoShowcase from '../components/DemoShowcase'

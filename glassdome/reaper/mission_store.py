@@ -1,8 +1,9 @@
 """
-Reaper Mission Store
+Mission Store module
 
-Persists mission state for recovery after restarts.
-In-memory implementation for Phase 1 (can be replaced with PostgreSQL/Redis later).
+Author: Brett Turner (ntounix-prog)
+Created: November 2024
+Copyright (c) 2024 Brett Turner. All rights reserved.
 """
 
 from abc import ABC, abstractmethod

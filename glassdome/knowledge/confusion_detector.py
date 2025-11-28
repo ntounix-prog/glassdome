@@ -1,14 +1,9 @@
 """
-Confusion Detector
+Confusion Detector module
 
-Determines when an agent should query RAG for help.
-
-Layer 3 triggers:
-- Agent encounters an error
-- Agent receives correction from user
-- Agent has low confidence in its response
-- Agent encounters unknown pattern/configuration
-- User asks "why" or "how did we" questions
+Author: Brett Turner (ntounix-prog)
+Created: November 2024
+Copyright (c) 2024 Brett Turner. All rights reserved.
 """
 
 from typing import Dict, Any, Optional, List

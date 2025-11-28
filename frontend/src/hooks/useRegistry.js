@@ -1,4 +1,12 @@
 /**
+ * React hook: useRegistry
+ * 
+ * @author Brett Turner (ntounix-prog)
+ * @created November 2024
+ * @copyright (c) 2024 Brett Turner. All rights reserved.
+ */
+
+/**
  * useRegistry Hook
  * 
  * Provides real-time access to the Lab Registry via WebSocket and REST API.

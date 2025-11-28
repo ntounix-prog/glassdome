@@ -1,9 +1,9 @@
 """
-WhitePawn Continuous Monitor
-============================
+Celery worker for whitepawn_monitor
 
-Runs continuously, monitoring all deployed lab networks.
-Not a Celery task - runs as its own process.
+Author: Brett Turner (ntounix-prog)
+Created: November 2024
+Copyright (c) 2024 Brett Turner. All rights reserved.
 """
 
 import asyncio

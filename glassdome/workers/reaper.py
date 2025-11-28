@@ -1,9 +1,9 @@
 """
-Reaper Worker
-=============
+Celery worker for reaper
 
-Handles vulnerability injection tasks.
-Can attach to lab VLANs to configure VMs directly.
+Author: Brett Turner (ntounix-prog)
+Created: November 2024
+Copyright (c) 2024 Brett Turner. All rights reserved.
 """
 
 import asyncio

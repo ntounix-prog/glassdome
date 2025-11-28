@@ -1,17 +1,9 @@
 """
-WhitePawn - Continuous Network Monitoring Agent
+  Init   module
 
-WhitePawn is deployed into every lab network as an invisible sentinel.
-It continuously monitors:
-- Network connectivity between all VMs
-- Gateway and DNS availability
-- VLAN isolation
-- VM health and responsiveness
-
-Future capabilities:
-- Player activity monitoring
-- Traffic analysis for coaching
-- Real-time performance metrics
+Author: Brett Turner (ntounix-prog)
+Created: November 2024
+Copyright (c) 2024 Brett Turner. All rights reserved.
 """
 
 from glassdome.whitepawn.models import (

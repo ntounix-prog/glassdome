@@ -1,8 +1,9 @@
 """
-Reaper Mission Planner
+Planner module
 
-Decides which vulnerabilities to inject based on VM state and discovery results.
-Rule-based implementation for Phase 1 (can be enhanced with LLM later).
+Author: Brett Turner (ntounix-prog)
+Created: November 2024
+Copyright (c) 2024 Brett Turner. All rights reserved.
 """
 
 from abc import ABC, abstractmethod

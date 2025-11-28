@@ -1,8 +1,9 @@
 """
-Lab Registry Core
+Core module
 
-Central source of truth for all lab and infrastructure resources.
-Uses Redis for fast state access and PostgreSQL for persistence.
+Author: Brett Turner (ntounix-prog)
+Created: November 2024
+Copyright (c) 2024 Brett Turner. All rights reserved.
 """
 
 import asyncio

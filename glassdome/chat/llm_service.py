@@ -1,8 +1,9 @@
 """
-LLM Service Layer
+Llm Service module
 
-Flexible provider abstraction for multiple LLM backends.
-Supports OpenAI, Anthropic Claude, and local models with fallback chains.
+Author: Brett Turner (ntounix-prog)
+Created: November 2024
+Copyright (c) 2024 Brett Turner. All rights reserved.
 """
 
 import os

@@ -1,7 +1,9 @@
 """
-Base Reaper Agent
+Base module
 
-Abstract base class for all OS-specific Reaper agents.
+Author: Brett Turner (ntounix-prog)
+Created: November 2024
+Copyright (c) 2024 Brett Turner. All rights reserved.
 """
 
 from abc import ABC, abstractmethod

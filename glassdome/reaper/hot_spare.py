@@ -1,16 +1,9 @@
 """
-Hot Spare Pool Management
+Hot Spare module
 
-Maintains a pool of pre-provisioned VMs ready for Reaper missions.
-Instead of cloning on-demand (slow), grab a ready spare instantly.
-
-Usage:
-    from glassdome.reaper.hot_spare import HotSparePool
-    
-    pool = HotSparePool()
-    spare = await pool.acquire_spare(os_type="ubuntu")
-    # ... run mission ...
-    await pool.release_spare(spare.id, destroy=True)  # or reset for reuse
+Author: Brett Turner (ntounix-prog)
+Created: November 2024
+Copyright (c) 2024 Brett Turner. All rights reserved.
 """
 
 from sqlalchemy import Column, Integer, String, DateTime, Boolean, Enum as SQLEnum

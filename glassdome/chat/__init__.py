@@ -1,9 +1,9 @@
 """
-Glassdome Chat Module
+  Init   module
 
-Provides conversational AI interface for Overseer operations.
-Enables operators to interact with the system using natural language
-to create Reaper missions, Lab deployments, and query system status.
+Author: Brett Turner (ntounix-prog)
+Created: November 2024
+Copyright (c) 2024 Brett Turner. All rights reserved.
 """
 
 from glassdome.chat.llm_service import (

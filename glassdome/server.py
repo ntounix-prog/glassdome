@@ -1,8 +1,9 @@
 """
-Glassdome Server - FastAPI Application Entry Point
+Server module
 
-Separated from main.py to allow package imports and to perform
-security bootstrap before running the app.
+Author: Brett Turner (ntounix-prog)
+Created: November 2024
+Copyright (c) 2024 Brett Turner. All rights reserved.
 """
 
 import logging

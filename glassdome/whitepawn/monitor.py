@@ -1,18 +1,9 @@
 """
-WhitePawn Monitor
+Monitor module
 
-The core monitoring engine that runs continuous network validation.
-Designed to be lightweight and non-intrusive while providing
-comprehensive visibility into network health.
-
-Monitoring Capabilities:
-- ICMP ping sweeps to all VMs
-- TCP port checks
-- Gateway reachability
-- DNS resolution
-- ARP table monitoring
-- VLAN isolation verification
-- Latency trending
+Author: Brett Turner (ntounix-prog)
+Created: November 2024
+Copyright (c) 2024 Brett Turner. All rights reserved.
 """
 
 import asyncio

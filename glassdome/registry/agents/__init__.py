@@ -1,7 +1,9 @@
 """
-Registry Agents
+  Init   module
 
-Platform-specific agents that poll infrastructure and publish state changes.
+Author: Brett Turner (ntounix-prog)
+Created: November 2024
+Copyright (c) 2024 Brett Turner. All rights reserved.
 """
 
 from glassdome.registry.agents.base import BaseAgent

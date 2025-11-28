@@ -1,4 +1,12 @@
 /**
+ * Actionconfirm component
+ * 
+ * @author Brett Turner (ntounix-prog)
+ * @created November 2024
+ * @copyright (c) 2024 Brett Turner. All rights reserved.
+ */
+
+/**
  * ActionConfirm Component
  * 
  * Displays a pending action that needs operator confirmation.

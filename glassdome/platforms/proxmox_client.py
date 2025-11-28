@@ -1,6 +1,9 @@
 """
-Proxmox API Integration
-Implements the PlatformClient interface for Proxmox VE
+Platform client for Proxmox
+
+Author: Brett Turner (ntounix-prog)
+Created: November 2024
+Copyright (c) 2024 Brett Turner. All rights reserved.
 """
 from proxmoxer import ProxmoxAPI
 from typing import Dict, Any, List, Optional

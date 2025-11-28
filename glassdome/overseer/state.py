@@ -1,7 +1,9 @@
 """
-System State Management
+State module
 
-The Overseer's memory - knows everything deployed and running.
+Author: Brett Turner (ntounix-prog)
+Created: November 2024
+Copyright (c) 2024 Brett Turner. All rights reserved.
 """
 
 import json

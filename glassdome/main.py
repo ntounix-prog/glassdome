@@ -1,6 +1,9 @@
 """
-Glassdome Backend - FastAPI Application
-Agentic Cyber Range Deployment Framework
+Main module
+
+Author: Brett Turner (ntounix-prog)
+Created: November 2024
+Copyright (c) 2024 Brett Turner. All rights reserved.
 """
 
 from fastapi import FastAPI, HTTPException, Depends

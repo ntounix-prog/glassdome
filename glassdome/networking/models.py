@@ -1,8 +1,9 @@
 """
-Glassdome Network Models
+Models module
 
-Universal network abstractions that work across all platforms.
-Focus on the constants: host interface, VLAN, address space.
+Author: Brett Turner (ntounix-prog)
+Created: November 2024
+Copyright (c) 2024 Brett Turner. All rights reserved.
 """
 
 from sqlalchemy import Column, Integer, String, Text, Boolean, DateTime, JSON, ForeignKey

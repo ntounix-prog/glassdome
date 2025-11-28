@@ -1,14 +1,9 @@
 """
-ESXi Cloud-Init Template Builder
+Platform client for Esxi Template Builder
 
-This module provides a robust workflow for creating ESXi-compatible
-Ubuntu cloud-init templates. It handles all the quirks of ESXi standalone
-(no vCenter) deployment.
-
-PROVEN WORKING: 2024-11-20
-- VM: glassdome-ubuntu-test @ 192.168.3.207
-- Credentials: ubuntu / glassdome123
-- Status: SSH working, cloud-init complete
+Author: Brett Turner (ntounix-prog)
+Created: November 2024
+Copyright (c) 2024 Brett Turner. All rights reserved.
 """
 
 import os

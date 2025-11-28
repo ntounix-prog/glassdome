@@ -1,5 +1,9 @@
 """
-Base Agent Classes for Autonomous Deployment
+Base module
+
+Author: Brett Turner (ntounix-prog)
+Created: November 2024
+Copyright (c) 2024 Brett Turner. All rights reserved.
 """
 from abc import ABC, abstractmethod
 from typing import Dict, Any, Optional, List

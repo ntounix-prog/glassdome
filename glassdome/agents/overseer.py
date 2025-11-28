@@ -1,16 +1,9 @@
 """
-Overseer Agent
-Monitors and manages all deployed infrastructure
+Overseer module
 
-Responsibilities:
-- Track all deployed VMs
-- Monitor health and status
-- Detect issues and anomalies
-- Alert on problems
-- Collect metrics
-- Maintain inventory
-- Auto-remediation
-- Resource optimization
+Author: Brett Turner (ntounix-prog)
+Created: November 2024
+Copyright (c) 2024 Brett Turner. All rights reserved.
 """
 import asyncio
 import logging

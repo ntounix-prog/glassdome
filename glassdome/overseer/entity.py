@@ -1,15 +1,9 @@
 """
-Overseer Autonomous Entity
+Entity module
 
-The brain of Glassdome - an always-running senior ops engineer.
-
-Responsibilities:
-1. Monitor all infrastructure continuously
-2. Gate all requests for safety (can say NO)
-3. Make intelligent decisions using RAG
-4. Execute approved operations
-5. Learn from failures
-6. Protect production systems
+Author: Brett Turner (ntounix-prog)
+Created: November 2024
+Copyright (c) 2024 Brett Turner. All rights reserved.
 """
 
 import asyncio

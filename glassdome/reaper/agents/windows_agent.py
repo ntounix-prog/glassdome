@@ -1,7 +1,9 @@
 """
-Windows Reaper Agent
+Windows Agent module
 
-Executes vulnerability injection tasks on Windows VMs using WinRM and Ansible.
+Author: Brett Turner (ntounix-prog)
+Created: November 2024
+Copyright (c) 2024 Brett Turner. All rights reserved.
 """
 
 import time

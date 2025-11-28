@@ -1,9 +1,9 @@
 """
-Orchestrator Worker
-===================
+Celery worker for orchestrator
 
-Handles lab deployment tasks. Deploys VMs in parallel using Celery groups.
-Each VM deployment is a separate task that can run on any available worker.
+Author: Brett Turner (ntounix-prog)
+Created: November 2024
+Copyright (c) 2024 Brett Turner. All rights reserved.
 """
 
 import asyncio

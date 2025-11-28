@@ -1,4 +1,12 @@
 /**
+ * Chatmodal component
+ * 
+ * @author Brett Turner (ntounix-prog)
+ * @created November 2024
+ * @copyright (c) 2024 Brett Turner. All rights reserved.
+ */
+
+/**
  * Overseer Chat Modal
  * 
  * A slide-out modal chat interface for interacting with the Overseer AI.

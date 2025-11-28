@@ -1,4 +1,12 @@
 /**
+ * Machinecard page component
+ * 
+ * @author Brett Turner (ntounix-prog)
+ * @created November 2024
+ * @copyright (c) 2024 Brett Turner. All rights reserved.
+ */
+
+/**
  * MachineCard - VM card for the lobby
  */
 

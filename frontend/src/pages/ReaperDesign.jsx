@@ -1,4 +1,12 @@
 /**
+ * Reaperdesign page component
+ * 
+ * @author Brett Turner (ntounix-prog)
+ * @created November 2024
+ * @copyright (c) 2024 Brett Turner. All rights reserved.
+ */
+
+/**
  * Reaper Design Page
  * 
  * Main interface for managing exploit library and running injection missions.

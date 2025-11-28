@@ -1,9 +1,9 @@
 """
-WhitePawn Orchestrator
+Orchestrator module
 
-Manages WhitePawn deployments across all labs.
-Automatically deploys WhitePawn monitors when labs are deployed.
-Provides centralized control and status for all monitors.
+Author: Brett Turner (ntounix-prog)
+Created: November 2024
+Copyright (c) 2024 Brett Turner. All rights reserved.
 """
 
 import asyncio

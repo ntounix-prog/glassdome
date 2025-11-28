@@ -1,13 +1,9 @@
 """
-AWS API Integration
+Platform client for Aws
 
-Implements PlatformClient interface for AWS EC2 deployment.
-Supports dynamic region selection and global deployment.
-
-TESTED: 2024-11-20
-- Credentials: Valid
-- Regions: 17 available globally
-- Instance types: t4g.nano (ARM), t2.micro (x86)
+Author: Brett Turner (ntounix-prog)
+Created: November 2024
+Copyright (c) 2024 Brett Turner. All rights reserved.
 """
 import boto3
 import asyncio

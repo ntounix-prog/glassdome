@@ -1,9 +1,9 @@
 """
-Platform Client Base Class
-Abstract interface that all platform clients must implement
+Platform client for Base
 
-This is the CORE abstraction that enables platform-agnostic deployments.
-Any new platform (Proxmox, AWS, Azure, GCP, ESX) must implement this interface.
+Author: Brett Turner (ntounix-prog)
+Created: November 2024
+Copyright (c) 2024 Brett Turner. All rights reserved.
 """
 from abc import ABC, abstractmethod
 from typing import Dict, Any, List, Optional

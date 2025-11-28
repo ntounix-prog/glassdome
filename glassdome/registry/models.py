@@ -1,8 +1,9 @@
 """
-Registry Models
+Models module
 
-Data models for the central source of truth.
-Tracks all resources across the lab infrastructure.
+Author: Brett Turner (ntounix-prog)
+Created: November 2024
+Copyright (c) 2024 Brett Turner. All rights reserved.
 """
 
 from dataclasses import dataclass, field

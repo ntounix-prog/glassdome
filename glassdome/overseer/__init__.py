@@ -1,15 +1,9 @@
 """
-Glassdome Overseer - Autonomous System Administrator
+  Init   module
 
-The Overseer is an autonomous entity that:
-- Continuously monitors all infrastructure
-- Gates all requests for safety
-- Makes intelligent decisions using RAG
-- Executes approved operations
-- Protects production systems
-- Learns from past failures
-
-Not just an API - a 24/7 senior ops engineer.
+Author: Brett Turner (ntounix-prog)
+Created: November 2024
+Copyright (c) 2024 Brett Turner. All rights reserved.
 """
 
 from glassdome.overseer.entity import OverseerEntity

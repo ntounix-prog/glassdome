@@ -1,9 +1,9 @@
 """
-Overseer Chat Tools
+Tools module
 
-Tool definitions for LLM function calling.
-These tools allow the chat agent to interact with Glassdome systems
-including Reaper missions, Lab Orchestrator, and system queries.
+Author: Brett Turner (ntounix-prog)
+Created: November 2024
+Copyright (c) 2024 Brett Turner. All rights reserved.
 """
 
 from typing import Dict, Any, List, Optional, Callable, Awaitable

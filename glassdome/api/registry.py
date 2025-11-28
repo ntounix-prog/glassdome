@@ -1,8 +1,9 @@
 """
-Registry API
+API endpoints for registry
 
-REST and WebSocket endpoints for the lab registry.
-Provides real-time access to all lab and infrastructure state.
+Author: Brett Turner (ntounix-prog)
+Created: November 2024
+Copyright (c) 2024 Brett Turner. All rights reserved.
 """
 
 import asyncio

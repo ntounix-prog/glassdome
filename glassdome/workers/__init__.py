@@ -1,11 +1,9 @@
 """
-Glassdome Distributed Workers
-=============================
+Celery worker for __init__
 
-Container-based workers for parallel lab deployment, vulnerability injection,
-validation, and network monitoring.
-
-Workers communicate via Redis and can attach to lab VLANs dynamically.
+Author: Brett Turner (ntounix-prog)
+Created: November 2024
+Copyright (c) 2024 Brett Turner. All rights reserved.
 """
 
 from .celery_app import celery_app

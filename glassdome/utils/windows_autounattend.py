@@ -1,8 +1,9 @@
 """
-Windows Autounattend.xml Generator
+Windows Autounattend module
 
-Creates Windows answer files for unattended installation on Proxmox/ESXi.
-Supports Windows Server 2022, Windows 11, and Windows 10.
+Author: Brett Turner (ntounix-prog)
+Created: November 2024
+Copyright (c) 2024 Brett Turner. All rights reserved.
 """
 import base64
 from typing import Dict, Any, Optional

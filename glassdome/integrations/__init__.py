@@ -1,6 +1,9 @@
 """
-Integrations Module
-Third-party tool integrations (Ansible, Terraform, Mailcow, etc.)
+  Init   module
+
+Author: Brett Turner (ntounix-prog)
+Created: November 2024
+Copyright (c) 2024 Brett Turner. All rights reserved.
 """
 
 from glassdome.integrations.ansible_bridge import AnsibleBridge

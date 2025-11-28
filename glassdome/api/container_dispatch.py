@@ -1,15 +1,9 @@
 """
-Container Dispatch API
-======================
+API endpoints for container_dispatch
 
-All tasks dispatch to containerized Celery workers via Redis.
-No inline fallback - containers are the single source of truth.
-
-Troubleshooting:
-- Check Redis: redis-cli ping
-- Check workers: docker-compose logs orchestrator
-- Task logs: /app/logs/ in each container
-- API: GET /api/dispatch/health
+Author: Brett Turner (ntounix-prog)
+Created: November 2024
+Copyright (c) 2024 Brett Turner. All rights reserved.
 """
 
 import logging

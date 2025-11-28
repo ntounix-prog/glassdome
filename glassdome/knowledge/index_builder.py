@@ -1,16 +1,9 @@
 """
-RAG Index Builder
+Index Builder module
 
-Indexes all project knowledge:
-- Documentation (markdown files)
-- Code (ALL Python files - full implementations)
-- Configuration files (YAML, JSON, TOML, etc.)
-- Session logs
-- Git commit messages
-
-Uses sentence-transformers for embeddings + FAISS for vector storage.
-
-Security: Excludes .env files and other sensitive files.
+Author: Brett Turner (ntounix-prog)
+Created: November 2024
+Copyright (c) 2024 Brett Turner. All rights reserved.
 """
 
 import os

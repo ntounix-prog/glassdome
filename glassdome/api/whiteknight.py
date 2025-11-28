@@ -1,5 +1,9 @@
 """
-WhiteKnight API Router - Automated Vulnerability Validation Engine
+API endpoints for whiteknight
+
+Author: Brett Turner (ntounix-prog)
+Created: November 2024
+Copyright (c) 2024 Brett Turner. All rights reserved.
 """
 import logging
 import subprocess

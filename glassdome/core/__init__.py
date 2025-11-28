@@ -1,5 +1,9 @@
 """
-Core Glassdome modules
+  Init   module
+
+Author: Brett Turner (ntounix-prog)
+Created: November 2024
+Copyright (c) 2024 Brett Turner. All rights reserved.
 """
 from glassdome.core.session import get_session, require_session, GlassdomeSession
 from glassdome.core.config import settings, Settings

@@ -1,6 +1,9 @@
 """
-Guest Agent Fixer
-Automatically detects and fixes qemu-guest-agent issues in deployed VMs
+Guest Agent Fixer module
+
+Author: Brett Turner (ntounix-prog)
+Created: November 2024
+Copyright (c) 2024 Brett Turner. All rights reserved.
 """
 import asyncio
 import logging

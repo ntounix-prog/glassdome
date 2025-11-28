@@ -1,10 +1,9 @@
 """
-WhitePawn Data Models
+Models module
 
-Defines database models for:
-- WhitePawn deployments (one per lab/network)
-- Network alerts and events
-- Monitoring metrics
+Author: Brett Turner (ntounix-prog)
+Created: November 2024
+Copyright (c) 2024 Brett Turner. All rights reserved.
 """
 
 from sqlalchemy import Column, Integer, String, Text, Boolean, DateTime, JSON, ForeignKey, Float

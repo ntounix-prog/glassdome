@@ -1,12 +1,9 @@
 """
-Ansible Bridge
-Converts Glassdome deployments to Ansible inventory formats
+Ansible Bridge module
 
-This is the BRIDGE between Glassdome's VM deployments and your team's Ansible playbooks.
-It generates inventory files (INI or JSON) from deployed VMs, enabling:
-1. Automatic playbook execution after VM deployment
-2. Manual Ansible usage with Glassdome-managed infrastructure
-3. Integration with existing Ansible workflows
+Author: Brett Turner (ntounix-prog)
+Created: November 2024
+Copyright (c) 2024 Brett Turner. All rights reserved.
 """
 from typing import Dict, List, Any, Optional
 import json

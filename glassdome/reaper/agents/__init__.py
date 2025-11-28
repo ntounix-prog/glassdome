@@ -1,7 +1,9 @@
 """
-Reaper Agents
+  Init   module
 
-OS-specific agents for executing vulnerability injection tasks.
+Author: Brett Turner (ntounix-prog)
+Created: November 2024
+Copyright (c) 2024 Brett Turner. All rights reserved.
 """
 
 from glassdome.reaper.agents.base import BaseReaperAgent

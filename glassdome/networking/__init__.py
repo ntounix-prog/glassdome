@@ -1,10 +1,9 @@
 """
-Glassdome Networking Module
+  Init   module
 
-Platform-agnostic network management with the universal constants:
-- Host interface
-- VLAN
-- Address space
+Author: Brett Turner (ntounix-prog)
+Created: November 2024
+Copyright (c) 2024 Brett Turner. All rights reserved.
 """
 
 from glassdome.networking.models import (

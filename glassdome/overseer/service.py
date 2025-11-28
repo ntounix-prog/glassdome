@@ -1,11 +1,9 @@
 """
-Overseer Service - FastAPI wrapper for autonomous entity
+Service module
 
-Provides REST API for:
-- Submitting requests
-- Checking status
-- Querying state
-- Administrative control
+Author: Brett Turner (ntounix-prog)
+Created: November 2024
+Copyright (c) 2024 Brett Turner. All rights reserved.
 """
 
 from fastapi import FastAPI, HTTPException

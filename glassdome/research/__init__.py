@@ -1,17 +1,9 @@
 """
-CVE Research components for Glassdome Research Agent.
+  Init   module
 
-This package contains components for autonomous CVE research including:
-- CVE data fetching from NVD
-- Exploit searching (GitHub, Exploit-DB)
-- Procedure generation
-- Validation systems
-
-Components:
-- cve_analyzer: Parse and analyze CVE data
-- exploit_finder: Search for proof-of-concept exploits
-- procedure_generator: Generate deployment procedures
-- schemas: Data models for research outputs
+Author: Brett Turner (ntounix-prog)
+Created: November 2024
+Copyright (c) 2024 Brett Turner. All rights reserved.
 """
 
 __all__ = []  # Will be populated as we build components

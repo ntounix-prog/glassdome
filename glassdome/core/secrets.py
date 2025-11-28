@@ -1,7 +1,9 @@
 """
-Secure Secrets Management
+Secrets module
 
-Uses OS-native keyring for secure storage with encryption fallback.
+Author: Brett Turner (ntounix-prog)
+Created: November 2024
+Copyright (c) 2024 Brett Turner. All rights reserved.
 """
 import keyring
 import keyring.backends

@@ -1,18 +1,9 @@
 """
-Glassdome Security Bootstrap
+Security module
 
-Provides helpers to ensure secrets are accessible for any process.
-
-Configuration:
-    SECRETS_BACKEND=env     # Read from environment variables (production)
-    SECRETS_BACKEND=local   # Read from encrypted local store (development)
-    SECRETS_BACKEND=vault   # Read from HashiCorp Vault (future)
-
-Usage:
-    from glassdome.core.security import get_secret, get_secure_settings
-    
-    api_key = get_secret("openai_api_key")
-    settings = get_secure_settings()
+Author: Brett Turner (ntounix-prog)
+Created: November 2024
+Copyright (c) 2024 Brett Turner. All rights reserved.
 """
 
 from __future__ import annotations

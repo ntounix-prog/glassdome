@@ -1,5 +1,9 @@
 """
-Database Models
+  Init   module
+
+Author: Brett Turner (ntounix-prog)
+Created: November 2024
+Copyright (c) 2024 Brett Turner. All rights reserved.
 """
 from glassdome.models.lab import Lab, LabTemplate, LabElement
 from glassdome.models.deployment import Deployment, DeploymentStatus

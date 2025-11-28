@@ -1,6 +1,9 @@
 """
-Orchestration Engine
-Manages complex multi-component deployments with dependencies
+Engine module
+
+Author: Brett Turner (ntounix-prog)
+Created: November 2024
+Copyright (c) 2024 Brett Turner. All rights reserved.
 """
 from typing import Dict, Any, List, Optional, Set
 from enum import Enum

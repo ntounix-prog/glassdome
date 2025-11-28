@@ -1,4 +1,12 @@
 /**
+ * Chattoggle component
+ * 
+ * @author Brett Turner (ntounix-prog)
+ * @created November 2024
+ * @copyright (c) 2024 Brett Turner. All rights reserved.
+ */
+
+/**
  * ChatToggle Component
  * 
  * Floating DRAGGABLE button to toggle the Overseer chat modal.

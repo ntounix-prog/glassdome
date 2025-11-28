@@ -1,8 +1,9 @@
 """
-Cloudbase-Init Configuration Generator
+Cloudbase Init Config module
 
-Generates Cloudbase-Init configuration files for Windows VMs on Proxmox.
-Cloudbase-Init is the Windows equivalent of cloud-init.
+Author: Brett Turner (ntounix-prog)
+Created: November 2024
+Copyright (c) 2024 Brett Turner. All rights reserved.
 """
 from typing import Dict, Any, Optional
 import json

@@ -1,13 +1,9 @@
 """
-Azure API Integration
+Platform client for Azure
 
-Implements PlatformClient interface for Azure deployment.
-Supports dynamic region selection and global deployment.
-
-TESTED: 2024-11-20
-- Credentials: Valid
-- Regions: 101 available globally
-- VM Types: B1s, B1ms, B1ls (cheapest)
+Author: Brett Turner (ntounix-prog)
+Created: November 2024
+Copyright (c) 2024 Brett Turner. All rights reserved.
 """
 from azure.identity import ClientSecretCredential
 from azure.mgmt.compute import ComputeManagementClient

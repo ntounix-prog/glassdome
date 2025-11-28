@@ -1,8 +1,9 @@
 """
-Overseer Chat API
+API endpoints for chat
 
-WebSocket and REST endpoints for the Overseer chat interface.
-Enables real-time conversational interaction with the Glassdome system.
+Author: Brett Turner (ntounix-prog)
+Created: November 2024
+Copyright (c) 2024 Brett Turner. All rights reserved.
 """
 
 import json

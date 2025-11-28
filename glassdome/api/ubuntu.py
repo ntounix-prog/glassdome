@@ -1,6 +1,9 @@
 """
-Ubuntu VM API Endpoints
-Handles requests for creating Ubuntu base installations
+API endpoints for ubuntu
+
+Author: Brett Turner (ntounix-prog)
+Created: November 2024
+Copyright (c) 2024 Brett Turner. All rights reserved.
 """
 from fastapi import APIRouter, HTTPException, BackgroundTasks
 from pydantic import BaseModel, Field

@@ -1,5 +1,9 @@
 """
-Glassdome CLI - Command Line Interface
+Cli module
+
+Author: Brett Turner (ntounix-prog)
+Created: November 2024
+Copyright (c) 2024 Brett Turner. All rights reserved.
 """
 import click
 import asyncio

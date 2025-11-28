@@ -1,9 +1,9 @@
 """
-Parrot Security Installer Agent
-Autonomous agent for creating base Parrot Security installation images
+Parrot Installer module
 
-PLATFORM-AGNOSTIC: Works with any platform (Proxmox, AWS, Azure, etc.)
-This agent knows HOW to configure Parrot Security, not WHERE to deploy it.
+Author: Brett Turner (ntounix-prog)
+Created: November 2024
+Copyright (c) 2024 Brett Turner. All rights reserved.
 """
 import logging
 from typing import Dict, Any, Optional

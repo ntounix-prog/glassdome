@@ -1,8 +1,9 @@
 """
-WhiteKnight - Automated Vulnerability Validation
+  Init   module
 
-This module provides the Glassdome integration for WhiteKnight,
-allowing Reaper to automatically validate deployed exploits.
+Author: Brett Turner (ntounix-prog)
+Created: November 2024
+Copyright (c) 2024 Brett Turner. All rights reserved.
 """
 
 from .client import WhiteKnightClient, ValidationResult

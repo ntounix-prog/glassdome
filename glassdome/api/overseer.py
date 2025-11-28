@@ -1,6 +1,9 @@
 """
-Overseer API Endpoints
-Monitor and manage deployed infrastructure
+API endpoints for overseer
+
+Author: Brett Turner (ntounix-prog)
+Created: November 2024
+Copyright (c) 2024 Brett Turner. All rights reserved.
 """
 from fastapi import APIRouter, HTTPException, BackgroundTasks
 from pydantic import BaseModel

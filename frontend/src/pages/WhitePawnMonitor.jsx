@@ -1,3 +1,11 @@
+/**
+ * Whitepawnmonitor page component
+ * 
+ * @author Brett Turner (ntounix-prog)
+ * @created November 2024
+ * @copyright (c) 2024 Brett Turner. All rights reserved.
+ */
+
 import { useState, useEffect, useCallback } from 'react'
 import NetworkMap from '../components/NetworkMap'
 import '../styles/WhitePawnMonitor.css'

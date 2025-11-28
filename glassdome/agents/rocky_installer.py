@@ -1,9 +1,9 @@
 """
-Rocky Linux Installer Agent
-Autonomous agent for creating base Rocky Linux installation images
+Rocky Installer module
 
-PLATFORM-AGNOSTIC: Works with any platform (Proxmox, AWS, Azure, etc.)
-This agent knows HOW to configure Rocky Linux, not WHERE to deploy it.
+Author: Brett Turner (ntounix-prog)
+Created: November 2024
+Copyright (c) 2024 Brett Turner. All rights reserved.
 """
 import logging
 from typing import Dict, Any, Optional

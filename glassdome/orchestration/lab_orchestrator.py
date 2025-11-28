@@ -1,21 +1,9 @@
 """
-Lab Orchestrator
-Manages complex multi-VM lab deployments with full configuration
+Lab Orchestrator module
 
-INTEGRATED WITH ANSIBLE: This orchestrator now supports:
-- Platform-agnostic VM deployment (Proxmox, AWS, Azure)
-- Automatic Ansible inventory generation
-- Ansible playbook execution for vulnerability injection
-- Complete scenario deployment in one call
-
-The Orchestrator collects and manages:
-- VM specifications (disk, memory, CPU)
-- User account creation (via cloud-init or Ansible)
-- Package installations (via cloud-init or Ansible)
-- Network configuration
-- Post-deployment scripts
-- Ansible playbook execution
-- Dependencies between VMs
+Author: Brett Turner (ntounix-prog)
+Created: November 2024
+Copyright (c) 2024 Brett Turner. All rights reserved.
 """
 from typing import Dict, Any, List, Optional
 import asyncio

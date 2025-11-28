@@ -1,8 +1,9 @@
 """
-Reaper Task Queue
+Task Queue module
 
-Distributes tasks to Reaper agents for execution.
-In-memory implementation for Phase 1 (can be replaced with Redis/RabbitMQ later).
+Author: Brett Turner (ntounix-prog)
+Created: November 2024
+Copyright (c) 2024 Brett Turner. All rights reserved.
 """
 
 from abc import ABC, abstractmethod

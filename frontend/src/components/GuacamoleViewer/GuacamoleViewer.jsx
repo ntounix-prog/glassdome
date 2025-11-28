@@ -1,3 +1,11 @@
+/**
+ * Guacamoleviewer component
+ * 
+ * @author Brett Turner (ntounix-prog)
+ * @created November 2024
+ * @copyright (c) 2024 Brett Turner. All rights reserved.
+ */
+
 import { useEffect, useRef, useState } from 'react';
 import Guacamole from 'guacamole-common-js';
 import './GuacamoleViewer.css';

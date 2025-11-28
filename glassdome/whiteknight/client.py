@@ -1,8 +1,9 @@
 """
-WhiteKnight Client - Interface for Glassdome/Reaper
+Client module
 
-This client manages the WhiteKnight container and provides
-a clean interface for validating exploits.
+Author: Brett Turner (ntounix-prog)
+Created: November 2024
+Copyright (c) 2024 Brett Turner. All rights reserved.
 """
 
 import asyncio

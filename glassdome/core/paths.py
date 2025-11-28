@@ -1,12 +1,9 @@
 """
-Centralized Path Management for Glassdome
+Paths module
 
-All paths in the application should be derived from this module to ensure
-portability across different deployment environments (dev, prod, containers).
-
-Environment Variables:
-    GLASSDOME_ROOT: Override the project root (default: auto-detected)
-    GLASSDOME_DATA_DIR: Override the data directory (default: same as root)
+Author: Brett Turner (ntounix-prog)
+Created: November 2024
+Copyright (c) 2024 Brett Turner. All rights reserved.
 """
 from pathlib import Path
 import os

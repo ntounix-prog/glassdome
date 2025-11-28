@@ -1,8 +1,9 @@
 """
-IP Pool Manager
+Ip Pool module
 
-Manages static IP address allocation for Proxmox/ESXi networks.
-Tracks allocated IPs and assigns next available IP from pool.
+Author: Brett Turner (ntounix-prog)
+Created: November 2024
+Copyright (c) 2024 Brett Turner. All rights reserved.
 """
 import json
 from pathlib import Path

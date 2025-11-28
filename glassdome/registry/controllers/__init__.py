@@ -1,7 +1,9 @@
 """
-Registry Controllers
+  Init   module
 
-Reconciliation controllers that monitor registry state and fix drift.
+Author: Brett Turner (ntounix-prog)
+Created: November 2024
+Copyright (c) 2024 Brett Turner. All rights reserved.
 """
 
 from glassdome.registry.controllers.lab_controller import LabController

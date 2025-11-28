@@ -1,7 +1,9 @@
 """
-Linux Reaper Agent
+Linux Agent module
 
-Executes vulnerability injection tasks on Linux VMs using SSH and Ansible.
+Author: Brett Turner (ntounix-prog)
+Created: November 2024
+Copyright (c) 2024 Brett Turner. All rights reserved.
 """
 
 import asyncio

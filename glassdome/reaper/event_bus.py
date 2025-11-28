@@ -1,8 +1,9 @@
 """
-Reaper Event Bus
+Event Bus module
 
-Distributes task result events to MissionEngines for processing.
-In-memory implementation for Phase 1 (can be replaced with Kafka/Redis Streams later).
+Author: Brett Turner (ntounix-prog)
+Created: November 2024
+Copyright (c) 2024 Brett Turner. All rights reserved.
 """
 
 from abc import ABC, abstractmethod

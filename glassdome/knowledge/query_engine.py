@@ -1,8 +1,9 @@
 """
-RAG Query Engine
+Query Engine module
 
-Searches indexed knowledge for relevant context.
-Used by agents when confused or uncertain.
+Author: Brett Turner (ntounix-prog)
+Created: November 2024
+Copyright (c) 2024 Brett Turner. All rights reserved.
 """
 
 import json

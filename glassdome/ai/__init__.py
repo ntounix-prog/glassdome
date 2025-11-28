@@ -1,13 +1,9 @@
 """
-AI and LLM integration for Glassdome Research Agent.
+  Init   module
 
-This package contains clients and utilities for interacting with various
-AI/LLM providers to enable autonomous vulnerability research.
-
-Components:
-- llm_client: Unified interface for multiple LLM providers
-- structured_output: Pydantic schemas for structured LLM responses
-- prompts: Prompt templates for CVE analysis and procedure generation
+Author: Brett Turner (ntounix-prog)
+Created: November 2024
+Copyright (c) 2024 Brett Turner. All rights reserved.
 """
 
 __all__ = []  # Will be populated as we build components

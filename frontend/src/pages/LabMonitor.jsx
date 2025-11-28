@@ -1,4 +1,12 @@
 /**
+ * Labmonitor page component
+ * 
+ * @author Brett Turner (ntounix-prog)
+ * @created November 2024
+ * @copyright (c) 2024 Brett Turner. All rights reserved.
+ */
+
+/**
  * Lab Monitor Page
  * 
  * Real-time monitoring of lab resources using the central Registry.

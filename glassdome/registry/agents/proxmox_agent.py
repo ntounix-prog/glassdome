@@ -1,10 +1,9 @@
 """
-Proxmox Agent
+Proxmox Agent module
 
-Polls Proxmox cluster for VM states and publishes to registry.
-Supports:
-- Tier 1: Lab VMs (1s updates, webhook-ready)
-- Tier 2: All VMs (5-10s polling)
+Author: Brett Turner (ntounix-prog)
+Created: November 2024
+Copyright (c) 2024 Brett Turner. All rights reserved.
 """
 
 import asyncio

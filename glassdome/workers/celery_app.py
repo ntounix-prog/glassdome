@@ -1,8 +1,9 @@
 """
-Celery Application Configuration
-================================
+Celery worker for celery_app
 
-Central Celery app for all Glassdome distributed workers.
+Author: Brett Turner (ntounix-prog)
+Created: November 2024
+Copyright (c) 2024 Brett Turner. All rights reserved.
 """
 
 import os

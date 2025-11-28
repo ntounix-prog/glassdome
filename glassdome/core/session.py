@@ -1,10 +1,9 @@
 """
-Glassdome Session Management
+Session module
 
-NOTE: Session is only needed for 'local' (encrypted) secrets backend.
-For 'env' and 'vault' backends, secrets are accessed directly without a session.
-
-Set SECRETS_BACKEND=env to bypass session requirement entirely.
+Author: Brett Turner (ntounix-prog)
+Created: November 2024
+Copyright (c) 2024 Brett Turner. All rights reserved.
 """
 from typing import Optional, Dict, Any, TYPE_CHECKING
 from pathlib import Path

@@ -1,13 +1,9 @@
 """
-Ansible Executor
-Runs Ansible playbooks against Glassdome-deployed infrastructure
+Ansible Executor module
 
-This component executes your team's Ansible playbooks and returns structured results.
-It handles:
-1. Playbook execution with proper inventory
-2. Extra variables passing
-3. Output parsing and error handling
-4. Integration with Glassdome orchestration
+Author: Brett Turner (ntounix-prog)
+Created: November 2024
+Copyright (c) 2024 Brett Turner. All rights reserved.
 """
 import subprocess
 import json

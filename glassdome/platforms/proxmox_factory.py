@@ -1,8 +1,9 @@
 """
-Proxmox Client Factory
+Platform client for Proxmox Factory
 
-Creates ProxmoxClient instances for specific Proxmox instances.
-Supports multiple Proxmox platforms with instance selection.
+Author: Brett Turner (ntounix-prog)
+Created: November 2024
+Copyright (c) 2024 Brett Turner. All rights reserved.
 """
 from typing import Optional
 from glassdome.platforms.proxmox_client import ProxmoxClient

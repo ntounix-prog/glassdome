@@ -1,7 +1,9 @@
 """
-WhitePawn API
+API endpoints for whitepawn
 
-REST endpoints for WhitePawn network monitoring.
+Author: Brett Turner (ntounix-prog)
+Created: November 2024
+Copyright (c) 2024 Brett Turner. All rights reserved.
 """
 
 import logging

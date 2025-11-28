@@ -1,5 +1,9 @@
 """
-Utility functions and helpers for Glassdome
+  Init   module
+
+Author: Brett Turner (ntounix-prog)
+Created: November 2024
+Copyright (c) 2024 Brett Turner. All rights reserved.
 """
 from glassdome.utils.windows_autounattend import (
     generate_autounattend_xml,

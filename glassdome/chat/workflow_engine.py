@@ -1,8 +1,9 @@
 """
-Workflow Engine
+Workflow Engine module
 
-Manages multi-step workflows for complex operations like lab deployments.
-Handles state collection, validation, and step-by-step execution.
+Author: Brett Turner (ntounix-prog)
+Created: November 2024
+Copyright (c) 2024 Brett Turner. All rights reserved.
 """
 
 import uuid

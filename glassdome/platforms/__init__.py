@@ -1,11 +1,9 @@
 """
-Platform Integration Layer
+Platform client for   Init  
 
-Supported Platforms:
-- Proxmox VE (on-prem)
-- VMware ESXi (on-prem, no vCenter required)
-- AWS (cloud)
-- Azure (cloud)
+Author: Brett Turner (ntounix-prog)
+Created: November 2024
+Copyright (c) 2024 Brett Turner. All rights reserved.
 """
 from glassdome.platforms.base import PlatformClient, VMStatus
 from glassdome.platforms.proxmox_client import ProxmoxClient

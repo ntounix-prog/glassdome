@@ -1,6 +1,9 @@
 """
-Ansible API Endpoints
-RESTful API for Ansible integration operations
+API endpoints for ansible
+
+Author: Brett Turner (ntounix-prog)
+Created: November 2024
+Copyright (c) 2024 Brett Turner. All rights reserved.
 """
 from fastapi import APIRouter, HTTPException, BackgroundTasks
 from pydantic import BaseModel

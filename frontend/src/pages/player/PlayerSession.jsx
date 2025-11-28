@@ -1,4 +1,12 @@
 /**
+ * Playersession page component
+ * 
+ * @author Brett Turner (ntounix-prog)
+ * @created November 2024
+ * @copyright (c) 2024 Brett Turner. All rights reserved.
+ */
+
+/**
  * PlayerSession - VM desktop viewer using Guacamole
  * 
  * This component embeds the Guacamole remote desktop client using guacamole-common-js.

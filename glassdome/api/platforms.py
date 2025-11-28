@@ -1,6 +1,9 @@
 """
-Platform Status API
-Handles platform connections and VM listing for Proxmox, AWS, Azure, ESXi
+API endpoints for platforms
+
+Author: Brett Turner (ntounix-prog)
+Created: November 2024
+Copyright (c) 2024 Brett Turner. All rights reserved.
 """
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel

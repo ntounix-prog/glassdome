@@ -1,9 +1,9 @@
 """
-ESXi API Integration (Direct ESXi Host Connection)
-Implements the PlatformClient interface for standalone ESXi hosts (no vCenter required)
+Platform client for Esxi
 
-This client connects directly to an ESXi host using the VMware vSphere API (pyvmomi).
-It provides VM creation, management, and networking capabilities on a single ESXi host.
+Author: Brett Turner (ntounix-prog)
+Created: November 2024
+Copyright (c) 2024 Brett Turner. All rights reserved.
 """
 from pyVim.connect import SmartConnect, Disconnect
 from pyVmomi import vim

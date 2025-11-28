@@ -1,10 +1,9 @@
 """
-Core Configuration Management
+Config module
 
-Secrets are loaded based on SECRETS_BACKEND environment variable:
-- env: Read from environment variables (default, production)
-- vault: Read from HashiCorp Vault (future)
-- local: Read from encrypted local store (legacy dev)
+Author: Brett Turner (ntounix-prog)
+Created: November 2024
+Copyright (c) 2024 Brett Turner. All rights reserved.
 """
 from pydantic_settings import BaseSettings
 from pydantic import ConfigDict, model_validator
