@@ -35,6 +35,9 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/deployments", tags=["deployments"])
 
+# Semaphore to limit concurrent Proxmox API calls (prevent overwhelming the API)
+_proxmox_semaphore = asyncio.Semaphore(3)  # Max 3 concurrent VM operations
+
 
 # ============================================================================
 # VLAN Allocation (100-170)
@@ -493,16 +496,31 @@ async def deploy_lab_vm(
     vm_name = f"{lab_short}-{element_id}-{vm_index:02d}"
     node_name = "pve02"
     
-    logger.info(f"")
-    logger.info(f"[Lab VM] ========================================")
-    logger.info(f"[Lab VM] Deploying lab VM")
-    logger.info(f"[Lab VM]   node.id: {node.id}")
-    logger.info(f"[Lab VM]   element_id: {element_id}")
-    logger.info(f"[Lab VM]   lab_short: {lab_short}")
-    logger.info(f"[Lab VM]   vm_name: {vm_name}")
-    logger.info(f"[Lab VM]   template_id: {template_id}")
-    logger.info(f"[Lab VM]   vm_index: {vm_index}")
-    logger.info(f"[Lab VM] ========================================")
+    logger.info(f"[Lab VM {vm_index}] Starting: {vm_name} (element: {element_id}, template: {template_id})")
+    
+    # Use semaphore to limit concurrent API calls
+    async with _proxmox_semaphore:
+        logger.info(f"[Lab VM {vm_index}] Acquired semaphore, proceeding with deployment")
+        return await _deploy_lab_vm_internal(
+            node, lab_id, lab_short, vm_name, element_id, template_id, specs, 
+            network_config, session, vm_index
+        )
+
+
+async def _deploy_lab_vm_internal(
+    node: CanvasNode,
+    lab_id: str,
+    lab_short: str,
+    vm_name: str,
+    element_id: str,
+    template_id: int,
+    specs: Dict[str, Any],
+    network_config: Dict[str, Any],
+    session: AsyncSession,
+    vm_index: int
+) -> Dict[str, Any]:
+    """Internal implementation of lab VM deployment (called within semaphore)."""
+    node_name = "pve02"
     
     try:
         # Try hot spare pool first
@@ -760,25 +778,48 @@ async def deploy_canvas_lab(
         await asyncio.sleep(15)
     
     # ========================================================================
-    # Step 3: Deploy Lab VMs (they get DHCP from pfSense)
+    # Step 3: Deploy Lab VMs IN PARALLEL (they get DHCP from pfSense)
     # ========================================================================
-    for idx, vm_node in enumerate(other_nodes):
-        result = await deploy_lab_vm(vm_node, lab_id, lab_short, network_config, session, idx)
+    if other_nodes:
+        logger.info(f"[Lab VMs] Deploying {len(other_nodes)} VMs in PARALLEL...")
         
-        if result["success"]:
-            deployed_vms.append(DeployedVMInfo(
-                node_id=result["node_id"],
-                name=result["name"],
-                vm_id=result["vm_id"],
-                ip_address=result.get("ip_address"),
-                lab_ip=result.get("lab_ip"),
-                role="client",
-                status=result.get("status", "running")
-            ))
-            logger.info(f"[Lab VM] ✓ {result['name']} deployed (VMID {result['vm_id']})")
-        else:
-            errors.append(f"{vm_node.elementId}: {result.get('error')}")
-            logger.error(f"[Lab VM] ✗ {vm_node.elementId} failed: {result.get('error')}")
+        # Create deployment tasks for all lab VMs
+        deployment_tasks = [
+            deploy_lab_vm(vm_node, lab_id, lab_short, network_config, session, idx)
+            for idx, vm_node in enumerate(other_nodes)
+        ]
+        
+        # Execute all deployments in parallel with timeout
+        try:
+            results = await asyncio.wait_for(
+                asyncio.gather(*deployment_tasks, return_exceptions=True),
+                timeout=180  # 3 minute timeout for all VMs
+            )
+        except asyncio.TimeoutError:
+            logger.error(f"[Lab VMs] Parallel deployment timed out after 180s")
+            results = []
+            errors.append("Deployment timed out after 3 minutes")
+        
+        # Process results
+        for i, result in enumerate(results):
+            if isinstance(result, Exception):
+                errors.append(f"{other_nodes[i].elementId}: {str(result)}")
+                logger.error(f"[Lab VM] ✗ {other_nodes[i].elementId} exception: {result}")
+            elif isinstance(result, dict):
+                if result.get("success"):
+                    deployed_vms.append(DeployedVMInfo(
+                        node_id=result["node_id"],
+                        name=result["name"],
+                        vm_id=result["vm_id"],
+                        ip_address=result.get("ip_address"),
+                        lab_ip=result.get("lab_ip"),
+                        role="client",
+                        status=result.get("status", "running")
+                    ))
+                    logger.info(f"[Lab VM] ✓ {result['name']} deployed (VMID {result['vm_id']})")
+                else:
+                    errors.append(f"{other_nodes[i].elementId}: {result.get('error')}")
+                    logger.error(f"[Lab VM] ✗ {other_nodes[i].elementId} failed: {result.get('error')}")
     
     # ========================================================================
     # Step 4: Register VMs with Lab Registry (source of truth)
