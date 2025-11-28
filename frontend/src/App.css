@@ -105,8 +105,10 @@
 }
 
 .status-healthy {
-  background: rgba(107, 207, 127, 0.2);
+  background: rgba(107, 207, 127, 0.25);
   color: #6bcf7f;
+  border: 1px solid rgba(107, 207, 127, 0.4);
+  box-shadow: 0 0 10px rgba(107, 207, 127, 0.3);
 }
 
 .status-error {
