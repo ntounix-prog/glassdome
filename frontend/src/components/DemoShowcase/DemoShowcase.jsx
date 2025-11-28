@@ -1,16 +1,12 @@
 /**
- * Demoshowcase component
+ * Glassdome Demo Showcase
+ * 
+ * An impressive 90+ second animated presentation
+ * showcasing all Glassdome capabilities for executive demos.
  * 
  * @author Brett Turner (ntounix)
  * @created November 2025
  * @copyright (c) 2025 Brett Turner. All rights reserved.
- */
-
-/**
- * Glassdome Demo Showcase
- * 
- * An impressive 30-40 second animated presentation
- * showcasing Glassdome capabilities for VP demos.
  */
 
 import { useState, useEffect, useRef } from 'react'
@@ -145,14 +141,20 @@ class SynthwaveGenerator {
   }
 }
 
+// Extended phases with longer durations for readability
 const PHASES = [
-  { id: 'intro', duration: 4000 },
-  { id: 'platforms', duration: 5000 },
-  { id: 'overseer', duration: 6000 },
-  { id: 'deploy', duration: 5000 },
-  { id: 'security', duration: 5000 },
-  { id: 'stats', duration: 5000 },
-  { id: 'finale', duration: 4000 },
+  { id: 'intro', duration: 5000 },
+  { id: 'problem', duration: 7000 },
+  { id: 'platforms', duration: 7000 },
+  { id: 'designer', duration: 7000 },
+  { id: 'overseer', duration: 8000 },
+  { id: 'deploy', duration: 7000 },
+  { id: 'reaper', duration: 7000 },
+  { id: 'updock', duration: 7000 },
+  { id: 'validation', duration: 7000 },
+  { id: 'monitoring', duration: 7000 },
+  { id: 'stats', duration: 7000 },
+  { id: 'finale', duration: 5000 },
 ]
 
 const TOTAL_DURATION = PHASES.reduce((sum, p) => sum + p.duration, 0)
@@ -194,13 +196,11 @@ export default function DemoShowcase({ isOpen, onClose }) {
   const handleFileSelect = (e) => {
     const file = e.target.files[0]
     if (file) {
-      // Create object URL for the file
       const url = URL.createObjectURL(file)
       setCustomAudio(url)
       setCustomFileName(file.name)
       setAudioStatus(`🎵 ${file.name.slice(0, 20)}...`)
       
-      // Create audio element
       const audio = new Audio(url)
       audio.loop = true
       audio.volume = 0.5
@@ -215,7 +215,6 @@ export default function DemoShowcase({ isOpen, onClose }) {
         stopAllAudio()
         setAudioStatus(customAudio ? `🎵 ${customFileName?.slice(0, 15)}...` : '🎵 Click for Music')
       } else {
-        // Use custom audio if available, otherwise synth
         if (customAudio && audioRef.current) {
           audioRef.current.play()
           setIsPlaying(true)
@@ -233,7 +232,6 @@ export default function DemoShowcase({ isOpen, onClose }) {
     }
   }
 
-  // Open file picker
   const openFilePicker = () => {
     fileInputRef.current?.click()
   }
@@ -250,7 +248,6 @@ export default function DemoShowcase({ isOpen, onClose }) {
       elapsed += 50
       setProgress((elapsed / TOTAL_DURATION) * 100)
 
-      // Calculate current phase
       let phaseTime = 0
       for (let i = 0; i < PHASES.length; i++) {
         phaseTime += PHASES[i].duration
@@ -260,7 +257,6 @@ export default function DemoShowcase({ isOpen, onClose }) {
         }
       }
 
-      // Auto-close at end
       if (elapsed >= TOTAL_DURATION) {
         clearInterval(interval)
         setTimeout(() => onClose(), 500)
@@ -284,6 +280,11 @@ export default function DemoShowcase({ isOpen, onClose }) {
       {/* Progress bar */}
       <div className="demo-progress">
         <div className="demo-progress-bar" style={{ width: `${progress}%` }} />
+      </div>
+
+      {/* Time remaining */}
+      <div className="demo-time">
+        {Math.ceil((TOTAL_DURATION - (progress / 100 * TOTAL_DURATION)) / 1000)}s
       </div>
 
       {/* Controls */}
@@ -348,6 +349,14 @@ export default function DemoShowcase({ isOpen, onClose }) {
               >
                 Autonomous Cyber Range Operations
               </motion.p>
+              <motion.p 
+                className="version-tag"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 1.5 }}
+              >
+                Version 0.7.0 • November 2025
+              </motion.p>
               <motion.div 
                 className="pulse-ring"
                 animate={{ scale: [1, 1.5, 1], opacity: [0.5, 0, 0.5] }}
@@ -356,7 +365,47 @@ export default function DemoShowcase({ isOpen, onClose }) {
             </motion.div>
           )}
 
-          {/* PHASE 2: PLATFORMS */}
+          {/* PHASE 2: THE PROBLEM */}
+          {phase === 'problem' && (
+            <motion.div
+              key="problem"
+              className="demo-phase problem"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+            >
+              <motion.h2
+                initial={{ y: -30, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+              >
+                The <span className="highlight-red">Problem</span>
+              </motion.h2>
+              <div className="problem-grid">
+                {[
+                  { icon: '⏰', title: 'Hours to Deploy', desc: 'Manual lab setup takes 4-8 hours per environment' },
+                  { icon: '🔧', title: 'Platform Fragmentation', desc: 'Different tools for AWS, Azure, Proxmox, ESXi' },
+                  { icon: '📋', title: 'Inconsistent Labs', desc: 'No two deployments are exactly the same' },
+                  { icon: '💸', title: 'Expensive Expertise', desc: 'Requires specialized engineers for each platform' },
+                ].map((item, i) => (
+                  <motion.div
+                    key={item.title}
+                    className="problem-card"
+                    initial={{ opacity: 0, x: -30 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.3 + i * 0.4 }}
+                  >
+                    <div className="problem-icon">{item.icon}</div>
+                    <div className="problem-content">
+                      <h3>{item.title}</h3>
+                      <p>{item.desc}</p>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+            </motion.div>
+          )}
+
+          {/* PHASE 3: PLATFORMS */}
           {phase === 'platforms' && (
             <motion.div
               key="platforms"
@@ -371,19 +420,27 @@ export default function DemoShowcase({ isOpen, onClose }) {
               >
                 Multi-Platform Orchestration
               </motion.h2>
+              <motion.p
+                className="section-desc"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.3 }}
+              >
+                One unified interface for all your infrastructure
+              </motion.p>
               <div className="platform-grid">
                 {[
-                  { icon: '🖥️', name: 'Proxmox', color: '#e57000' },
-                  { icon: '☁️', name: 'AWS', color: '#ff9900' },
-                  { icon: '🔷', name: 'Azure', color: '#0078d4' },
-                  { icon: '💠', name: 'ESXi', color: '#78be20' },
+                  { icon: '🖥️', name: 'Proxmox VE', color: '#e57000', status: 'Production Ready' },
+                  { icon: '☁️', name: 'AWS EC2', color: '#ff9900', status: 'Production Ready' },
+                  { icon: '🔷', name: 'Microsoft Azure', color: '#0078d4', status: 'Production Ready' },
+                  { icon: '💠', name: 'VMware ESXi', color: '#78be20', status: 'Planned' },
                 ].map((platform, i) => (
                   <motion.div
                     key={platform.name}
                     className="platform-card"
                     initial={{ opacity: 0, y: 50, scale: 0.8 }}
                     animate={{ opacity: 1, y: 0, scale: 1 }}
-                    transition={{ delay: 0.2 + i * 0.15, type: "spring", stiffness: 200 }}
+                    transition={{ delay: 0.4 + i * 0.2, type: "spring", stiffness: 200 }}
                     style={{ '--accent': platform.color }}
                   >
                     <div className="platform-icon">{platform.icon}</div>
@@ -392,25 +449,70 @@ export default function DemoShowcase({ isOpen, onClose }) {
                       className="platform-status"
                       initial={{ width: 0 }}
                       animate={{ width: '100%' }}
-                      transition={{ delay: 0.8 + i * 0.1, duration: 0.5 }}
+                      transition={{ delay: 1 + i * 0.1, duration: 0.5 }}
                     >
-                      <span>● Connected</span>
+                      <span>● {platform.status}</span>
                     </motion.div>
                   </motion.div>
                 ))}
               </div>
-              <motion.p
-                className="platform-subtitle"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 1.5 }}
-              >
-                One interface. Every platform.
-              </motion.p>
             </motion.div>
           )}
 
-          {/* PHASE 3: OVERSEER AI */}
+          {/* PHASE 4: LAB DESIGNER */}
+          {phase === 'designer' && (
+            <motion.div
+              key="designer"
+              className="demo-phase designer"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+            >
+              <motion.div
+                className="designer-icon"
+                initial={{ scale: 0, rotate: -180 }}
+                animate={{ scale: 1, rotate: 0 }}
+                transition={{ type: "spring", stiffness: 200 }}
+              >
+                🎨
+              </motion.div>
+              <motion.h2
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.3 }}
+              >
+                Visual Lab Designer
+              </motion.h2>
+              <motion.p
+                className="section-desc"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.5 }}
+              >
+                Drag-and-drop lab creation with ReactFlow canvas
+              </motion.p>
+              <motion.div 
+                className="feature-tags"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.8 }}
+              >
+                {['Drag & Drop VMs', 'Visual Networking', 'pfSense Gateways', 'Template Library', 'One-Click Deploy', 'Save & Load'].map((tag, i) => (
+                  <motion.span
+                    key={tag}
+                    className="feature-tag"
+                    initial={{ opacity: 0, scale: 0 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ delay: 1 + i * 0.15 }}
+                  >
+                    {tag}
+                  </motion.span>
+                ))}
+              </motion.div>
+            </motion.div>
+          )}
+
+          {/* PHASE 5: OVERSEER AI */}
           {phase === 'overseer' && (
             <motion.div
               key="overseer"
@@ -423,9 +525,9 @@ export default function DemoShowcase({ isOpen, onClose }) {
                 className="ai-orb"
                 animate={{ 
                   boxShadow: [
-                    '0 0 60px rgba(0, 212, 255, 0.3)',
-                    '0 0 100px rgba(0, 212, 255, 0.6)',
-                    '0 0 60px rgba(0, 212, 255, 0.3)',
+                    '0 0 60px rgba(52, 211, 153, 0.3)',
+                    '0 0 100px rgba(52, 211, 153, 0.6)',
+                    '0 0 60px rgba(52, 211, 153, 0.3)',
                   ]
                 }}
                 transition={{ duration: 2, repeat: Infinity }}
@@ -437,7 +539,7 @@ export default function DemoShowcase({ isOpen, onClose }) {
                 animate={{ opacity: 1 }}
                 transition={{ delay: 0.5 }}
               >
-                Meet <span className="highlight">Overseer</span>
+                Meet <span className="highlight-green">Overseer</span>
               </motion.h2>
               <motion.p
                 className="ai-subtitle"
@@ -445,7 +547,7 @@ export default function DemoShowcase({ isOpen, onClose }) {
                 animate={{ opacity: 1 }}
                 transition={{ delay: 0.8 }}
               >
-                Your AI Operations Co-Pilot
+                Your AI Operations Co-Pilot • Claude 3.5 Sonnet + GPT-4o
               </motion.p>
               <motion.div 
                 className="chat-demo"
@@ -454,24 +556,34 @@ export default function DemoShowcase({ isOpen, onClose }) {
                 transition={{ delay: 1.2 }}
               >
                 <div className="chat-message user">
-                  <TypeWriter text="Deploy a security lab to AWS" delay={1.5} />
+                  <TypeWriter text="Deploy a Windows AD lab with Kali attacker" delay={1.5} />
                 </div>
                 <motion.div 
                   className="chat-message assistant"
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
-                  transition={{ delay: 3.5 }}
+                  transition={{ delay: 4 }}
                 >
                   <span className="typing-indicator">
                     <span></span><span></span><span></span>
                   </span>
-                  ✅ Lab deployed in 47 seconds
+                  ✅ Deploying 4 VMs to Proxmox... Lab ready in 47s
                 </motion.div>
+              </motion.div>
+              <motion.div 
+                className="ai-features"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 5 }}
+              >
+                <span>💬 Natural Language</span>
+                <span>🔧 Infrastructure Tools</span>
+                <span>📧 Email Integration</span>
               </motion.div>
             </motion.div>
           )}
 
-          {/* PHASE 4: DEPLOYMENT */}
+          {/* PHASE 6: DEPLOYMENT */}
           {phase === 'deploy' && (
             <motion.div
               key="deploy"
@@ -486,19 +598,28 @@ export default function DemoShowcase({ isOpen, onClose }) {
               >
                 Deploy in <span className="highlight">Seconds</span>
               </motion.h2>
+              <motion.p
+                className="section-desc"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.3 }}
+              >
+                Parallel VM provisioning with automatic networking
+              </motion.p>
               <div className="deploy-timeline">
                 {[
-                  { step: 'Network Created', time: '0.8s', icon: '🌐' },
-                  { step: 'VMs Provisioned', time: '12s', icon: '🖥️' },
-                  { step: 'Services Configured', time: '8s', icon: '⚙️' },
-                  { step: 'Lab Ready', time: '✓', icon: '🚀' },
+                  { step: 'pfSense Gateway Created', time: '8s', icon: '🛡️' },
+                  { step: 'VMs Cloned in Parallel', time: '15s', icon: '🖥️' },
+                  { step: 'DHCP & Networking', time: '5s', icon: '🌐' },
+                  { step: 'Vulnerabilities Injected', time: '12s', icon: '☠️' },
+                  { step: 'Lab Ready for Players', time: '✓', icon: '🚀' },
                 ].map((item, i) => (
                   <motion.div
                     key={item.step}
                     className="timeline-item"
                     initial={{ opacity: 0, x: -30 }}
                     animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.3 + i * 0.6 }}
+                    transition={{ delay: 0.4 + i * 0.5 }}
                   >
                     <div className="timeline-icon">{item.icon}</div>
                     <div className="timeline-content">
@@ -509,7 +630,7 @@ export default function DemoShowcase({ isOpen, onClose }) {
                       className="timeline-line"
                       initial={{ scaleX: 0 }}
                       animate={{ scaleX: 1 }}
-                      transition={{ delay: 0.5 + i * 0.6, duration: 0.4 }}
+                      transition={{ delay: 0.6 + i * 0.5, duration: 0.4 }}
                     />
                   </motion.div>
                 ))}
@@ -517,11 +638,11 @@ export default function DemoShowcase({ isOpen, onClose }) {
             </motion.div>
           )}
 
-          {/* PHASE 5: SECURITY */}
-          {phase === 'security' && (
+          {/* PHASE 7: REAPER */}
+          {phase === 'reaper' && (
             <motion.div
-              key="security"
-              className="demo-phase security"
+              key="reaper"
+              className="demo-phase reaper"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
@@ -539,14 +660,15 @@ export default function DemoShowcase({ isOpen, onClose }) {
                 animate={{ opacity: 1 }}
                 transition={{ delay: 0.5 }}
               >
-                <span className="highlight">Reaper</span> Vulnerability Engine
+                <span className="highlight-red">Reaper</span> Vulnerability Engine
               </motion.h2>
               <motion.p
+                className="section-desc"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ delay: 0.8 }}
               >
-                Inject real-world vulnerabilities for training
+                "Configure in Place" - Deploy anywhere, identical state every time
               </motion.p>
               <motion.div 
                 className="vuln-list"
@@ -554,22 +676,248 @@ export default function DemoShowcase({ isOpen, onClose }) {
                 animate={{ opacity: 1 }}
                 transition={{ delay: 1.2 }}
               >
-                {['SQL Injection', 'XSS', 'Privilege Escalation', 'Weak SSH'].map((vuln, i) => (
+                {['Weak SSH ✓', 'SQL Injection', 'XSS', 'Privilege Escalation', 'SMB Exploits', 'AD Misconfig'].map((vuln, i) => (
                   <motion.span
                     key={vuln}
-                    className="vuln-tag"
+                    className={`vuln-tag ${vuln.includes('✓') ? 'active' : ''}`}
                     initial={{ opacity: 0, scale: 0 }}
                     animate={{ opacity: 1, scale: 1 }}
-                    transition={{ delay: 1.5 + i * 0.2 }}
+                    transition={{ delay: 1.5 + i * 0.15 }}
                   >
                     {vuln}
                   </motion.span>
                 ))}
               </motion.div>
+              <motion.p
+                className="reaper-note"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 2.5 }}
+              >
+                Powered by Ansible playbooks • No platform lock-in
+              </motion.p>
             </motion.div>
           )}
 
-          {/* PHASE 6: STATS */}
+          {/* PHASE 8: UPDOCK */}
+          {phase === 'updock' && (
+            <motion.div
+              key="updock"
+              className="demo-phase updock"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+            >
+              <motion.div 
+                className="updock-icon"
+                initial={{ y: 50, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ type: "spring", stiffness: 150 }}
+              >
+                🚀
+              </motion.div>
+              <motion.h2
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.5 }}
+              >
+                <span className="highlight-cyan">Updock</span> Player Access
+              </motion.h2>
+              <motion.p
+                className="section-desc"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.8 }}
+              >
+                Browser-based RDP/SSH • No client software required
+              </motion.p>
+              <motion.div 
+                className="updock-features"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 1.2 }}
+              >
+                <div className="updock-flow">
+                  <motion.div 
+                    className="flow-step"
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 1.4 }}
+                  >
+                    <span className="flow-icon">🎫</span>
+                    <span>Enter Lab Code</span>
+                  </motion.div>
+                  <motion.div 
+                    className="flow-arrow"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 1.6 }}
+                  >→</motion.div>
+                  <motion.div 
+                    className="flow-step"
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 1.8 }}
+                  >
+                    <span className="flow-icon">🖥️</span>
+                    <span>Select Machine</span>
+                  </motion.div>
+                  <motion.div 
+                    className="flow-arrow"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 2 }}
+                  >→</motion.div>
+                  <motion.div 
+                    className="flow-step"
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 2.2 }}
+                  >
+                    <span className="flow-icon">🎮</span>
+                    <span>Full Desktop</span>
+                  </motion.div>
+                </div>
+              </motion.div>
+              <motion.p
+                className="updock-note"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 2.8 }}
+              >
+                Powered by Apache Guacamole • Custom Glassdome UI
+              </motion.p>
+            </motion.div>
+          )}
+
+          {/* PHASE 9: WHITEKNIGHT VALIDATION */}
+          {phase === 'validation' && (
+            <motion.div
+              key="validation"
+              className="demo-phase validation"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+            >
+              <motion.div 
+                className="knight-icon"
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ type: "spring", stiffness: 200 }}
+              >
+                🛡️
+              </motion.div>
+              <motion.h2
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.5 }}
+              >
+                <span className="highlight-gold">WhiteKnight</span> Validation
+              </motion.h2>
+              <motion.p
+                className="section-desc"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.8 }}
+              >
+                Verify vulnerabilities are exploitable before training begins
+              </motion.p>
+              <motion.div 
+                className="validation-checks"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 1.2 }}
+              >
+                {[
+                  { check: 'SSH Credentials Verified', status: '✓' },
+                  { check: 'Port Scan Complete', status: '✓' },
+                  { check: 'Services Accessible', status: '✓' },
+                  { check: 'Exploit Paths Confirmed', status: '✓' },
+                ].map((item, i) => (
+                  <motion.div
+                    key={item.check}
+                    className="check-item"
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 1.4 + i * 0.3 }}
+                  >
+                    <span className="check-status">{item.status}</span>
+                    <span className="check-name">{item.check}</span>
+                  </motion.div>
+                ))}
+              </motion.div>
+              <motion.div
+                className="training-ready"
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: 2.8 }}
+              >
+                🎯 Lab Ready for Training
+              </motion.div>
+            </motion.div>
+          )}
+
+          {/* PHASE 10: WHITEPAWN MONITORING */}
+          {phase === 'monitoring' && (
+            <motion.div
+              key="monitoring"
+              className="demo-phase monitoring"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+            >
+              <motion.div 
+                className="pawn-icon"
+                initial={{ y: -50, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ type: "spring" }}
+              >
+                ♟️
+              </motion.div>
+              <motion.h2
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.5 }}
+              >
+                <span className="highlight-purple">WhitePawn</span> Monitoring
+              </motion.h2>
+              <motion.p
+                className="section-desc"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.8 }}
+              >
+                Real-time visibility into all deployed resources
+              </motion.p>
+              <motion.div 
+                className="monitor-grid"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 1.2 }}
+              >
+                {[
+                  { icon: '📊', label: 'Live Dashboard', desc: 'VM states, IPs, uptime' },
+                  { icon: '🔔', label: 'Smart Alerts', desc: 'Drift detection' },
+                  { icon: '🔄', label: 'Self-Healing', desc: 'Auto-restart failed VMs' },
+                  { icon: '📈', label: 'Lab Registry', desc: 'Central source of truth' },
+                ].map((item, i) => (
+                  <motion.div
+                    key={item.label}
+                    className="monitor-card"
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 1.4 + i * 0.2 }}
+                  >
+                    <div className="monitor-icon">{item.icon}</div>
+                    <div className="monitor-label">{item.label}</div>
+                    <div className="monitor-desc">{item.desc}</div>
+                  </motion.div>
+                ))}
+              </motion.div>
+            </motion.div>
+          )}
+
+          {/* PHASE 11: STATS */}
           {phase === 'stats' && (
             <motion.div
               key="stats"
@@ -582,34 +930,48 @@ export default function DemoShowcase({ isOpen, onClose }) {
                 initial={{ y: -20, opacity: 0 }}
                 animate={{ y: 0, opacity: 1 }}
               >
-                Enterprise Ready
+                By The Numbers
               </motion.h2>
               <div className="stats-grid">
                 {[
-                  { value: '4', label: 'Platforms', suffix: '' },
-                  { value: '12', label: 'AI Tools', suffix: '+' },
-                  { value: '47', label: 'Sec Deploy', suffix: 's' },
-                  { value: '100', label: 'Automated', suffix: '%' },
+                  { value: '4', label: 'Platforms', suffix: '', desc: 'Proxmox, AWS, Azure, ESXi' },
+                  { value: '167', label: 'Source Files', suffix: '+', desc: 'Python & React' },
+                  { value: '47', label: 'Deploy Time', suffix: 's', desc: 'Average lab ready' },
+                  { value: '6', label: 'Major Systems', suffix: '', desc: 'Integrated & working' },
                 ].map((stat, i) => (
                   <motion.div
                     key={stat.label}
                     className="stat-card"
                     initial={{ opacity: 0, y: 30 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.2 + i * 0.15 }}
+                    transition={{ delay: 0.3 + i * 0.2 }}
                   >
                     <div className="stat-value">
                       <CountUp to={parseInt(stat.value)} delay={0.5 + i * 0.15} />
                       <span className="stat-suffix">{stat.suffix}</span>
                     </div>
                     <div className="stat-label">{stat.label}</div>
+                    <div className="stat-desc">{stat.desc}</div>
                   </motion.div>
                 ))}
               </div>
+              <motion.div
+                className="systems-row"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 1.5 }}
+              >
+                <span>🧠 Overseer</span>
+                <span>☠️ Reaper</span>
+                <span>🚀 Updock</span>
+                <span>🛡️ WhiteKnight</span>
+                <span>♟️ WhitePawn</span>
+                <span>🎨 Designer</span>
+              </motion.div>
             </motion.div>
           )}
 
-          {/* PHASE 7: FINALE */}
+          {/* PHASE 12: FINALE */}
           {phase === 'finale' && (
             <motion.div
               key="finale"
@@ -648,8 +1010,16 @@ export default function DemoShowcase({ isOpen, onClose }) {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 1.2 }}
               >
-                Ready to Transform Your Training?
+                Ready for Questions?
               </motion.div>
+              <motion.p
+                className="finale-author"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 1.8 }}
+              >
+                Built by Brett Turner • November 2025
+              </motion.p>
             </motion.div>
           )}
 
@@ -720,4 +1090,3 @@ function CountUp({ to, delay = 0 }) {
   
   return <span>{count}</span>
 }
-
