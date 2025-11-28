@@ -336,6 +336,7 @@ async def wait_for_pfsense_wan_ip(
 async def deploy_pfsense_gateway(
     node: CanvasNode,
     lab_id: str,
+    lab_short: str,
     network_config: Dict[str, Any],
     session: AsyncSession
 ) -> Dict[str, Any]:
@@ -347,11 +348,19 @@ async def deploy_pfsense_gateway(
     3. Boot and wait for WAN IP
     4. Configure LAN IP and DHCP server via SSH
     """
-    vm_name = f"lab-{lab_id[:8]}-gateway"
+    vm_name = f"{lab_short}-gateway"
     template_id = TEMPLATE_MAPPING["pfsense"]
     node_name = "pve02"
     
-    logger.info(f"[Gateway] Deploying pfSense gateway: {vm_name}")
+    logger.info(f"")
+    logger.info(f"[Gateway] ========================================")
+    logger.info(f"[Gateway] Deploying pfSense gateway")
+    logger.info(f"[Gateway]   lab_id: {lab_id}")
+    logger.info(f"[Gateway]   lab_short: {lab_short}")
+    logger.info(f"[Gateway]   vm_name: {vm_name}")
+    logger.info(f"[Gateway]   template_id: {template_id}")
+    logger.info(f"[Gateway]   node: {node_name}")
+    logger.info(f"[Gateway] ========================================")
     
     try:
         # Get Proxmox client
@@ -466,6 +475,7 @@ async def deploy_pfsense_gateway(
 async def deploy_lab_vm(
     node: CanvasNode,
     lab_id: str,
+    lab_short: str,
     network_config: Dict[str, Any],
     session: AsyncSession,
     vm_index: int = 0
@@ -479,10 +489,20 @@ async def deploy_lab_vm(
     element_id = node.elementId
     template_id = TEMPLATE_MAPPING.get(element_id, 9001)
     specs = VM_SPECS.get(element_id, {"cores": 2, "memory": 2048, "disk": 20})
-    vm_name = f"lab-{lab_id[:8]}-{element_id}-{node.id[-4:]}"
+    # Use lab_short for naming, add index for uniqueness
+    vm_name = f"{lab_short}-{element_id}-{vm_index:02d}"
     node_name = "pve02"
     
-    logger.info(f"[Lab VM] Deploying: {vm_name} (template {template_id})")
+    logger.info(f"")
+    logger.info(f"[Lab VM] ========================================")
+    logger.info(f"[Lab VM] Deploying lab VM")
+    logger.info(f"[Lab VM]   node.id: {node.id}")
+    logger.info(f"[Lab VM]   element_id: {element_id}")
+    logger.info(f"[Lab VM]   lab_short: {lab_short}")
+    logger.info(f"[Lab VM]   vm_name: {vm_name}")
+    logger.info(f"[Lab VM]   template_id: {template_id}")
+    logger.info(f"[Lab VM]   vm_index: {vm_index}")
+    logger.info(f"[Lab VM] ========================================")
     
     try:
         # Try hot spare pool first
@@ -611,9 +631,34 @@ async def deploy_canvas_lab(
     5. VMs get IPs from pfSense DHCP automatically
     """
     
-    lab_id = request.lab_id
+    raw_lab_id = request.lab_id
     platform_id = request.platform_id
     nodes = request.lab_data.nodes
+    
+    # ========================================================================
+    # LOGGING: Trace the request data
+    # ========================================================================
+    logger.info(f"")
+    logger.info(f"{'='*70}")
+    logger.info(f"CANVAS DEPLOYMENT REQUEST RECEIVED")
+    logger.info(f"{'='*70}")
+    logger.info(f"  raw_lab_id: {raw_lab_id}")
+    logger.info(f"  platform_id: {platform_id}")
+    logger.info(f"  node_count: {len(nodes)}")
+    for i, node in enumerate(nodes):
+        logger.info(f"  node[{i}]: id={node.id}, type={node.type}, elementId={node.elementId}")
+    logger.info(f"{'='*70}")
+    
+    # Clean up lab_id - extract just the unique identifier
+    # Handles cases like "lab-1764xxx" or "1764xxx" or any prefix
+    lab_id = raw_lab_id
+    if lab_id.startswith("lab-"):
+        lab_id = lab_id[4:]  # Remove "lab-" prefix
+    # Take just the timestamp/unique part (first 12 chars after cleanup)
+    lab_short = lab_id[:12] if len(lab_id) > 12 else lab_id
+    
+    logger.info(f"  Cleaned lab_id: {lab_id}")
+    logger.info(f"  lab_short (for naming): {lab_short}")
     
     if platform_id != "1":
         return CanvasDeployResponse(
@@ -622,7 +667,7 @@ async def deploy_canvas_lab(
             vms=[], errors=["Platform not supported"]
         )
     
-    deployment_id = f"deploy-{lab_id[:12]}-{datetime.utcnow().strftime('%H%M%S')}"
+    deployment_id = f"deploy-{lab_short}-{datetime.utcnow().strftime('%H%M%S')}"
     
     # Separate VMs and networks
     vm_nodes = [n for n in nodes if n.type == "vm"]
@@ -651,8 +696,9 @@ async def deploy_canvas_lab(
         logger.info(f"[Network] DHCP: {network_config['dhcp_start']} - {network_config['dhcp_end']}")
         
         # Save network definition
+        net_name = f"{lab_short}-net"
         net_def = NetworkDefinition(
-            name=f"lab-{lab_id[:8]}-net",
+            name=net_name,
             display_name=f"Lab Network",
             cidr=network_config["cidr"],
             vlan_id=vlan_id,
@@ -662,6 +708,7 @@ async def deploy_canvas_lab(
         )
         session.add(net_def)
         await session.commit()
+        logger.info(f"[Network] Created network definition: {net_name}")
         
     except Exception as e:
         logger.error(f"[Network] Failed to setup: {e}")
@@ -690,7 +737,7 @@ async def deploy_canvas_lab(
     
     # Deploy gateway first
     for pf_node in pfsense_nodes:
-        result = await deploy_pfsense_gateway(pf_node, lab_id, network_config, session)
+        result = await deploy_pfsense_gateway(pf_node, lab_id, lab_short, network_config, session)
         
         if result["success"]:
             deployed_vms.append(DeployedVMInfo(
@@ -716,7 +763,7 @@ async def deploy_canvas_lab(
     # Step 3: Deploy Lab VMs (they get DHCP from pfSense)
     # ========================================================================
     for idx, vm_node in enumerate(other_nodes):
-        result = await deploy_lab_vm(vm_node, lab_id, network_config, session, idx)
+        result = await deploy_lab_vm(vm_node, lab_id, lab_short, network_config, session, idx)
         
         if result["success"]:
             deployed_vms.append(DeployedVMInfo(
