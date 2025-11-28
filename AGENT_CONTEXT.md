@@ -1,7 +1,7 @@
 # Glassdome Agent Context
 
 **Last Updated:** 2024-11-28
-**Version:** 0.7.1 (Presenter Mode)
+**Version:** 0.6.2 (Demo Presenter Mode)
 
 This file provides context for AI assistants working on Glassdome. Read this first to understand the current state of the project.
 
