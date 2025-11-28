@@ -89,7 +89,9 @@
 .nav-status {
   display: flex;
   align-items: center;
-  gap: 1.5rem;
+  gap: 1rem;
+  margin-left: auto;
+  padding-left: 1rem;
 }
 
 .status-indicator {
@@ -99,6 +101,7 @@
   font-weight: 600;
   white-space: nowrap;
   flex-shrink: 0;
+  margin-right: 0.5rem;
 }
 
 .status-healthy {

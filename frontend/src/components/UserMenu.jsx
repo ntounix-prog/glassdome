@@ -60,6 +60,8 @@ export default function UserMenu() {
           WebkitAppearance: 'none',
           MozAppearance: 'none',
           appearance: 'none',
+          marginLeft: '8px',
+          flexShrink: 0,
         }}
       >
         Sign In
