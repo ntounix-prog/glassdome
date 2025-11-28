@@ -1,0 +1,38 @@
+Glassdome - Cyber Range Automation Platform
+Copyright (c) 2024 Brett Turner (ntounix-prog)
+
+All rights reserved.
+
+ORIGINAL CODE ATTESTATION
+=========================
+All code in this repository was originally authored by Brett Turner 
+between November 2024 and the date of this file.
+
+Backend (Python):
+  - glassdome/api/
+  - glassdome/platforms/
+  - glassdome/registry/
+  - glassdome/reaper/
+  - glassdome/workers/
+  - glassdome/chat/
+  - glassdome/core/
+  - glassdome/networking/
+  - glassdome/whitepawn/
+  - glassdome/overseer/
+
+Frontend (React/JavaScript):
+  - frontend/src/
+
+Infrastructure:
+  - scripts/
+  - config/
+  - updock/
+
+AI ASSISTANCE DISCLOSURE
+========================
+Development was assisted by AI tools (Claude via Cursor IDE).
+All AI-generated code was reviewed, tested, and approved by the author.
+
+---
+Generated: 2024-11-28
+Version: 0.6.0
