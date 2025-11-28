@@ -89,6 +89,7 @@
 .nav-status {
   display: flex;
   align-items: center;
+  gap: 1rem;
 }
 
 .status-indicator {

@@ -45,7 +45,12 @@ export default function UserMenu() {
         className="user-login-btn"
         onClick={() => navigate('/login')}
       >
-        🔓 Login
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/>
+          <polyline points="10 17 15 12 10 7"/>
+          <line x1="15" y1="12" x2="3" y2="12"/>
+        </svg>
+        Sign In
       </button>
     )
   }
@@ -114,18 +119,29 @@ export default function UserMenu() {
 
       <style>{`
         .user-login-btn {
-          background: rgba(100, 200, 255, 0.1);
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          background: rgba(100, 200, 255, 0.15);
           border: 1px solid rgba(100, 200, 255, 0.3);
           color: #64c8ff;
           padding: 0.5rem 1rem;
           border-radius: 6px;
           cursor: pointer;
           font-size: 0.9rem;
+          font-weight: 500;
           transition: all 0.2s;
+          white-space: nowrap;
         }
         
         .user-login-btn:hover {
-          background: rgba(100, 200, 255, 0.2);
+          background: rgba(100, 200, 255, 0.25);
+          border-color: #64c8ff;
+          transform: translateY(-1px);
+        }
+        
+        .user-login-btn svg {
+          flex-shrink: 0;
         }
         
         .user-menu {
