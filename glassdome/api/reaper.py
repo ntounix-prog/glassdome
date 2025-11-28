@@ -75,10 +75,20 @@ class ExploitCreate(BaseModel):
     install_script: Optional[str] = None
     verify_script: Optional[str] = None
     cleanup_script: Optional[str] = None
+    # Ansible integration - engineers can reference playbooks directly
+    ansible_playbook: Optional[str] = None  # e.g., "web/inject_sqli.yml"
+    ansible_role: Optional[str] = None      # Ansible role name
+    ansible_vars: Optional[Dict[str, Any]] = None  # Default playbook variables
     exploitation_steps: Optional[str] = None
     remediation_steps: Optional[str] = None
     references: Optional[List[str]] = None
     tags: Optional[List[str]] = None
+
+
+class ExploitBulkImport(BaseModel):
+    """Bulk import exploits from JSON"""
+    exploits: List[ExploitCreate]
+    overwrite: bool = False  # If true, update existing exploits by name
 
 
 class ExploitUpdate(BaseModel):
@@ -96,6 +106,9 @@ class ExploitUpdate(BaseModel):
     install_script: Optional[str] = None
     verify_script: Optional[str] = None
     cleanup_script: Optional[str] = None
+    ansible_playbook: Optional[str] = None
+    ansible_role: Optional[str] = None
+    ansible_vars: Optional[Dict[str, Any]] = None
     exploitation_steps: Optional[str] = None
     remediation_steps: Optional[str] = None
     references: Optional[List[str]] = None
@@ -275,6 +288,192 @@ async def seed_exploits(
     """Seed the database with default exploits"""
     await seed_default_exploits(session)
     return {"message": "Default exploits seeded"}
+
+
+@router.post("/exploits/import")
+async def import_exploits(
+    data: ExploitBulkImport,
+    session: AsyncSession = Depends(get_async_session)
+):
+    """
+    Bulk import exploits from JSON
+    
+    Engineers/architects can prepare exploit definitions offline
+    and import them in bulk. Supports both script-based and
+    Ansible playbook-based exploits.
+    
+    Example JSON format available at GET /api/reaper/exploits/template
+    """
+    imported = 0
+    updated = 0
+    errors = []
+    
+    for exploit_data in data.exploits:
+        try:
+            # Check for existing
+            result = await session.execute(
+                select(Exploit).where(Exploit.name == exploit_data.name)
+            )
+            existing = result.scalar_one_or_none()
+            
+            if existing:
+                if data.overwrite:
+                    # Update existing
+                    update_dict = exploit_data.model_dump(exclude_unset=True)
+                    for key, value in update_dict.items():
+                        setattr(existing, key, value)
+                    updated += 1
+                    logger.info(f"Updated exploit: {exploit_data.name}")
+                else:
+                    errors.append(f"Exploit '{exploit_data.name}' already exists (use overwrite=true)")
+            else:
+                # Create new
+                new_exploit = Exploit(**exploit_data.model_dump())
+                session.add(new_exploit)
+                imported += 1
+                logger.info(f"Imported exploit: {exploit_data.name}")
+                
+        except Exception as e:
+            errors.append(f"Error importing '{exploit_data.name}': {str(e)}")
+    
+    await session.commit()
+    
+    return {
+        "imported": imported,
+        "updated": updated,
+        "errors": errors,
+        "total_processed": len(data.exploits)
+    }
+
+
+@router.get("/exploits/template")
+async def get_exploit_template():
+    """
+    Get example JSON template for creating exploits
+    
+    Engineers/architects can use this template to build
+    exploit definitions offline, then import via POST /api/reaper/exploits/import
+    
+    Two approaches supported:
+    1. Script-based: Use install_script field with bash/powershell
+    2. Ansible-based: Reference ansible_playbook path (recommended for complex scenarios)
+    """
+    return {
+        "description": "Example exploit definitions for Reaper import",
+        "usage": "POST this to /api/reaper/exploits/import",
+        "exploits": [
+            {
+                "name": "custom-weak-ssh",
+                "display_name": "Custom Weak SSH Credentials",
+                "description": "Creates user 'trainee' with weak password for SSH brute-force training",
+                "cve_id": None,
+                "exploit_type": "credential",
+                "severity": "high",
+                "cvss_score": "7.5",
+                "target_os": "linux",
+                "target_services": ["ssh"],
+                "prerequisites": ["ssh_server"],
+                "install_script": """#!/bin/bash
+# Create vulnerable user for training
+useradd -m -s /bin/bash trainee
+echo 'trainee:trainee123' | chpasswd
+sed -i 's/PasswordAuthentication no/PasswordAuthentication yes/' /etc/ssh/sshd_config
+systemctl restart ssh
+echo 'Weak SSH user created: trainee:trainee123'
+""",
+                "verify_script": """#!/bin/bash
+sshpass -p 'trainee123' ssh -o StrictHostKeyChecking=no trainee@localhost echo 'SUCCESS'
+""",
+                "exploitation_steps": "1. Use hydra: hydra -l trainee -P /usr/share/wordlists/rockyou.txt ssh://target\n2. Or try: ssh trainee@target with password trainee123",
+                "remediation_steps": "1. Enforce strong passwords\n2. Disable password auth\n3. Use SSH keys only",
+                "tags": ["credential", "ssh", "training"],
+            },
+            {
+                "name": "ansible-sqli-dvwa",
+                "display_name": "SQL Injection Lab (Ansible)",
+                "description": "Deploys DVWA for SQL injection training using Ansible playbook",
+                "exploit_type": "web",
+                "severity": "high",
+                "cvss_score": "8.0",
+                "target_os": "linux",
+                "target_services": ["apache2", "mysql"],
+                "ansible_playbook": "web/inject_sqli.yml",
+                "ansible_vars": {
+                    "dvwa_security_level": "low",
+                    "mysql_root_password": "training123"
+                },
+                "exploitation_steps": "1. Navigate to http://target/dvwa\n2. Login: admin/password\n3. Go to SQL Injection\n4. Enter: ' OR '1'='1' --",
+                "remediation_steps": "Use parameterized queries and input validation",
+                "tags": ["web", "sqli", "owasp-top-10", "ansible"],
+            },
+            {
+                "name": "ansible-priv-escalation",
+                "display_name": "Privilege Escalation Lab (Ansible)",
+                "description": "Multiple Linux privesc vulnerabilities via Ansible role",
+                "exploit_type": "privesc",
+                "severity": "high",
+                "target_os": "linux",
+                "ansible_playbook": "system/weak_sudo.yml",
+                "ansible_vars": {
+                    "create_suid_binary": True,
+                    "weak_sudo_command": "/usr/bin/vim"
+                },
+                "exploitation_steps": "1. Find SUID binaries: find / -perm -4000 2>/dev/null\n2. Check sudo: sudo -l\n3. Exploit vim: sudo vim -c ':!bash'",
+                "tags": ["privesc", "sudo", "suid", "ansible"],
+            }
+        ],
+        "notes": {
+            "script_based": "Use install_script for simple bash/powershell commands",
+            "ansible_based": "Use ansible_playbook to reference playbooks in glassdome/vulnerabilities/playbooks/",
+            "ansible_vars": "Pass variables to the playbook via ansible_vars",
+            "playbook_location": "Ansible playbooks should be placed in glassdome/vulnerabilities/playbooks/"
+        }
+    }
+
+
+@router.get("/exploits/export")
+async def export_exploits(
+    session: AsyncSession = Depends(get_async_session)
+):
+    """
+    Export all exploits as JSON for backup or sharing
+    
+    Engineers can download this, modify, and re-import to another instance.
+    """
+    result = await session.execute(select(Exploit))
+    exploits = result.scalars().all()
+    
+    export_data = []
+    for e in exploits:
+        export_data.append({
+            "name": e.name,
+            "display_name": e.display_name,
+            "description": e.description,
+            "cve_id": e.cve_id,
+            "exploit_type": e.exploit_type,
+            "severity": e.severity,
+            "cvss_score": e.cvss_score,
+            "target_os": e.target_os,
+            "target_services": e.target_services,
+            "prerequisites": e.prerequisites,
+            "package_name": e.package_name,
+            "install_script": e.install_script,
+            "verify_script": e.verify_script,
+            "cleanup_script": e.cleanup_script,
+            "ansible_playbook": e.ansible_playbook,
+            "ansible_role": e.ansible_role,
+            "ansible_vars": e.ansible_vars,
+            "exploitation_steps": e.exploitation_steps,
+            "remediation_steps": e.remediation_steps,
+            "references": e.references,
+            "tags": e.tags,
+        })
+    
+    return {
+        "exported_at": datetime.utcnow().isoformat(),
+        "count": len(export_data),
+        "exploits": export_data
+    }
 
 
 # ============================================================================

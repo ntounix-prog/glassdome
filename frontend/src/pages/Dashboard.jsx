@@ -127,6 +127,13 @@ function Dashboard({ healthStatus }) {
           <p>Track deployment progress and resource health in real-time</p>
           <span className="feature-link">Learn more →</span>
         </div>
+
+        <div className="feature-card clickable reaper-card" onClick={() => navigate('/features/reaper')}>
+          <div className="feature-icon">☠️</div>
+          <h3>Reaper Engine</h3>
+          <p>Configure in place - deploy anywhere, same lab state every time</p>
+          <span className="feature-link">Learn more →</span>
+        </div>
       </div>
     </div>
   )

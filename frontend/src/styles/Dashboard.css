@@ -146,3 +146,26 @@
 .feature-card.clickable:hover .feature-link {
   opacity: 1;
 }
+
+/* Reaper Card - Distinct Styling */
+.feature-card.reaper-card {
+  border-color: rgba(255, 107, 107, 0.3);
+  background: linear-gradient(
+    135deg,
+    rgba(255, 107, 107, 0.08) 0%,
+    rgba(0, 0, 0, 0.2) 100%
+  );
+}
+
+.feature-card.reaper-card:hover {
+  border-color: rgba(255, 107, 107, 0.6);
+  box-shadow: 0 8px 30px rgba(255, 107, 107, 0.25);
+}
+
+.feature-card.reaper-card .feature-icon {
+  filter: drop-shadow(0 0 10px rgba(255, 107, 107, 0.5));
+}
+
+.feature-card.reaper-card .feature-link {
+  color: #ff6b6b;
+}

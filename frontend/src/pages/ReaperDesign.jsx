@@ -5,7 +5,7 @@
  * Architects define exploits here, then Overseer can trigger missions.
  */
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import '../styles/ReaperDesign.css';
 
@@ -231,6 +231,10 @@ function ExploitLibrary({
   exploits, onSelect, selectedExploit, onSeed, onRefresh,
   typeFilter, setTypeFilter, severityFilter, setSeverityFilter, loading 
 }) {
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [importResult, setImportResult] = useState(null);
+  const fileInputRef = useRef(null);
+  
   const exploitTypes = ['web', 'network', 'privesc', 'credential', 'misconfig', 'malware', 'ad', 'custom'];
   const severities = ['critical', 'high', 'medium', 'low', 'info'];
 
@@ -259,6 +263,74 @@ function ExploitLibrary({
     return icons[type] || '❓';
   };
 
+  const handleFileUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    
+    try {
+      const text = await file.text();
+      const data = JSON.parse(text);
+      
+      // Handle both formats: {exploits: [...]} or direct array
+      const exploitsArray = data.exploits || (Array.isArray(data) ? data : [data]);
+      
+      const res = await fetch(`${API_BASE}/api/reaper/exploits/import`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          exploits: exploitsArray,
+          overwrite: false
+        })
+      });
+      
+      const result = await res.json();
+      setImportResult(result);
+      
+      if (result.imported > 0 || result.updated > 0) {
+        onRefresh();
+      }
+    } catch (err) {
+      setImportResult({ errors: [`Failed to parse JSON: ${err.message}`] });
+    }
+    
+    // Reset file input
+    e.target.value = '';
+  };
+
+  const downloadTemplate = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/api/reaper/exploits/template`);
+      const template = await res.json();
+      
+      const blob = new Blob([JSON.stringify(template, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'exploit_template.json';
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Failed to download template:', err);
+    }
+  };
+
+  const exportExploits = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/api/reaper/exploits/export`);
+      const data = await res.json();
+      
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `exploits_backup_${new Date().toISOString().split('T')[0]}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Failed to export exploits:', err);
+    }
+  };
+
   return (
     <motion.div 
       className="library-container"
@@ -266,6 +338,25 @@ function ExploitLibrary({
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -20 }}
     >
+      {/* Import Result Banner */}
+      {importResult && (
+        <div className={`import-result ${importResult.errors?.length > 0 ? 'has-errors' : 'success'}`}>
+          <div className="import-stats">
+            {importResult.imported > 0 && <span>✅ {importResult.imported} imported</span>}
+            {importResult.updated > 0 && <span>🔄 {importResult.updated} updated</span>}
+            {importResult.errors?.length > 0 && (
+              <span className="errors">⚠️ {importResult.errors.length} errors</span>
+            )}
+          </div>
+          {importResult.errors?.length > 0 && (
+            <ul className="error-list">
+              {importResult.errors.map((err, i) => <li key={i}>{err}</li>)}
+            </ul>
+          )}
+          <button onClick={() => setImportResult(null)}>×</button>
+        </div>
+      )}
+
       {/* Toolbar */}
       <div className="library-toolbar">
         <div className="filters">
@@ -291,11 +382,38 @@ function ExploitLibrary({
           <button className="btn-secondary" onClick={onSeed}>
             🌱 Seed Defaults
           </button>
-          <button className="btn-primary">
+          <button className="btn-secondary" onClick={downloadTemplate} title="Download example JSON template">
+            📄 Template
+          </button>
+          <button className="btn-secondary" onClick={exportExploits} title="Export all exploits">
+            📤 Export
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".json"
+            onChange={handleFileUpload}
+            style={{ display: 'none' }}
+          />
+          <button className="btn-primary" onClick={() => fileInputRef.current?.click()}>
+            📥 Import JSON
+          </button>
+          <button className="btn-primary" onClick={() => setShowAddModal(true)}>
             ➕ Add Exploit
           </button>
         </div>
       </div>
+      
+      {/* Add Exploit Modal */}
+      {showAddModal && (
+        <AddExploitModal 
+          onClose={() => setShowAddModal(false)}
+          onCreated={() => {
+            setShowAddModal(false);
+            onRefresh();
+          }}
+        />
+      )}
 
       {/* Exploit Grid */}
       {loading ? (
@@ -783,6 +901,346 @@ function MissionHistory({ missions }) {
         </table>
       )}
     </motion.div>
+  );
+}
+
+
+// ============================================================================
+// Add Exploit Modal
+// ============================================================================
+
+function AddExploitModal({ onClose, onCreated }) {
+  const [formData, setFormData] = useState({
+    name: '',
+    display_name: '',
+    description: '',
+    cve_id: '',
+    exploit_type: 'custom',
+    severity: 'medium',
+    target_os: 'linux',
+    target_services: [],
+    install_script: '',
+    ansible_playbook: '',
+    ansible_vars: {},
+    exploitation_steps: '',
+    remediation_steps: '',
+    tags: []
+  });
+  const [creating, setCreating] = useState(false);
+  const [error, setError] = useState(null);
+  const [activeTab, setActiveTab] = useState('basic'); // basic, script, ansible
+
+  const handleSubmit = async () => {
+    if (!formData.name || !formData.display_name) {
+      setError('Name and Display Name are required');
+      return;
+    }
+
+    setCreating(true);
+    setError(null);
+
+    try {
+      // Clean up empty arrays/objects
+      const payload = {
+        ...formData,
+        target_services: formData.target_services.length > 0 ? formData.target_services : null,
+        tags: formData.tags.length > 0 ? formData.tags : null,
+        install_script: formData.install_script || null,
+        ansible_playbook: formData.ansible_playbook || null,
+        ansible_vars: Object.keys(formData.ansible_vars).length > 0 ? formData.ansible_vars : null,
+      };
+
+      const res = await fetch(`${API_BASE}/api/reaper/exploits`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.detail || 'Failed to create exploit');
+      }
+
+      onCreated();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const handleTagInput = (e) => {
+    if (e.key === 'Enter' && e.target.value.trim()) {
+      e.preventDefault();
+      const newTag = e.target.value.trim().toLowerCase();
+      if (!formData.tags.includes(newTag)) {
+        setFormData({ ...formData, tags: [...formData.tags, newTag] });
+      }
+      e.target.value = '';
+    }
+  };
+
+  const handleServiceInput = (e) => {
+    if (e.key === 'Enter' && e.target.value.trim()) {
+      e.preventDefault();
+      const newService = e.target.value.trim().toLowerCase();
+      if (!formData.target_services.includes(newService)) {
+        setFormData({ ...formData, target_services: [...formData.target_services, newService] });
+      }
+      e.target.value = '';
+    }
+  };
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <motion.div 
+        className="modal-content add-exploit-modal"
+        onClick={e => e.stopPropagation()}
+        initial={{ scale: 0.9, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+      >
+        <button className="modal-close" onClick={onClose}>×</button>
+        
+        <h2>➕ Add New Exploit</h2>
+        
+        {error && <div className="modal-error">{error}</div>}
+
+        {/* Tab Navigation */}
+        <div className="modal-tabs">
+          <button 
+            className={activeTab === 'basic' ? 'active' : ''} 
+            onClick={() => setActiveTab('basic')}
+          >
+            📋 Basic Info
+          </button>
+          <button 
+            className={activeTab === 'script' ? 'active' : ''} 
+            onClick={() => setActiveTab('script')}
+          >
+            📜 Script
+          </button>
+          <button 
+            className={activeTab === 'ansible' ? 'active' : ''} 
+            onClick={() => setActiveTab('ansible')}
+          >
+            🅰️ Ansible
+          </button>
+        </div>
+
+        <div className="modal-body">
+          {/* Basic Info Tab */}
+          {activeTab === 'basic' && (
+            <div className="form-section">
+              <div className="form-row">
+                <label>
+                  Name (unique identifier)*
+                  <input 
+                    type="text" 
+                    value={formData.name}
+                    onChange={e => setFormData({ ...formData, name: e.target.value.toLowerCase().replace(/\s+/g, '-') })}
+                    placeholder="my-custom-exploit"
+                  />
+                </label>
+                <label>
+                  Display Name*
+                  <input 
+                    type="text" 
+                    value={formData.display_name}
+                    onChange={e => setFormData({ ...formData, display_name: e.target.value })}
+                    placeholder="My Custom Exploit"
+                  />
+                </label>
+              </div>
+
+              <label>
+                Description
+                <textarea 
+                  value={formData.description}
+                  onChange={e => setFormData({ ...formData, description: e.target.value })}
+                  placeholder="Describe what this exploit does..."
+                  rows={3}
+                />
+              </label>
+
+              <div className="form-row">
+                <label>
+                  CVE ID
+                  <input 
+                    type="text" 
+                    value={formData.cve_id}
+                    onChange={e => setFormData({ ...formData, cve_id: e.target.value })}
+                    placeholder="CVE-2024-XXXXX"
+                  />
+                </label>
+                <label>
+                  Type
+                  <select value={formData.exploit_type} onChange={e => setFormData({ ...formData, exploit_type: e.target.value })}>
+                    <option value="web">Web</option>
+                    <option value="network">Network</option>
+                    <option value="privesc">Privilege Escalation</option>
+                    <option value="credential">Credential</option>
+                    <option value="misconfig">Misconfiguration</option>
+                    <option value="ad">Active Directory</option>
+                    <option value="custom">Custom</option>
+                  </select>
+                </label>
+                <label>
+                  Severity
+                  <select value={formData.severity} onChange={e => setFormData({ ...formData, severity: e.target.value })}>
+                    <option value="critical">Critical</option>
+                    <option value="high">High</option>
+                    <option value="medium">Medium</option>
+                    <option value="low">Low</option>
+                    <option value="info">Info</option>
+                  </select>
+                </label>
+                <label>
+                  Target OS
+                  <select value={formData.target_os} onChange={e => setFormData({ ...formData, target_os: e.target.value })}>
+                    <option value="linux">Linux</option>
+                    <option value="windows">Windows</option>
+                    <option value="macos">macOS</option>
+                    <option value="any">Any</option>
+                  </select>
+                </label>
+              </div>
+
+              <label>
+                Target Services (press Enter to add)
+                <input type="text" onKeyDown={handleServiceInput} placeholder="apache, mysql, ssh..." />
+                <div className="tag-list">
+                  {formData.target_services.map(s => (
+                    <span key={s} className="tag" onClick={() => setFormData({ ...formData, target_services: formData.target_services.filter(t => t !== s) })}>
+                      {s} ×
+                    </span>
+                  ))}
+                </div>
+              </label>
+
+              <label>
+                Tags (press Enter to add)
+                <input type="text" onKeyDown={handleTagInput} placeholder="owasp, training, ctf..." />
+                <div className="tag-list">
+                  {formData.tags.map(t => (
+                    <span key={t} className="tag" onClick={() => setFormData({ ...formData, tags: formData.tags.filter(tag => tag !== t) })}>
+                      {t} ×
+                    </span>
+                  ))}
+                </div>
+              </label>
+            </div>
+          )}
+
+          {/* Script Tab */}
+          {activeTab === 'script' && (
+            <div className="form-section">
+              <p className="tab-description">
+                Use bash/PowerShell scripts for simple vulnerability injection.
+                These run directly on the target VM via SSH/WinRM.
+              </p>
+              
+              <label>
+                Install Script (bash for Linux, PowerShell for Windows)
+                <textarea 
+                  value={formData.install_script}
+                  onChange={e => setFormData({ ...formData, install_script: e.target.value })}
+                  placeholder={`#!/bin/bash
+# Create vulnerable user
+useradd -m vulnuser
+echo 'vulnuser:password123' | chpasswd
+echo 'Vulnerable user created'`}
+                  rows={12}
+                  className="code-input"
+                />
+              </label>
+
+              <label>
+                Exploitation Steps (for training documentation)
+                <textarea 
+                  value={formData.exploitation_steps}
+                  onChange={e => setFormData({ ...formData, exploitation_steps: e.target.value })}
+                  placeholder="1. Connect via SSH&#10;2. Use weak credentials&#10;3. ..."
+                  rows={4}
+                />
+              </label>
+
+              <label>
+                Remediation Steps
+                <textarea 
+                  value={formData.remediation_steps}
+                  onChange={e => setFormData({ ...formData, remediation_steps: e.target.value })}
+                  placeholder="1. Remove vulnerable user&#10;2. Enforce strong passwords&#10;3. ..."
+                  rows={4}
+                />
+              </label>
+            </div>
+          )}
+
+          {/* Ansible Tab */}
+          {activeTab === 'ansible' && (
+            <div className="form-section">
+              <p className="tab-description">
+                Reference Ansible playbooks for complex scenarios. 
+                Playbooks should be in <code>glassdome/vulnerabilities/playbooks/</code>
+              </p>
+              
+              <label>
+                Ansible Playbook Path
+                <input 
+                  type="text" 
+                  value={formData.ansible_playbook}
+                  onChange={e => setFormData({ ...formData, ansible_playbook: e.target.value })}
+                  placeholder="web/inject_sqli.yml"
+                />
+                <small>Relative to glassdome/vulnerabilities/playbooks/</small>
+              </label>
+
+              <label>
+                Ansible Variables (JSON)
+                <textarea 
+                  value={JSON.stringify(formData.ansible_vars, null, 2)}
+                  onChange={e => {
+                    try {
+                      setFormData({ ...formData, ansible_vars: JSON.parse(e.target.value) });
+                    } catch {}
+                  }}
+                  placeholder={`{
+  "mysql_password": "vulnerable123",
+  "security_level": "low"
+}`}
+                  rows={6}
+                  className="code-input"
+                />
+              </label>
+
+              <div className="info-box">
+                <strong>💡 Tip:</strong> Your engineers can create custom Ansible playbooks 
+                and reference them here. Standard Ansible playbook format is fully supported.
+                <br/><br/>
+                <strong>Available playbooks:</strong>
+                <ul>
+                  <li><code>web/inject_sqli.yml</code> - DVWA SQL injection</li>
+                  <li><code>web/inject_xss.yml</code> - XSS vulnerabilities</li>
+                  <li><code>system/weak_ssh.yml</code> - Weak SSH credentials</li>
+                  <li><code>system/weak_sudo.yml</code> - Sudo misconfigurations</li>
+                </ul>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="modal-footer">
+          <button className="btn-secondary" onClick={onClose}>Cancel</button>
+          <button 
+            className="btn-primary" 
+            onClick={handleSubmit}
+            disabled={creating}
+          >
+            {creating ? 'Creating...' : 'Create Exploit'}
+          </button>
+        </div>
+      </motion.div>
+    </div>
   );
 }
 

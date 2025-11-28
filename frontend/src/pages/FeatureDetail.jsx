@@ -570,6 +570,178 @@ Target Times:
     
     codeLocation: 'glassdome/registry/',
     files: ['core.py', 'models.py', 'agents/proxmox_agent.py', 'agents/unifi_agent.py']
+  },
+
+  reaper: {
+    icon: '☠️',
+    title: 'Reaper Vulnerability Engine',
+    subtitle: 'Configure in place - deploy anywhere, same lab state every time',
+    
+    description: `Reaper solves the cross-platform migration problem by making lab STATE 
+    platform-independent. Instead of migrating VMs (impossible between Proxmox and AWS), 
+    you deploy fresh VMs anywhere and Reaper configures them identically using Ansible playbooks. 
+    The playbooks ARE the lab definition - not the VMs themselves.`,
+    
+    implemented: [
+      {
+        name: 'Native Ansible Support',
+        status: 'working',
+        description: 'Engineers write standard Ansible playbooks - Reaper executes them on any platform',
+        details: [
+          'Direct playbook import - drop in your .yml files',
+          'AnsibleExecutor wraps ansible-playbook CLI natively',
+          'AnsibleBridge auto-generates inventory from deployed VMs',
+          'Full support: extra vars, tags, limits, roles',
+          'No special syntax - standard Ansible format'
+        ]
+      },
+      {
+        name: 'Vulnerability Playbooks',
+        status: 'working',
+        description: 'Pre-built Ansible playbooks for common training scenarios',
+        details: [
+          'web/inject_sqli.yml - DVWA SQL injection',
+          'web/inject_xss.yml - Cross-site scripting',
+          'system/weak_ssh.yml - Weak credentials',
+          'system/weak_sudo.yml - Privilege escalation',
+          'network/open_ports.yml - Exposed services'
+        ]
+      },
+      {
+        name: 'OS-Specific Agents',
+        status: 'working',
+        description: 'Specialized agents for Linux, Windows, and macOS targets',
+        details: [
+          'LinuxReaperAgent - SSH + Ansible',
+          'WindowsReaperAgent - WinRM + Ansible',
+          'MacReaperAgent - SSH + Ansible',
+          'Auto-detection of target OS'
+        ]
+      },
+      {
+        name: 'Mission Planner',
+        status: 'working',
+        description: 'Rule-based planning for multi-phase vulnerability injection',
+        details: [
+          'Discovery phase - gather target facts',
+          'Baseline phase - inject standard vulnerabilities',
+          'Specialized phase - OS/service-specific exploits',
+          'Verification phase - confirm exploitability'
+        ]
+      },
+      {
+        name: 'Celery Task Queue',
+        status: 'working',
+        description: 'Distributed execution via Redis-backed task queue',
+        details: [
+          'Async playbook execution',
+          'Parallel multi-VM injection',
+          'Progress tracking and logging'
+        ]
+      },
+      {
+        name: 'Exploit Import/Export',
+        status: 'working',
+        description: 'Engineers can build exploits offline and import via JSON or reference Ansible playbooks directly',
+        details: [
+          'JSON bulk import - upload exploit definitions',
+          'Direct Ansible playbook references (ansible_playbook field)',
+          'Export all exploits for backup/sharing',
+          'Template download for offline development',
+          'Standard Ansible format - no special syntax needed'
+        ]
+      }
+    ],
+    
+    roadmap: [
+      {
+        name: 'Windows Vulnerability Library',
+        priority: 'high',
+        description: 'Expand Windows-specific vulnerability playbooks',
+        timeline: 'Q1 2025',
+        details: ['SMB exploits', 'RDP weaknesses', 'Unpatched services', 'Privilege escalation']
+      },
+      {
+        name: 'CVE-Based Injection',
+        priority: 'high',
+        description: 'Install specific CVE vulnerabilities by ID',
+        timeline: 'Q1 2025',
+        details: ['CVE database lookup', 'Automated PoC installation', 'Version-specific packages']
+      },
+      {
+        name: 'Lab Migration API',
+        priority: 'medium',
+        description: 'Export/import lab configurations as portable bundles',
+        timeline: 'Q2 2025',
+        details: ['Lab definition export', 'Playbook bundling', 'One-click reimport on any platform']
+      },
+      {
+        name: 'Live Verification Dashboard',
+        priority: 'medium',
+        description: 'Real-time exploit verification with WhiteKnight integration',
+        timeline: 'Q2 2025',
+        details: ['Auto-scan after injection', 'Exploitability confirmation', 'Training readiness score']
+      }
+    ],
+    
+    architecture: `
+┌─────────────────────────────────────────────────────────────────┐
+│                    "CONFIGURE IN PLACE"                          │
+│         The Key Insight: Playbooks ARE the Lab State             │
+└─────────────────────────────────────────────────────────────────┘
+
+┌─────────────────┐
+│  LAB DEFINITION │     Ansible playbooks define vulnerabilities,
+│  (YAML/Canvas)  │     configurations, users, packages - everything
+└────────┬────────┘     needed to recreate the lab state.
+         │
+         ▼
+┌─────────────────┐     AnsibleBridge auto-generates inventory
+│ AnsibleBridge   │     from any deployed VMs, regardless of
+│ (VM → Inventory)│     which platform they run on.
+└────────┬────────┘
+         │
+    ┌────┴────┬────────────┐
+    ▼         ▼            ▼
+┌───────┐ ┌───────┐ ┌──────────┐
+│Proxmox│ │  AWS  │ │  Azure   │     Same playbooks execute on
+│  VMs  │ │  EC2  │ │   VMs    │     ANY platform's VMs.
+└───┬───┘ └───┬───┘ └────┬─────┘
+    │         │          │
+    └─────────┼──────────┘
+              ▼
+┌─────────────────────────┐
+│   AnsibleExecutor       │     Wraps ansible-playbook CLI,
+│   (Run Playbooks)       │     passes extra vars, parses results.
+└────────────┬────────────┘
+             ▼
+┌─────────────────────────┐
+│   IDENTICAL LAB STATE   │     🎯 The Goal: Same training
+│   • Same vulnerabilities│        environment everywhere.
+│   • Same credentials    │
+│   • Same scenarios      │
+└─────────────────────────┘
+
+Why This Matters:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+• VM migration between platforms is IMPOSSIBLE
+  (Proxmox qcow2 ≠ AWS AMI ≠ Azure VHD)
+
+• Lab MIGRATION becomes lab RE-CREATION
+  (Deploy fresh VMs + run same playbooks = same lab)
+
+• VMs are cattle, not pets
+  (Destroy and rebuild at will)
+    `,
+    
+    codeLocation: 'glassdome/reaper/',
+    files: [
+      'planner.py',
+      'agents/base.py', 
+      'agents/linux_agent.py',
+      'agents/windows_agent.py',
+      'models.py'
+    ]
   }
 }
 
