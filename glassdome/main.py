@@ -34,6 +34,7 @@ from glassdome.api.whitepawn import router as whitepawn_router
 from glassdome.api.canvas_deploy import router as canvas_deploy_router
 from glassdome.api.container_dispatch import router as dispatch_router
 from glassdome.api.registry import router as registry_router
+from glassdome.api.secrets import router as secrets_router
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -65,6 +66,7 @@ app.include_router(whitepawn_router)  # WhitePawn continuous monitoring
 app.include_router(canvas_deploy_router)  # Canvas lab deployment
 app.include_router(dispatch_router)  # Container worker dispatch
 app.include_router(registry_router)  # Lab Registry - source of truth
+app.include_router(secrets_router)  # Secrets management (admin only)
 
 
 # Startup and shutdown events

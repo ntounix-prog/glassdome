@@ -314,6 +314,233 @@ def secrets_migrate(env_file):
         click.echo(f"❌ Migration failed: {e}")
 
 
+# =============================================================================
+# AUTH COMMANDS - User and Password Management
+# =============================================================================
+
+@main.group()
+def auth():
+    """Authentication and user management commands"""
+    pass
+
+
+@auth.command('reset-password')
+@click.option('--username', '-u', required=True, help='Username to reset')
+@click.option('--password', '-p', help='New password (will prompt if not provided)')
+def auth_reset_password(username, password):
+    """
+    Reset a user's password.
+    
+    Use this when a user is locked out or forgot their password.
+    
+    Examples:
+        glassdome auth reset-password -u admin
+        glassdome auth reset-password -u john -p newpassword123
+    """
+    if not password:
+        password = getpass.getpass('Enter new password: ')
+        confirm = getpass.getpass('Confirm password: ')
+        if password != confirm:
+            click.echo('❌ Passwords do not match')
+            return
+    
+    if len(password) < 8:
+        click.echo('❌ Password must be at least 8 characters')
+        return
+    
+    async def do_reset():
+        from sqlalchemy import select
+        from glassdome.core.database import AsyncSessionLocal
+        from glassdome.auth.models import User
+        from glassdome.auth.service import get_password_hash
+        
+        async with AsyncSessionLocal() as session:
+            result = await session.execute(
+                select(User).where(User.username == username)
+            )
+            user = result.scalar_one_or_none()
+            
+            if not user:
+                click.echo(f'❌ User not found: {username}')
+                return False
+            
+            user.hashed_password = get_password_hash(password)
+            user.is_active = True  # Also reactivate if deactivated
+            await session.commit()
+            
+            click.echo(f'✅ Password reset for user: {username}')
+            return True
+    
+    asyncio.run(do_reset())
+
+
+@auth.command('create-admin')
+@click.option('--email', '-e', default='admin@glassdome.local', help='Admin email')
+@click.option('--username', '-u', default='admin', help='Admin username')
+@click.option('--password', '-p', help='Admin password (will prompt if not provided)')
+@click.option('--force', '-f', is_flag=True, help='Overwrite existing admin user')
+def auth_create_admin(email, username, password, force):
+    """
+    Create or reset the admin user.
+    
+    Use this for initial setup or emergency admin recovery.
+    
+    Examples:
+        glassdome auth create-admin
+        glassdome auth create-admin -u superadmin -e super@company.com
+        glassdome auth create-admin --force  # Reset existing admin
+    """
+    if not password:
+        password = getpass.getpass('Enter admin password: ')
+        confirm = getpass.getpass('Confirm password: ')
+        if password != confirm:
+            click.echo('❌ Passwords do not match')
+            return
+    
+    if len(password) < 8:
+        click.echo('❌ Password must be at least 8 characters')
+        return
+    
+    async def do_create():
+        from sqlalchemy import select
+        from glassdome.core.database import AsyncSessionLocal
+        from glassdome.auth.models import User, UserRole
+        from glassdome.auth.service import get_password_hash
+        
+        async with AsyncSessionLocal() as session:
+            result = await session.execute(
+                select(User).where(User.username == username)
+            )
+            existing = result.scalar_one_or_none()
+            
+            if existing:
+                if not force:
+                    click.echo(f'❌ User already exists: {username}')
+                    click.echo(f'   Use --force to reset this user to admin')
+                    return False
+                
+                existing.email = email
+                existing.hashed_password = get_password_hash(password)
+                existing.role = UserRole.ADMIN.value
+                existing.level = 100
+                existing.is_active = True
+                await session.commit()
+                click.echo(f'✅ Existing user reset to admin: {username}')
+            else:
+                admin = User(
+                    email=email,
+                    username=username,
+                    hashed_password=get_password_hash(password),
+                    role=UserRole.ADMIN.value,
+                    level=100,
+                    is_active=True,
+                )
+                session.add(admin)
+                await session.commit()
+                click.echo(f'✅ Admin user created: {username}')
+            
+            click.echo(f'   Email: {email}')
+            click.echo(f'   Role: admin (level 100)')
+            return True
+    
+    asyncio.run(do_create())
+
+
+@auth.command('list-users')
+def auth_list_users():
+    """
+    List all users in the system.
+    
+    Example:
+        glassdome auth list-users
+    """
+    async def do_list():
+        from sqlalchemy import select
+        from glassdome.core.database import AsyncSessionLocal
+        from glassdome.auth.models import User
+        
+        async with AsyncSessionLocal() as session:
+            result = await session.execute(select(User).order_by(User.id))
+            users = result.scalars().all()
+            
+            if not users:
+                click.echo('No users found.')
+                return
+            
+            click.echo(f'\n{"ID":<5} {"Username":<20} {"Email":<30} {"Role":<12} {"Level":<6} {"Active":<8}')
+            click.echo('─' * 85)
+            
+            for user in users:
+                active = '✓' if user.is_active else '✗'
+                click.echo(
+                    f'{user.id:<5} {user.username:<20} {user.email:<30} '
+                    f'{user.role:<12} {user.level:<6} {active:<8}'
+                )
+            
+            click.echo(f'\nTotal: {len(users)} users')
+    
+    asyncio.run(do_list())
+
+
+@auth.command('emergency-reset')
+def auth_emergency_reset():
+    """
+    Emergency admin reset - creates 'emergency_admin' account.
+    
+    Use this when completely locked out of the system.
+    Creates a temporary admin account with a random password.
+    
+    Example:
+        glassdome auth emergency-reset
+    """
+    import secrets as token_secrets
+    
+    password = token_secrets.token_urlsafe(16)
+    
+    async def do_emergency():
+        from sqlalchemy import select
+        from glassdome.core.database import AsyncSessionLocal
+        from glassdome.auth.models import User, UserRole
+        from glassdome.auth.service import get_password_hash
+        
+        async with AsyncSessionLocal() as session:
+            result = await session.execute(
+                select(User).where(User.username == 'emergency_admin')
+            )
+            existing = result.scalar_one_or_none()
+            
+            if existing:
+                existing.hashed_password = get_password_hash(password)
+                existing.is_active = True
+                await session.commit()
+                click.echo('🔓 Emergency admin account reset!')
+            else:
+                admin = User(
+                    email='emergency@glassdome.local',
+                    username='emergency_admin',
+                    hashed_password=get_password_hash(password),
+                    role=UserRole.ADMIN.value,
+                    level=100,
+                    is_active=True,
+                )
+                session.add(admin)
+                await session.commit()
+                click.echo('🔓 Emergency admin account created!')
+            
+            click.echo('')
+            click.echo('╔══════════════════════════════════════════════════════╗')
+            click.echo('║  EMERGENCY ADMIN CREDENTIALS                         ║')
+            click.echo('╠══════════════════════════════════════════════════════╣')
+            click.echo(f'║  Username: emergency_admin                           ║')
+            click.echo(f'║  Password: {password:<40} ║')
+            click.echo('╠══════════════════════════════════════════════════════╣')
+            click.echo('║  ⚠️  CHANGE THIS PASSWORD IMMEDIATELY                 ║')
+            click.echo('║  ⚠️  DELETE THIS ACCOUNT AFTER RECOVERY               ║')
+            click.echo('╚══════════════════════════════════════════════════════╝')
+    
+    asyncio.run(do_emergency())
+
+
 if __name__ == '__main__':
     main()
 

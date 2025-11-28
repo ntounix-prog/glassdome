@@ -21,6 +21,8 @@ import WhiteKnightDesign from './pages/WhiteKnightDesign'
 import WhitePawnMonitor from './pages/WhitePawnMonitor'
 import LabMonitor from './pages/LabMonitor'
 import FeatureDetail from './pages/FeatureDetail'
+import AdminUsers from './pages/AdminUsers'
+import AdminSecrets from './pages/AdminSecrets'
 // Player Portal
 import PlayerPortal from './pages/player/PlayerPortal'
 import PlayerLobby from './pages/player/PlayerLobby'
@@ -105,6 +107,12 @@ function Navigation({ healthStatus, loading, radioState }) {
     { name: 'WhiteKnight', icon: '🛡️', path: '/whiteknight', minLevel: 50 },
   ].filter(item => !item.minLevel || hasLevel(item.minLevel))
 
+  // Admin items (level 100 only)
+  const adminItems = [
+    { name: 'User Management', icon: '👥', path: '/admin/users' },
+    { name: 'Secrets', icon: '🔐', path: '/admin/secrets' },
+  ]
+
   return (
     <nav className="navbar">
       <div className="nav-brand">
@@ -123,6 +131,9 @@ function Navigation({ healthStatus, loading, radioState }) {
         )}
         {isAuthenticated && (
           <Link to="/deployments">Deployments</Link>
+        )}
+        {isAuthenticated && hasLevel(100) && (
+          <NavDropdown label="Admin" items={adminItems} defaultPath="/admin/users" />
         )}
         <Link to="/player">Player Portal</Link>
       </div>
@@ -247,6 +258,18 @@ function AppContent() {
         <Route path="/monitor" element={
           <ProtectedRoute minLevel={25}>
             <LabMonitor />
+          </ProtectedRoute>
+        } />
+        
+        {/* Admin Routes (level 100 only) */}
+        <Route path="/admin/users" element={
+          <ProtectedRoute minLevel={100}>
+            <AdminUsers />
+          </ProtectedRoute>
+        } />
+        <Route path="/admin/secrets" element={
+          <ProtectedRoute minLevel={100}>
+            <AdminSecrets />
           </ProtectedRoute>
         } />
       </Routes>
