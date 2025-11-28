@@ -2,8 +2,8 @@
 Platform module
 
 Author: Brett Turner (ntounix-prog)
-Created: November 2024
-Copyright (c) 2024 Brett Turner. All rights reserved.
+Created: November 2025
+Copyright (c) 2025 Brett Turner. All rights reserved.
 """
 from sqlalchemy import Column, String, JSON, DateTime, Boolean, Enum as SQLEnum
 from sqlalchemy.sql import func

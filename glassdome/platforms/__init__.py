@@ -2,8 +2,8 @@
 Platform client for   Init  
 
 Author: Brett Turner (ntounix-prog)
-Created: November 2024
-Copyright (c) 2024 Brett Turner. All rights reserved.
+Created: November 2025
+Copyright (c) 2025 Brett Turner. All rights reserved.
 """
 from glassdome.platforms.base import PlatformClient, VMStatus
 from glassdome.platforms.proxmox_client import ProxmoxClient

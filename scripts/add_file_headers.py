@@ -4,7 +4,7 @@ Add standard file headers to all Python and JavaScript files.
 Run this script to ensure all files have proper attribution.
 
 Author: Brett Turner (ntounix-prog)
-Created: November 2024
+Created: November 2025
 """
 
 import os
@@ -17,8 +17,8 @@ PYTHON_HEADER = '''"""
 {description}
 
 Author: Brett Turner (ntounix-prog)
-Created: November 2024
-Copyright (c) 2024 Brett Turner. All rights reserved.
+Created: November 2025
+Copyright (c) 2025 Brett Turner. All rights reserved.
 """
 
 '''
@@ -28,8 +28,8 @@ JS_HEADER = '''/**
  * {description}
  * 
  * @author Brett Turner (ntounix-prog)
- * @created November 2024
- * @copyright (c) 2024 Brett Turner. All rights reserved.
+ * @created November 2025
+ * @copyright (c) 2025 Brett Turner. All rights reserved.
  */
 
 '''

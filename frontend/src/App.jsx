@@ -2,8 +2,8 @@
  * App module
  * 
  * @author Brett Turner (ntounix-prog)
- * @created November 2024
- * @copyright (c) 2024 Brett Turner. All rights reserved.
+ * @created November 2025
+ * @copyright (c) 2025 Brett Turner. All rights reserved.
  */
 
 import { useState, useEffect, useRef } from 'react'

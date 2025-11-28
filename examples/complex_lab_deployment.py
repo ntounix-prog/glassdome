@@ -42,7 +42,7 @@ LAB_SPEC = {
             "vm_id": "kali_attacker",
             "name": "kali-attacker-01",
             "os_type": "kali",
-            "os_version": "2024.1",
+            "os_version": "2025.1",
             "node": "pve",
             "purpose": "Attack machine for penetration testing",
             "tags": ["attacker", "kali", "security"],

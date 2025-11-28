@@ -4,7 +4,7 @@
 
 **Brett Turner** (ntounix-prog)  
 *Founder & Lead Developer*  
-*November 2024 - Present*
+*November 2025 - Present*
 
 All original code, architecture, and design created by Brett Turner with AI-assisted development.
 
@@ -50,12 +50,12 @@ The following components were designed and implemented by the original author:
 
 | Version | Date | Milestone |
 |---------|------|-----------|
-| 0.1.0 | Nov 2024 | Initial architecture, Proxmox integration |
-| 0.2.0 | Nov 2024 | Reaper missions, WhiteKnight validation |
-| 0.3.0 | Nov 2024 | Canvas lab deployment |
-| 0.4.0 | Nov 2024 | Lab Registry, real-time monitoring |
-| 0.5.0 | Nov 2024 | Overseer chat, SomaFM integration |
-| 0.6.0 | Nov 2024 | Player Portal, Guacamole integration |
+| 0.1.0 | Nov 2025 | Initial architecture, Proxmox integration |
+| 0.2.0 | Nov 2025 | Reaper missions, WhiteKnight validation |
+| 0.3.0 | Nov 2025 | Canvas lab deployment |
+| 0.4.0 | Nov 2025 | Lab Registry, real-time monitoring |
+| 0.5.0 | Nov 2025 | Overseer chat, SomaFM integration |
+| 0.6.0 | Nov 2025 | Player Portal, Guacamole integration |
 
 ---
 
@@ -88,7 +88,7 @@ When contributing, add your name below with your contribution area:
 
 ## License
 
-Copyright (c) 2024 Brett Turner. All rights reserved.
+Copyright (c) 2025 Brett Turner. All rights reserved.
 
 *License terms to be determined before public release.*
 

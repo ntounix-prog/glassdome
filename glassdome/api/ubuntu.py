@@ -2,8 +2,8 @@
 API endpoints for ubuntu
 
 Author: Brett Turner (ntounix-prog)
-Created: November 2024
-Copyright (c) 2024 Brett Turner. All rights reserved.
+Created: November 2025
+Copyright (c) 2025 Brett Turner. All rights reserved.
 """
 from fastapi import APIRouter, HTTPException, BackgroundTasks
 from pydantic import BaseModel, Field
