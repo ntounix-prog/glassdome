@@ -24,6 +24,11 @@ echo "Installing Python dependencies..."
 source venv/bin/activate
 pip install -q -r requirements.txt
 
+# Run database migrations
+echo ""
+echo "Running database migrations..."
+alembic upgrade head
+
 # Build frontend
 echo ""
 echo "Building frontend..."

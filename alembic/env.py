@@ -18,10 +18,27 @@ from glassdome.core.database import Base
 from glassdome.core.config import settings
 
 # Import all models to ensure they're registered with Base.metadata
-from glassdome.reaper.exploit_library import Exploit, ExploitMission
-from glassdome.models.deployment import Deployment
-from glassdome.models.lab import Lab, LabTemplate, LabElement
-from glassdome.models.platform import Platform
+# Reaper models
+from glassdome.reaper.exploit_library import Exploit, ExploitMission, MissionLog, ValidationResult
+from glassdome.reaper.hot_spare import HotSpare
+
+# Networking models
+from glassdome.networking.models import (
+    NetworkDefinition, PlatformNetworkMapping, VMInterface, DeployedVM
+)
+
+# Whitepawn models
+from glassdome.whitepawn.models import (
+    WhitePawnDeployment, NetworkAlert, MonitoringEvent, ConnectivityMatrix
+)
+
+# Original models (if they exist)
+try:
+    from glassdome.models.deployment import Deployment
+    from glassdome.models.lab import Lab, LabTemplate, LabElement
+    from glassdome.models.platform import Platform
+except ImportError:
+    pass  # Optional models
 
 # this is the Alembic Config object
 config = context.config
