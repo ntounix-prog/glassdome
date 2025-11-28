@@ -1,36 +1,48 @@
 /**
  * Platform Status Page
  * Displays VMs and status for a specific platform
+ * 
+ * For Proxmox: Uses Registry API for fast updates (1-10s polling)
+ * For others: Uses platform API directly
  */
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import '../styles/PlatformStatus.css'
 
 // Platform-specific icons and colors
+// Cloud platforms are on-demand only (no auto-polling to save costs)
 const PLATFORM_CONFIG = {
   proxmox: {
     icon: '🖥️',
     name: 'Proxmox VE',
     color: '#e57000',
-    description: 'On-premise virtualization platform'
+    description: 'On-premise virtualization platform',
+    onDemand: false,
+    pollInterval: 5000  // 5s - uses Registry
   },
   esxi: {
     icon: '🏢',
     name: 'VMware ESXi',
     color: '#717074',
-    description: 'Enterprise virtualization'
+    description: 'Enterprise virtualization',
+    onDemand: false,
+    pollInterval: 30000  // 30s
   },
   aws: {
     icon: '☁️',
     name: 'Amazon Web Services',
     color: '#ff9900',
-    description: 'AWS EC2 instances'
+    description: 'AWS EC2 instances (on-demand)',
+    onDemand: true,  // No auto-polling - costs money
+    pollInterval: null
   },
   azure: {
     icon: '🌐',
     name: 'Microsoft Azure',
     color: '#0078d4',
-    description: 'Azure Virtual Machines'
+    description: 'Azure Virtual Machines (on-demand)',
+    onDemand: true,  // No auto-polling - costs money
+    pollInterval: null
   }
 }
 
@@ -66,45 +78,113 @@ export default function PlatformStatus() {
 
   const config = PLATFORM_CONFIG[platform] || PLATFORM_CONFIG.proxmox
 
-  useEffect(() => {
-    fetchStatus()
-    // Refresh every 30 seconds
-    const interval = setInterval(fetchStatus, 30000)
-    return () => clearInterval(interval)
-  }, [platform, instanceId])
-
-  const fetchStatus = async () => {
+  // Use Registry for Proxmox (fast), platform API for others
+  const fetchStatus = useCallback(async () => {
     try {
-      setLoading(true)
-      // For AWS, use all-regions endpoint to get both Virginia and Oregon
-      // For Proxmox, use all-instances endpoint to get all clusters (pve01, pve02, etc.)
-      let url
-      if (platform === 'aws') {
-        url = '/api/platforms/aws/all-regions'
-      } else if (platform === 'proxmox') {
-        url = '/api/platforms/proxmox/all-instances'
-      } else if (instanceId) {
-        url = `/api/platforms/${platform}/${instanceId}/vms`
+      setLoading(prev => prev === true ? true : false) // Don't flash loading on refresh
+      
+      if (platform === 'proxmox') {
+        // Use Registry API for fast updates
+        const response = await fetch('/api/registry/resources?platform=proxmox')
+        const data = await response.json()
+        
+        if (!response.ok) {
+          throw new Error('Failed to fetch from registry')
+        }
+        
+        // Transform Registry data to match expected format
+        const vms = (data.resources || []).map(r => ({
+          vmid: parseInt(r.platform_id),
+          name: r.name,
+          status: r.state,
+          node: `${r.config?.node || 'pve'} (${r.platform_instance})`,
+          cpu: 0, // Registry doesn't track real-time CPU
+          memory: r.config?.maxmem,
+          disk: r.config?.maxdisk,
+          uptime: r.config?.uptime,
+          template: r.resource_type === 'template',
+          ip_address: r.config?.ip_address,
+        }))
+        
+        // Get unique nodes from VMs
+        const nodeSet = new Map()
+        vms.forEach(vm => {
+          const nodeMatch = vm.node?.match(/^(\w+)\s*\((\d+)\)/)
+          if (nodeMatch) {
+            const [, nodeName, instanceId] = nodeMatch
+            if (!nodeSet.has(instanceId)) {
+              nodeSet.set(instanceId, {
+                node: nodeName,
+                instance_id: instanceId,
+                status: 'online',
+                host: `192.168.215.${instanceId === '01' ? '78' : '77'}`,
+              })
+            }
+          }
+        })
+        
+        // Calculate summary
+        const running = vms.filter(v => v.status === 'running').length
+        const stopped = vms.filter(v => v.status === 'stopped').length
+        const templates = vms.filter(v => v.template).length
+        
+        setStatus({
+          connected: true,
+          vms,
+          nodes: Array.from(nodeSet.values()),
+          summary: {
+            total: vms.length,
+            running,
+            stopped,
+            templates,
+            instances: Array.from(nodeSet.entries()).map(([id, node]) => ({
+              instance_id: id,
+              vms: vms.filter(v => v.node?.includes(`(${id})`)).length,
+            })),
+          },
+        })
+        setError(null)
       } else {
-        url = `/api/platforms/${platform}`
+        // Use platform API for non-Proxmox
+        let url
+        if (platform === 'aws') {
+          url = '/api/platforms/aws/all-regions'
+        } else if (instanceId) {
+          url = `/api/platforms/${platform}/${instanceId}/vms`
+        } else {
+          url = `/api/platforms/${platform}`
+        }
+        
+        const response = await fetch(url)
+        const data = await response.json()
+        
+        if (!response.ok) {
+          throw new Error(data.detail || 'Failed to fetch platform status')
+        }
+        
+        setStatus(data)
+        setError(null)
       }
-      
-      const response = await fetch(url)
-      const data = await response.json()
-      
-      if (!response.ok) {
-        throw new Error(data.detail || 'Failed to fetch platform status')
-      }
-      
-      setStatus(data)
-      setError(null)
     } catch (err) {
       console.error('Error fetching platform status:', err)
       setError(err.message)
     } finally {
       setLoading(false)
     }
-  }
+  }, [platform, instanceId])
+
+  useEffect(() => {
+    fetchStatus()
+    
+    // Cloud platforms (AWS, Azure) are on-demand only - no auto-polling to save costs
+    // Proxmox uses Registry (fast) - poll every 5 seconds
+    // Others (ESXi) use platform API - poll every 30 seconds
+    const pollInterval = config.pollInterval
+    if (pollInterval && !config.onDemand) {
+      const interval = setInterval(fetchStatus, pollInterval)
+      return () => clearInterval(interval)
+    }
+  }, [platform, instanceId, fetchStatus, config.pollInterval, config.onDemand])
 
   const handleVMAction = async (vmid, action, vmNode = null) => {
     setActionLoading(vmid)
@@ -311,6 +391,12 @@ export default function PlatformStatus() {
             <button className="refresh-btn" onClick={fetchStatus} disabled={loading}>
               🔄 Refresh
             </button>
+            
+            {config.onDemand && (
+              <span className="on-demand-note">
+                💰 On-demand only (no auto-refresh to save cloud costs)
+              </span>
+            )}
           </div>
 
           {/* VM Table with server header */}

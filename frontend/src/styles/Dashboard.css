@@ -1,16 +1,16 @@
 .dashboard {
   max-width: 1400px;
   margin: 0 auto;
-  padding: 2rem;
+  padding: 1.5rem 2rem;
 }
 
 .hero-section {
   text-align: center;
-  padding: 4rem 2rem;
+  padding: 2rem 2rem 1.5rem;
 }
 
 .hero-section h1 {
-  font-size: 3rem;
+  font-size: 2.5rem;
   margin: 0;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   -webkit-background-clip: text;
@@ -19,140 +19,42 @@
 }
 
 .hero-subtitle {
-  font-size: 1.25rem;
-  color: #888;
-  margin: 1rem 0 2rem;
-}
-
-.features-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 2rem;
-  margin: 4rem 0;
-}
-
-.feature-card {
-  background: rgba(255, 255, 255, 0.05);
-  backdrop-filter: blur(10px);
-  border-radius: 15px;
-  padding: 2rem;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  transition: transform 0.2s, border-color 0.2s;
-}
-
-.feature-card:hover {
-  transform: translateY(-5px);
-  border-color: rgba(102, 126, 234, 0.5);
-}
-
-.feature-icon {
-  font-size: 3rem;
-  margin-bottom: 1rem;
-}
-
-.feature-card h3 {
-  margin: 0.5rem 0;
-  color: #fff;
-}
-
-.feature-card p {
-  color: #aaa;
-  line-height: 1.6;
-}
-
-.platforms-section {
-  text-align: center;
-  margin: 4rem 0;
-}
-
-.platforms-section h2 {
-  margin-bottom: 0.5rem;
-}
-
-.platforms-subtitle {
-  color: rgba(255, 255, 255, 0.5);
-  margin-bottom: 2rem;
-  font-size: 0.95rem;
-}
-
-.platform-badges {
-  display: flex;
-  justify-content: center;
-  gap: 1.5rem;
-  flex-wrap: wrap;
-}
-
-.platform-badge {
-  background: rgba(255, 255, 255, 0.05);
-  padding: 1rem 1.5rem;
-  border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  text-decoration: none;
-  color: #fff;
-  transition: all 0.25s ease;
-}
-
-.platform-badge.clickable {
-  cursor: pointer;
-}
-
-.platform-badge.clickable:hover {
-  background: rgba(102, 126, 234, 0.15);
-  border-color: rgba(102, 126, 234, 0.4);
-  transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(102, 126, 234, 0.2);
-}
-
-.platform-badge.clickable:hover .badge-arrow {
-  transform: translateX(4px);
-  opacity: 1;
-}
-
-.badge-icon {
-  font-size: 1.75rem;
-}
-
-.badge-arrow {
   font-size: 1.1rem;
-  opacity: 0.4;
-  transition: all 0.25s ease;
-  margin-left: 0.5rem;
+  color: #888;
+  margin: 0.75rem 0 1.5rem;
 }
 
+/* Status Bar - Compact inline style */
 .status-section {
-  background: rgba(255, 255, 255, 0.05);
-  border-radius: 15px;
-  padding: 2rem;
-  margin: 4rem 0;
-}
-
-.status-section h3 {
-  margin-top: 0;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 12px;
+  padding: 1rem 1.5rem;
+  margin: 0 0 1.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .status-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 2rem;
-  margin-top: 1.5rem;
+  display: flex;
+  justify-content: center;
+  gap: 3rem;
+  flex-wrap: wrap;
 }
 
 .status-item {
   display: flex;
-  flex-direction: column;
+  align-items: center;
   gap: 0.5rem;
 }
 
 .status-label {
-  color: #888;
-  font-size: 0.875rem;
+  color: #666;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .status-value {
-  font-size: 1.25rem;
+  font-size: 0.9rem;
   font-weight: 600;
 }
 
@@ -160,115 +62,87 @@
   color: #6bcf7f;
 }
 
+.status-value.warning {
+  color: #fbbf24;
+}
+
 .status-value.error {
   color: #ff6b6b;
 }
 
-/* Tools Section */
-.tools-section {
-  margin-bottom: 32px;
-}
-
-.tools-section h2 {
-  font-size: 1.5rem;
-  margin-bottom: 16px;
-  color: #fff;
-}
-
-.tools-grid {
+/* Features Grid - Compact */
+.features-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 16px;
-}
-
-.tool-card {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  padding: 20px 24px;
-  background: rgba(30, 30, 30, 0.6);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 12px;
-  text-decoration: none;
-  transition: all 0.3s ease;
-}
-
-.tool-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3);
-}
-
-.tool-card.reaper {
-  border-color: rgba(255, 45, 85, 0.3);
-}
-
-.tool-card.reaper:hover {
-  background: rgba(255, 45, 85, 0.1);
-  border-color: rgba(255, 45, 85, 0.5);
-  box-shadow: 0 8px 30px rgba(255, 45, 85, 0.2);
-}
-
-.tool-card.whiteknight {
-  border-color: rgba(100, 200, 255, 0.3);
-}
-
-.tool-card.whiteknight:hover {
-  background: rgba(100, 200, 255, 0.1);
-  border-color: rgba(100, 200, 255, 0.5);
-  box-shadow: 0 8px 30px rgba(100, 200, 255, 0.2);
-}
-
-.tool-card.creator {
-  border-color: rgba(90, 200, 250, 0.3);
-}
-
-.tool-card.creator:hover {
-  background: rgba(90, 200, 250, 0.1);
-  border-color: rgba(90, 200, 250, 0.5);
-  box-shadow: 0 8px 30px rgba(90, 200, 250, 0.2);
-}
-
-.tool-icon {
-  font-size: 32px;
-}
-
-.tool-info {
-  flex: 1;
-}
-
-.tool-info h3 {
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
   margin: 0;
-  font-size: 18px;
-  font-weight: 700;
+}
+
+@media (max-width: 1000px) {
+  .features-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 600px) {
+  .features-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.feature-card {
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(10px);
+  border-radius: 12px;
+  padding: 1.25rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  transition: transform 0.2s, border-color 0.2s, box-shadow 0.2s;
+  position: relative;
+}
+
+.feature-card.clickable {
+  cursor: pointer;
+}
+
+.feature-card:hover {
+  transform: translateY(-3px);
+  border-color: rgba(102, 126, 234, 0.4);
+}
+
+.feature-card.clickable:hover {
+  box-shadow: 0 8px 25px rgba(102, 126, 234, 0.2);
+}
+
+.feature-card.clickable:active {
+  transform: translateY(-1px);
+}
+
+.feature-icon {
+  font-size: 2rem;
+  margin-bottom: 0.5rem;
+}
+
+.feature-card h3 {
+  margin: 0.25rem 0;
+  font-size: 1rem;
   color: #fff;
 }
 
-.tool-card.reaper .tool-info h3 {
-  color: #ff2d55;
-}
-
-.tool-card.whiteknight .tool-info h3 {
-  color: #64c8ff;
-}
-
-.tool-card.creator .tool-info h3 {
-  color: #5ac8fa;
-}
-
-.tool-info p {
-  margin: 4px 0 0 0;
-  font-size: 13px;
+.feature-card p {
   color: #888;
+  line-height: 1.5;
+  font-size: 0.85rem;
+  margin: 0 0 0.75rem 0;
 }
 
-.tool-arrow {
-  font-size: 20px;
-  color: #666;
-  transition: transform 0.2s;
+.feature-link {
+  color: #667eea;
+  font-size: 0.8rem;
+  font-weight: 500;
+  opacity: 0;
+  transition: opacity 0.2s;
 }
 
-.tool-card:hover .tool-arrow {
-  transform: translateX(4px);
-  color: #fff;
+.feature-card.clickable:hover .feature-link {
+  opacity: 1;
 }
-

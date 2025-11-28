@@ -1,7 +1,7 @@
 # Glassdome Agent Context
 
-**Last Updated:** 2025-11-27
-**Version:** 0.4.1
+**Last Updated:** 2024-11-28
+**Version:** 0.5.0 (MVP 2.0)
 
 This file provides context for AI assistants working on Glassdome. Read this first to understand the current state of the project.
 
@@ -9,7 +9,7 @@ This file provides context for AI assistants working on Glassdome. Read this fir
 
 ## What is Glassdome?
 
-Glassdome is a **cyber range automation platform** for creating, deploying, and managing cybersecurity training labs. It deploys VMs across multiple platforms (Proxmox, ESXi, AWS, Azure), injects vulnerabilities for training, and monitors lab health.
+Glassdome is a **cyber range automation platform** for creating, deploying, and managing cybersecurity training labs. It deploys VMs across multiple platforms (Proxmox, ESXi, AWS, Azure), injects vulnerabilities for training, and monitors lab health with a central registry.
 
 ---
 
@@ -18,33 +18,39 @@ Glassdome is a **cyber range automation platform** for creating, deploying, and 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │                         User Interface                           │
-│  React Frontend (port 5174) - Lab Canvas, Deployments, Reaper   │
+│  React Frontend (port 5174) - Lab Canvas, Monitor, Deployments   │
+│  - Overseer Chat (Claude AI)  - Integrated SomaFM Radio         │
 └────────────────────────────┬────────────────────────────────────┘
-                             │ REST API
+                             │ REST API + WebSocket
 ┌────────────────────────────┴────────────────────────────────────┐
 │                    FastAPI Backend (port 8011)                   │
 │  - Lab management        - Platform connections                  │
 │  - Reaper missions       - WhiteKnight validation                │
-│  - Dispatch API          - Network management                    │
+│  - Registry API          - WebSocket events                      │
 └────────────────────────────┬────────────────────────────────────┘
                              │
 ┌────────────────────────────┴────────────────────────────────────┐
-│                    Distributed Task Queue                        │
-│                                                                  │
-│  Redis (Docker, port 6379) ──────────────────────────────────┐  │
-│                                                               │  │
-│  Celery Workers (Native Python):                              │  │
-│    orchestrator@agentX ... 8 threads (deploy, configure)     │  │
-│    reaper-1@agentX ....... 4 threads (inject, exploit)       │  │
-│    reaper-2@agentX ....... 4 threads (inject, exploit)       │  │
-│    whiteknight-1@agentX .. 4 threads (validate, test)        │  │
-│                                                               │  │
-│  Capacity: 20+ parallel tasks                                 │  │
-└───────────────────────────────────────────────────────────────┘  │
+│                    Lab Registry (Redis)                          │
+│  - Real-time resource state    - Tiered polling (1-60s)         │
+│  - Pub/Sub event streaming     - Drift detection                 │
+│  - Self-healing reconciliation - WebSocket broadcast             │
+└────────────────────────────┬────────────────────────────────────┘
                              │
 ┌────────────────────────────┴────────────────────────────────────┐
-│                    Platform Abstraction                          │
-│  ProxmoxClient | ESXiClient | AWSClient | AzureClient           │
+│                    Platform Agents                               │
+│  ProxmoxAgent (10s) | UnifiAgent (15s) | TrueNAS (planned)      │
+└────────────────────────────┬────────────────────────────────────┘
+                             │
+┌────────────────────────────┴────────────────────────────────────┐
+│                    Infrastructure                                │
+│  ┌─────────────┐   ┌─────────────┐   ┌─────────────┐            │
+│  │ Proxmox 01  │   │ Proxmox 02  │   │  TrueNAS    │            │
+│  │ (Production)│   │   (Labs)    │   │ (29TB NFS)  │            │
+│  │192.168.215.78   │192.168.215.77   │192.168.215.75│            │
+│  └──────┬──────┘   └──────┬──────┘   └──────┬──────┘            │
+│         └────────── 10G Cluster ─────────────┘                   │
+│                   Nexus 3064X Switch                             │
+│               VLANs 211/212 (SAN A/B)                            │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -59,9 +65,18 @@ glassdome/
 │   │   ├── reaper.py       # Reaper missions API
 │   │   ├── whiteknight.py  # WhiteKnight validation API
 │   │   ├── canvas_deploy.py# Lab deployment from Canvas
-│   │   ├── container_dispatch.py # Celery task dispatch
+│   │   ├── registry.py     # Lab Registry API ✨ NEW
 │   │   └── ...
-│   ├── workers/            # Celery workers ✨ NEW
+│   ├── registry/           # Lab Registry system ✨ NEW
+│   │   ├── core.py         # LabRegistry class (Redis)
+│   │   ├── models.py       # Resource, StateChange, Drift
+│   │   ├── agents/         # Platform polling agents
+│   │   │   ├── base.py     # BaseAgent framework
+│   │   │   ├── proxmox_agent.py
+│   │   │   └── unifi_agent.py
+│   │   └── controllers/    # Reconciliation controllers
+│   │       └── lab_controller.py
+│   ├── workers/            # Celery workers
 │   │   ├── celery_app.py   # Celery configuration
 │   │   ├── orchestrator.py # Lab deployment tasks
 │   │   ├── reaper.py       # Vulnerability injection
@@ -69,9 +84,6 @@ glassdome/
 │   ├── reaper/             # Reaper subsystem
 │   │   ├── exploit_library.py # Exploit/Mission models
 │   │   └── hot_spare.py    # Hot spare VM pool
-│   ├── networking/         # Network management
-│   │   ├── models.py       # NetworkDefinition, VMInterface
-│   │   └── orchestrator.py # Network orchestration
 │   ├── platforms/          # Platform clients
 │   │   ├── proxmox_client.py
 │   │   ├── esxi_client.py
@@ -80,71 +92,90 @@ glassdome/
 │   └── core/               # Core utilities
 │       ├── config.py       # Settings (Pydantic)
 │       ├── database.py     # SQLAlchemy setup
-│       └── paths.py        # Centralized path management
+│       └── ssh_client.py   # SSH utilities
 ├── frontend/               # React frontend
 │   └── src/
 │       ├── pages/          # Page components
 │       │   ├── LabCanvas.jsx    # Visual lab builder
+│       │   ├── LabMonitor.jsx   # Registry monitor ✨ NEW
+│       │   ├── FeatureDetail.jsx# Feature descriptions ✨ NEW
 │       │   ├── Deployments.jsx  # Deployment management
-│       │   └── ReaperDesign.jsx # Reaper interface
-│       └── styles/         # CSS files
+│       │   └── WhitePawnMonitor.jsx
+│       ├── hooks/          # React hooks ✨ NEW
+│       │   └── useRegistry.js   # Registry API hooks
+│       ├── components/
+│       │   └── OverseerChat/    # AI Chat + Radio ✨ UPDATED
+│       └── styles/
 ├── scripts/
-│   └── start_workers.sh    # Worker fleet management ✨ NEW
-├── containers/             # Docker definitions ✨ NEW
-│   ├── orchestrator/
-│   ├── reaper/
-│   └── whiteknight/
-├── docs/                   # Documentation
-│   ├── SESSION_NOTES.md    # Daily progress
-│   └── ARCHITECTURE.md     # System design
-└── docker-compose.yml      # Container orchestration
+│   ├── start_workers.sh    # Worker fleet management
+│   └── network_discovery/  # Switch configuration
+├── docs/
+│   ├── session_logs/       # Daily progress logs
+│   ├── CODE_AUDIT_REPORT.md
+│   └── CODEBASE_INVENTORY.md
+├── _deprecated/            # Deprecated code ✨ NEW
+└── docker-compose.yml
 ```
 
 ---
 
 ## Key Concepts
 
-### 1. Hot Spare Pool
-Pre-provisioned VMs ready for instant deployment. Pool manager maintains 3 ready spares.
+### 1. Lab Registry (Central Source of Truth)
+Real-time infrastructure monitoring with tiered polling:
 
 ```python
-# Acquire a spare
+# Registry API endpoints
+GET  /api/registry/status           # Health check
+GET  /api/registry/resources        # List resources (filterable)
+GET  /api/registry/labs/{id}        # Lab snapshot
+WS   /api/registry/ws/events        # Real-time events
+
+# Tier structure
+Tier 1: Lab VMs, Networks  → 1s polling (webhook-ready)
+Tier 2: All VMs, Templates → 10s polling
+Tier 3: Hosts, Storage     → 30-60s polling
+```
+
+### 2. Hot Spare Pool
+Pre-provisioned VMs ready for instant deployment:
+
+```python
 pool = get_hot_spare_pool()
 spare = await pool.acquire_spare(session, os_type="ubuntu", mission_id="xxx")
-# Returns: HotSpare with vmid, ip_address, node
 ```
 
-### 2. Distributed Workers
-Celery workers process tasks from Redis queues in parallel.
-
-```python
-# Dispatch lab deployment
-from glassdome.workers.orchestrator import deploy_lab
-task = deploy_lab.delay(lab_id="xxx", lab_data={...}, platform_id="1")
-# Returns: AsyncResult with task_id
-```
-
-### 3. VLAN Auto-Assignment
-Labs get automatically assigned VLANs from pool 100-170.
-
-```python
-VLAN 142 → {
-    "cidr": "192.168.142.0/24",
-    "gateway": "192.168.142.1",
-    "bridge": "vmbr142",
-    "vm_ips": [".10", ".11", ".12", ...]
-}
-```
-
-### 4. Platform Abstraction
+### 3. Platform Abstraction
 All platforms implement the same interface:
 
 ```python
-# Same code works for all platforms
 client = ProxmoxClient(...)  # or ESXiClient, AWSClient, AzureClient
 await client.create_vm(config)
+await client.clone_vm(template_id, new_vm_id, config)
 await client.start_vm(node, vmid)
-await client.configure_vm(node, vmid, settings)
+```
+
+### 4. Canvas Lab Deployment
+pfSense-as-gateway architecture for isolated lab networks:
+
+```
+┌─────────────────────────────────────────┐
+│              Management (VLAN 2)         │
+│           192.168.2.x (DHCP)            │
+└──────────────────┬──────────────────────┘
+                   │ net0 (WAN)
+              ┌────┴────┐
+              │ pfSense │
+              │ Gateway │
+              └────┬────┘
+                   │ net1 (LAN)
+┌──────────────────┴──────────────────────┐
+│           Lab Network (10.X.0.0/24)      │
+│         VLAN 100-170, DHCP via pfSense  │
+│   ┌─────┐    ┌─────┐    ┌─────┐         │
+│   │Kali │    │ MS3 │    │ Win │         │
+│   └─────┘    └─────┘    └─────┘         │
+└─────────────────────────────────────────┘
 ```
 
 ---
@@ -156,52 +187,32 @@ await client.configure_vm(node, vmid, settings)
 # Terminal 1: Backend
 cd /home/nomad/glassdome
 source venv/bin/activate
-uvicorn glassdome.main:app --host 0.0.0.0 --port 8011 --reload
+uvicorn glassdome.main:app --host 0.0.0.0 --port 8011 &
 
 # Terminal 2: Frontend
 cd /home/nomad/glassdome/frontend
-npm run dev
+npm run dev &
 
-# Terminal 3: Workers
+# Terminal 3: Workers (optional)
 cd /home/nomad/glassdome
 ./scripts/start_workers.sh start
 ```
 
-### Check Worker Health
+### Check Registry Status
 ```bash
-curl http://localhost:8011/api/dispatch/health | jq
+curl http://localhost:8011/api/registry/status | jq
 ```
 
-### Deploy a Lab
+### List Proxmox Resources
 ```bash
-curl -X POST http://localhost:8011/api/dispatch/lab \
+curl "http://localhost:8011/api/registry/resources?platform=proxmox" | jq
+```
+
+### Deploy a Lab from Canvas
+```bash
+curl -X POST http://localhost:8011/api/deployments \
   -H "Content-Type: application/json" \
-  -d '{"lab_id": "test", "lab_data": {...}, "platform_id": "1"}'
-```
-
-### Check Hot Spare Pool
-```bash
-curl http://localhost:8011/api/reaper/pool/status | jq
-```
-
----
-
-## Database Models
-
-### Key Tables
-- `labs` - Lab definitions with canvas data
-- `exploits` - Vulnerability definitions
-- `exploit_missions` - Reaper mission tracking
-- `mission_logs` - Mission execution logs
-- `validation_results` - WhiteKnight test results
-- `hot_spares` - Pre-provisioned VM pool
-- `network_definitions` - Lab network configurations
-- `deployed_vms` - Deployed VM tracking
-
-### Migrations
-```bash
-cd /home/nomad/glassdome
-alembic upgrade head
+  -d '{"nodes": [...], "edges": [...], "platform": "proxmox"}'
 ```
 
 ---
@@ -213,76 +224,112 @@ Key variables in `.env`:
 # Database
 DATABASE_URL=postgresql+asyncpg://glassdome:xxx@192.168.3.26:5432/glassdome_dev
 
-# Proxmox
-PROXMOX_HOST=192.168.215.78
-PROXMOX_USER=apex@pve
-PROXMOX_TOKEN_NAME=glassdome-token
+# Proxmox Cluster
+PROXMOX_HOST=192.168.215.78      # pve01 (production)
+PROXMOX_USER=root@pam
+PROXMOX_PASSWORD=xxxxx
+
+PROXMOX_02_HOST=192.168.215.77   # pve02 (labs)
+PROXMOX_02_USER=root@pam
+PROXMOX_02_PASSWORD=xxxxx
 
 # Templates
 UBUNTU_2204_TEMPLATE_ID=9000
+PFSENSE_TEMPLATE_ID=9020
 
-# Redis (for workers)
+# Redis
 REDIS_URL=redis://localhost:6379/0
+
+# Unifi (for IP discovery)
+UBIQUITI_GATEWAY_HOST=192.168.2.1
+UBIQUITI_API_KEY=xxxxx
+
+# DNS (local resolver)
+DNS_SERVERS=192.168.3.1,8.8.8.8
 ```
 
 ---
 
-## Current Limitations
+## Infrastructure
 
-1. **Windows VMs** - Template-based only (autounattend unreliable)
-2. **pfSense** - Template 9020 needs to be created on Proxmox
-3. **VLAN Bridges** - Need to be created manually on Proxmox
-4. **Docker Workers** - Builds prepared but using native workers for dev
+### Proxmox Cluster
+- **pve01** (192.168.215.78): Production VMs - mooker, rome, scribe, agentx, prod-app, prod-db
+- **pve02** (192.168.215.77): Lab deployments, templates
+- **Shared Storage**: `truenas-nfs-labs` (29TB NFS)
+- **Cluster Communication**: 10G SAN interfaces (VLANs 211/212)
+- **HA & Live Migration**: Enabled
+
+### TrueNAS (192.168.215.75)
+- 29TB ZFS pool with SLOG (NVMe) and L2ARC (4TB SSD)
+- NFS share: `/mnt/PROXMOX/proxmox-vms`
+- Dual 10G paths for redundancy
+
+### Nexus 3064X Switch (192.168.2.244)
+- Core SAN switch for 10G traffic
+- VLANs: 211 (SAN-A), 212 (SAN-B), 215 (Mgmt)
+- Documented in `docs/NEXUS_3064_SAN_SWITCH.md`
+
+---
+
+## Agent Status
+
+| Agent | Status | Description |
+|-------|--------|-------------|
+| Ubuntu Installer | ✓ Working | Cloud-init deployment across all platforms |
+| Windows Installer | ⚠ Partial | Template-based on-prem, AMI on cloud |
+| Overseer | ✓ Working | Claude AI chat with tool execution |
+| Guest Agent Fixer | ✓ Working | QEMU guest agent repair |
+| Mailcow | ✓ Working | Email integration |
+| Reaper | ⚠ Partial | WEAK SSH injection, seed patterns |
+| Research | ⚠ Partial | GPT-4o via Overseer, Range AI |
+
+---
+
+## Recent Changes (2024-11-28 - MVP 2.0)
+
+1. **Lab Registry** - Real-time monitoring with Redis + WebSocket
+2. **Proxmox Cluster** - 2-node cluster with shared NFS storage
+3. **Frontend Overhaul** - Design/Monitor dropdowns, LabMonitor page
+4. **Integrated Radio** - SomaFM in Overseer chat modal
+5. **Feature Pages** - Dynamic detail pages for capabilities
+6. **Code Cleanup** - Deprecated code moved to `_deprecated/`
+7. **DNS Update** - Local resolver (192.168.3.1) as primary
 
 ---
 
 ## Troubleshooting
 
-### Workers not responding
+### Registry not connecting
 ```bash
-./scripts/start_workers.sh stop
-./scripts/start_workers.sh start
-./scripts/start_workers.sh status
+# Check Redis
+docker ps | grep redis
+redis-cli ping
+
+# Restart backend
+pkill -f uvicorn
+uvicorn glassdome.main:app --host 0.0.0.0 --port 8011 &
 ```
 
-### Redis not running
+### Frontend proxy issues
 ```bash
-docker start glassdome-redis
-# or
-docker run -d --name glassdome-redis -p 6379:6379 redis:7-alpine
+# Check Vite is running
+lsof -i :5174
+
+# Restart frontend
+cd /home/nomad/glassdome/frontend
+npm run dev &
 ```
 
-### Hot spares not provisioning
-```bash
-curl -X POST http://localhost:8011/api/reaper/pool/start
-curl http://localhost:8011/api/reaper/pool/status | jq
-```
-
-### Backend not starting
-```bash
-cd /home/nomad/glassdome
-source venv/bin/activate
-python -c "from glassdome.main import app; print('OK')"
-# Check for import errors
-```
-
----
-
-## Recent Changes (2025-11-27)
-
-1. **Distributed Workers** - Celery + Redis task queue
-2. **Simplified Networking** - CIDR-driven auto-configuration
-3. **pfSense Support** - Added to Canvas palette
-4. **Worker Startup Script** - `./scripts/start_workers.sh`
-5. **Dispatch API** - `/api/dispatch/*` endpoints
+### Proxmox agents not reporting
+- Check `.env` credentials (PROXMOX_USER, PROXMOX_PASSWORD)
+- Verify network connectivity to Proxmox hosts
+- Check backend logs for timeout errors
 
 ---
 
 ## Contact
 
-This is the **nomad** user's project on the **AgentX** development machine.
-
-- Dev Environment: `/home/nomad/glassdome`
-- Production: `/opt/glassdome` (glassdome-prod-app server)
-- Database: `192.168.3.26` (PostgreSQL)
-
+- **Dev Environment**: `/home/nomad/glassdome` on AgentX
+- **Production**: `/opt/glassdome` on glassdome-prod-app
+- **Database**: PostgreSQL at 192.168.3.26
+- **User**: nomad

@@ -600,7 +600,7 @@ class ProxmoxClient(PlatformClient):
                 logger.info(f"Setting static IP: {ip_config}")
             
             # DNS servers
-            dns_servers = config.get("dns_servers", ["8.8.8.8", "8.8.4.4"])
+            dns_servers = config.get("dns_servers", ["192.168.3.1", "8.8.8.8"])
             if dns_servers:
                 cloudinit_params["nameserver"] = " ".join(dns_servers)
                 logger.info(f"Setting DNS servers: {dns_servers}")

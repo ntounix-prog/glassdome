@@ -30,6 +30,7 @@ from glassdome.api.networks import router as networks_router
 from glassdome.api.whitepawn import router as whitepawn_router
 from glassdome.api.canvas_deploy import router as canvas_deploy_router
 from glassdome.api.container_dispatch import router as dispatch_router
+from glassdome.api.registry import router as registry_router
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -60,6 +61,7 @@ app.include_router(networks_router)  # Network management
 app.include_router(whitepawn_router)  # WhitePawn continuous monitoring
 app.include_router(canvas_deploy_router)  # Canvas lab deployment
 app.include_router(dispatch_router)  # Container worker dispatch
+app.include_router(registry_router)  # Lab Registry - source of truth
 
 
 # Startup and shutdown events
@@ -77,12 +79,15 @@ async def startup_event():
     
     await init_db()
     
+    # Start background services (non-blocking to allow fast startup)
+    import asyncio
+    
     # Start Hot Spare Pool Manager (guardian process for spare VMs)
     try:
         from glassdome.reaper.hot_spare import get_hot_spare_pool
         pool = get_hot_spare_pool()
-        await pool.start()
-        logger.info("Hot Spare Pool Manager started - maintaining spare VMs")
+        asyncio.create_task(pool.start())
+        logger.info("Hot Spare Pool Manager starting (background)")
     except Exception as e:
         logger.warning(f"Could not start Hot Spare Pool Manager: {e}")
     
@@ -90,8 +95,8 @@ async def startup_event():
     try:
         from glassdome.networking.reconciler import get_network_reconciler
         reconciler = get_network_reconciler(interval=30)
-        await reconciler.start()
-        logger.info("Network Reconciler started - monitoring state drift")
+        asyncio.create_task(reconciler.start())
+        logger.info("Network Reconciler starting (background)")
     except Exception as e:
         logger.warning(f"Could not start Network Reconciler: {e}")
     
@@ -99,10 +104,42 @@ async def startup_event():
     try:
         from glassdome.whitepawn.orchestrator import get_whitepawn_orchestrator
         whitepawn = get_whitepawn_orchestrator()
-        await whitepawn.start()
-        logger.info("WhitePawn Orchestrator started - network monitoring active")
+        asyncio.create_task(whitepawn.start())
+        logger.info("WhitePawn Orchestrator starting (background)")
     except Exception as e:
         logger.warning(f"Could not start WhitePawn Orchestrator: {e}")
+    
+    # Start Lab Registry (central source of truth)
+    # Use create_task to avoid blocking startup on slow network connections
+    try:
+        import asyncio
+        from glassdome.registry.core import init_registry
+        from glassdome.registry.agents.proxmox_agent import create_proxmox_agents
+        from glassdome.registry.agents.unifi_agent import get_unifi_agent
+        from glassdome.registry.controllers.lab_controller import get_lab_controller
+        
+        # Initialize registry (Redis connection)
+        registry = await init_registry()
+        logger.info("Lab Registry initialized - Redis connected")
+        
+        # Start Proxmox agents in background (don't block startup)
+        proxmox_agents = create_proxmox_agents()
+        for agent in proxmox_agents:
+            asyncio.create_task(agent.start())
+        logger.info(f"Started {len(proxmox_agents)} Proxmox agents (background)")
+        
+        # Start Unifi agent in background
+        unifi_agent = get_unifi_agent()
+        asyncio.create_task(unifi_agent.start())
+        logger.info("Unifi agent started (background)")
+        
+        # Start Lab Controller in background
+        lab_controller = get_lab_controller()
+        asyncio.create_task(lab_controller.start())
+        logger.info("Lab Controller started (background)")
+        
+    except Exception as e:
+        logger.warning(f"Could not start Lab Registry: {e}")
     
     # Start agent manager in background
     # asyncio.create_task(agent_manager.start())
@@ -140,6 +177,28 @@ async def shutdown_event():
         logger.info("WhitePawn Orchestrator stopped")
     except Exception as e:
         logger.warning(f"Error stopping WhitePawn Orchestrator: {e}")
+    
+    # Stop Lab Registry components
+    try:
+        from glassdome.registry.controllers.lab_controller import get_lab_controller
+        from glassdome.registry.agents.unifi_agent import get_unifi_agent
+        from glassdome.registry.core import get_registry
+        
+        # Stop controller
+        lab_controller = get_lab_controller()
+        await lab_controller.stop()
+        
+        # Stop Unifi agent
+        unifi_agent = get_unifi_agent()
+        await unifi_agent.stop()
+        
+        # Disconnect registry
+        registry = get_registry()
+        await registry.disconnect()
+        
+        logger.info("Lab Registry stopped")
+    except Exception as e:
+        logger.warning(f"Error stopping Lab Registry: {e}")
     
     await agent_manager.stop()
 

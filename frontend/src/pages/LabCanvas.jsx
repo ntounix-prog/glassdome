@@ -24,7 +24,6 @@ const elementTypes = {
     { id: 'pfsense', name: 'pfSense Firewall', type: 'firewall', icon: '🛡️', os: 'bsd' },
   ],
   networks: [
-    // Single network type - system auto-assigns VLAN/CIDR on deploy
     { id: 'lab-network', name: 'Lab Network', icon: '🔗', type: 'isolated' },
   ]
 }
@@ -37,18 +36,136 @@ function LabCanvas() {
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges)
   const [selectedNode, setSelectedNode] = useState(null)
   const [labName, setLabName] = useState('New Cyber Range Lab')
-  const [labId, setLabId] = useState(() => generateLabId()) // Unique lab identifier
-  const [platform, setPlatform] = useState('1') // Default to Proxmox
+  const [labId, setLabId] = useState(() => generateLabId())
+  const [platform, setPlatform] = useState('1')
   const [isDeploying, setIsDeploying] = useState(false)
+  const [savedLabs, setSavedLabs] = useState([])
+  const [isLoadMenuOpen, setIsLoadMenuOpen] = useState(false)
+  const [deploymentLogs, setDeploymentLogs] = useState([])
+  const [showDeployPanel, setShowDeployPanel] = useState(false)
   const nodeIdCounter = useRef(1)
+  const loadMenuTimeoutRef = useRef(null)
+  const deployLogRef = useRef(null)
+
+  // Add a log entry
+  const addLog = (message, type = 'info') => {
+    const entry = {
+      id: Date.now(),
+      time: new Date().toLocaleTimeString(),
+      message,
+      type // 'info', 'success', 'error', 'warning'
+    }
+    setDeploymentLogs(prev => [...prev, entry])
+    // Auto-scroll to bottom
+    setTimeout(() => {
+      if (deployLogRef.current) {
+        deployLogRef.current.scrollTop = deployLogRef.current.scrollHeight
+      }
+    }, 50)
+  }
+
+  const clearLogs = () => setDeploymentLogs([])
+
+  // Fetch saved labs on mount
+  useEffect(() => {
+    fetchSavedLabs()
+  }, [])
+
+  const fetchSavedLabs = async () => {
+    try {
+      const response = await fetch('/api/labs')
+      if (response.ok) {
+        const data = await response.json()
+        setSavedLabs(data.labs || [])
+      }
+    } catch (error) {
+      console.error('Error fetching labs:', error)
+    }
+  }
+
+  const loadLab = async (lab) => {
+    try {
+      const response = await fetch(`/api/labs/${lab.id}`)
+      if (!response.ok) throw new Error('Failed to load lab')
+      
+      const labData = await response.json()
+      
+      // Set lab metadata
+      setLabId(labData.id)
+      setLabName(labData.name)
+      
+      // Reconstruct nodes with React elements
+      if (labData.canvas_data?.nodes) {
+        const reconstructedNodes = labData.canvas_data.nodes.map(n => ({
+          ...n,
+          data: {
+            ...n.data,
+            label: n.data.nodeType === 'network' ? (
+              <div className="custom-node network-node">
+                <div className="node-icon">🔗</div>
+                <div className="node-label">Lab Network</div>
+                <div className="node-details">
+                  <span className="auto-assign">Auto-configured</span>
+                </div>
+              </div>
+            ) : (
+              <div className="custom-node vm-node">
+                <div className="node-icon">{getElementIcon(n.data.elementId)}</div>
+                <div className="node-label">{getElementName(n.data.elementId)}</div>
+              </div>
+            )
+          },
+          style: {
+            background: n.data.nodeType === 'network' ? '#1a3a4a' : getNodeColor(n.data.elementType),
+            border: n.data.nodeType === 'network' ? '2px solid #64c8ff' : '2px solid #222',
+            borderRadius: n.data.nodeType === 'network' ? '12px' : '8px',
+            padding: '10px',
+            minWidth: n.data.nodeType === 'network' ? '180px' : '150px'
+          }
+        }))
+        
+        setNodes(reconstructedNodes)
+        
+        // Update node counter to avoid ID collisions
+        const maxId = reconstructedNodes.reduce((max, n) => {
+          const match = n.id.match(/node_(\d+)/)
+          return match ? Math.max(max, parseInt(match[1])) : max
+        }, 0)
+        nodeIdCounter.current = maxId + 1
+      }
+      
+      // Load edges
+      if (labData.canvas_data?.edges) {
+        setEdges(labData.canvas_data.edges.map(e => ({
+          ...e,
+          style: { stroke: '#64c8ff', strokeWidth: 2 },
+          animated: true
+        })))
+      }
+      
+      setIsLoadMenuOpen(false)
+      alert(`Loaded lab: ${labData.name}`)
+    } catch (error) {
+      console.error('Error loading lab:', error)
+      alert('Failed to load lab: ' + error.message)
+    }
+  }
+
+  const getElementIcon = (elementId) => {
+    const allElements = [...elementTypes.vms, ...elementTypes.networks]
+    return allElements.find(e => e.id === elementId)?.icon || '📦'
+  }
+
+  const getElementName = (elementId) => {
+    const allElements = [...elementTypes.vms, ...elementTypes.networks]
+    return allElements.find(e => e.id === elementId)?.name || elementId
+  }
 
   const onConnect = useCallback(
     (params) => {
-      // When connecting a VM to a network, track the connection
       const sourceNode = nodes.find(n => n.id === params.source)
       const targetNode = nodes.find(n => n.id === params.target)
       
-      // Determine which is the network and which is the VM
       const networkNode = [sourceNode, targetNode].find(n => 
         n?.data?.nodeType === 'network'
       )
@@ -73,14 +190,12 @@ function LabCanvas() {
     const isNetwork = category === 'network'
     const nodeId = `node_${nodeIdCounter.current++}`
     
-    // For networks, just mark it - VLAN/CIDR auto-assigned on deploy
     let networkConfig = null
     if (isNetwork) {
       networkConfig = {
         name: `lab-network-${nodeId}`,
         displayName: 'Lab Network',
         network_type: 'isolated',
-        // VLAN and CIDR will be auto-assigned on deploy
         auto_assign: true
       }
     }
@@ -129,7 +244,7 @@ function LabCanvas() {
       attack: '#ff6b6b',
       vulnerable: '#ffd93d',
       base: '#6bcf7f',
-      firewall: '#ff9f43',  // Orange for firewall/gateway
+      firewall: '#ff9f43',
       default: '#74b9ff'
     }
     return colors[type] || colors.default
@@ -137,19 +252,17 @@ function LabCanvas() {
 
   const onNodeClick = (event, node) => {
     setSelectedNode(node)
-    // Network config is auto-assigned - no editing needed
   }
 
   const clearCanvas = () => {
     setNodes([])
     setEdges([])
     setSelectedNode(null)
-    setLabId(generateLabId())  // New lab = new ID
+    setLabId(generateLabId())
     setLabName('New Cyber Range Lab')
   }
 
   const saveLab = async () => {
-    // Save lab with all element data - network config auto-assigned on deploy
     const labData = {
       id: labId,
       name: labName,
@@ -159,7 +272,7 @@ function LabCanvas() {
           data: {
             ...n.data,
             lab_id: labId,
-            label: undefined // Don't save React components
+            label: undefined
           }
         })),
         edges
@@ -178,6 +291,9 @@ function LabCanvas() {
       const hasNetwork = nodes.some(n => n.data.nodeType === 'network')
       
       alert(`Lab saved!\n\nID: ${labId}\nName: ${labName}\nVMs: ${vmCount}\nNetwork: ${hasNetwork ? 'Yes (auto-configured on deploy)' : 'No'}`)
+      
+      // Refresh saved labs list
+      fetchSavedLabs()
     } catch (error) {
       console.error('Error saving lab:', error)
       alert('Failed to save lab')
@@ -186,7 +302,8 @@ function LabCanvas() {
 
   const deployLab = async () => {
     if (nodes.length === 0) {
-      alert('Please add some elements to the lab before deploying')
+      addLog('❌ Cannot deploy: No elements on canvas', 'error')
+      setShowDeployPanel(true)
       return
     }
 
@@ -194,65 +311,84 @@ function LabCanvas() {
     const vmNodes = nodes.filter(n => n.data.nodeType === 'vm')
     const networkNodes = nodes.filter(n => n.data.nodeType === 'network')
     
-    const confirmed = window.confirm(
-      `Deploy "${labName}" to ${platformName}?\n\n` +
-      `VMs: ${vmNodes.length}\n` +
-      `Networks: ${networkNodes.length}\n` +
-      `Connections: ${edges.length}`
-    )
+    // Show deploy panel and start logging
+    setShowDeployPanel(true)
+    clearLogs()
     
-    if (confirmed) {
-      setIsDeploying(true)
-      try {
-        // Build deployment data with network info
-        const deploymentData = {
-          lab_id: labId,  // Use the unique lab ID
-          platform_id: platform,
-          lab_data: { 
-            nodes: nodes.map(n => ({
-              id: n.id,
-              type: n.data.nodeType,
-              elementId: n.data.elementId,
-              elementType: n.data.elementType,
-              os: n.data.os,
-              networkConfig: n.data.networkConfig,
-              position: n.position
-            })),
-            edges: edges.map(e => ({
-              source: e.source,
-              target: e.target
-            }))
-          }
+    addLog(`🚀 Starting deployment of "${labName}"`, 'info')
+    addLog(`📍 Target: ${platformName}`, 'info')
+    addLog(`🖥️ VMs: ${vmNodes.length} | 🌐 Networks: ${networkNodes.length}`, 'info')
+    
+    setIsDeploying(true)
+    
+    try {
+      addLog('📦 Preparing deployment package...', 'info')
+      
+      const deploymentData = {
+        lab_id: labId,
+        platform_id: platform,
+        lab_data: { 
+          nodes: nodes.map(n => ({
+            id: n.id,
+            type: n.data.nodeType,
+            elementId: n.data.elementId,
+            elementType: n.data.elementType,
+            os: n.data.os,
+            networkConfig: n.data.networkConfig,
+            position: n.position
+          })),
+          edges: edges.map(e => ({
+            source: e.source,
+            target: e.target
+          }))
         }
-
-        const response = await fetch('/api/deployments', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(deploymentData)
-        })
-        const result = await response.json()
-        if (result.success) {
-          alert(`✅ Deployment initiated!\n\nID: ${result.deployment_id}\nVMs: ${result.vms?.length || 0}\nStatus: ${result.status}`)
-        } else {
-          alert(`❌ Deployment failed: ${result.message}\n\nErrors: ${result.errors?.join(', ') || 'Unknown error'}`)
-        }
-      } catch (error) {
-        console.error('Error deploying lab:', error)
-        alert('Failed to deploy lab: ' + error.message)
-      } finally {
-        setIsDeploying(false)
       }
-    }
-  }
 
-  // Get connected networks for a VM
-  const getVMNetworks = (vmNodeId) => {
-    const connected = edges.filter(e => e.source === vmNodeId || e.target === vmNodeId)
-    return connected.map(e => {
-      const networkId = e.source === vmNodeId ? e.target : e.source
-      const networkNode = nodes.find(n => n.id === networkId)
-      return networkNode?.data?.networkConfig
-    }).filter(Boolean)
+      addLog('📤 Sending to deployment API...', 'info')
+      
+      const response = await fetch('/api/deployments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(deploymentData)
+      })
+      
+      const result = await response.json()
+      
+      if (!response.ok) {
+        throw new Error(result.detail || result.message || `HTTP ${response.status}`)
+      }
+      
+      if (result.success) {
+        addLog(`✅ Deployment initiated!`, 'success')
+        addLog(`🆔 Deployment ID: ${result.deployment_id}`, 'success')
+        
+        if (result.vms && result.vms.length > 0) {
+          result.vms.forEach(vm => {
+            addLog(`  ✓ ${vm.name} (VM ${vm.vm_id})`, 'success')
+          })
+        }
+        
+        addLog(`📊 Status: ${result.status}`, 'success')
+        
+        if (result.network) {
+          addLog(`🌐 Network: VLAN ${result.network.vlan_id} (${result.network.cidr})`, 'success')
+        }
+      } else {
+        addLog(`❌ Deployment failed: ${result.message}`, 'error')
+        if (result.errors && result.errors.length > 0) {
+          result.errors.forEach(err => {
+            addLog(`  ⚠️ ${err}`, 'error')
+          })
+        }
+      }
+    } catch (error) {
+      console.error('Error deploying lab:', error)
+      addLog(`❌ Deployment error: ${error.message}`, 'error')
+      addLog(`💡 Check browser console (F12) for details`, 'warning')
+    } finally {
+      setIsDeploying(false)
+      addLog('─'.repeat(40), 'info')
+    }
   }
 
   return (
@@ -316,8 +452,48 @@ function LabCanvas() {
               <option value="2">☁️ AWS</option>
             </select>
             <button className="btn-secondary" onClick={saveLab}>
-              💾 Save Lab
+              💾 Save
             </button>
+            
+            {/* Load Dropdown */}
+            <div 
+              className="load-dropdown"
+              onMouseEnter={() => {
+                if (loadMenuTimeoutRef.current) clearTimeout(loadMenuTimeoutRef.current)
+                setIsLoadMenuOpen(true)
+              }}
+              onMouseLeave={() => {
+                loadMenuTimeoutRef.current = setTimeout(() => setIsLoadMenuOpen(false), 300)
+              }}
+            >
+              <button 
+                className="btn-secondary"
+                onClick={() => setIsLoadMenuOpen(!isLoadMenuOpen)}
+              >
+                📂 Load ▼
+              </button>
+              {isLoadMenuOpen && (
+                <div className="load-dropdown-menu">
+                  {savedLabs.length === 0 ? (
+                    <div className="load-dropdown-empty">No saved labs</div>
+                  ) : (
+                    savedLabs.map(lab => (
+                      <button
+                        key={lab.id}
+                        className="load-dropdown-item"
+                        onClick={() => loadLab(lab)}
+                      >
+                        <span className="load-lab-name">{lab.name}</span>
+                        <span className="load-lab-meta">
+                          {lab.node_count || 0} nodes
+                        </span>
+                      </button>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
+
             <button 
               className="btn-primary" 
               onClick={deployLab}
@@ -369,6 +545,62 @@ function LabCanvas() {
           </ReactFlow>
         </div>
       </div>
+
+      {/* Deployment Status Panel */}
+      {showDeployPanel && (
+        <div className="deploy-panel">
+          <div className="deploy-panel-header">
+            <h3>📋 Deployment Log</h3>
+            <div className="deploy-panel-actions">
+              <button 
+                className="btn-small btn-secondary"
+                onClick={clearLogs}
+                title="Clear logs"
+              >
+                🗑️
+              </button>
+              <button 
+                className="btn-small btn-secondary"
+                onClick={() => setShowDeployPanel(false)}
+                title="Close panel"
+              >
+                ✕
+              </button>
+            </div>
+          </div>
+          <div className="deploy-panel-content" ref={deployLogRef}>
+            {deploymentLogs.length === 0 ? (
+              <div className="deploy-empty">No deployment activity yet</div>
+            ) : (
+              deploymentLogs.map(log => (
+                <div key={log.id} className={`deploy-log-entry ${log.type}`}>
+                  <span className="log-time">{log.time}</span>
+                  <span className="log-message">{log.message}</span>
+                </div>
+              ))
+            )}
+          </div>
+          {isDeploying && (
+            <div className="deploy-panel-footer">
+              <div className="deploy-progress">
+                <div className="progress-spinner"></div>
+                <span>Deployment in progress...</span>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Toggle button when panel is hidden */}
+      {!showDeployPanel && deploymentLogs.length > 0 && (
+        <button 
+          className="deploy-panel-toggle"
+          onClick={() => setShowDeployPanel(true)}
+          title="Show deployment log"
+        >
+          📋 {deploymentLogs.filter(l => l.type === 'error').length > 0 ? '⚠️' : ''}
+        </button>
+      )}
     </div>
   )
 }

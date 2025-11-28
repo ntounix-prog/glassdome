@@ -48,7 +48,7 @@ class IPPoolManager:
                         "name": "Proxmox Lab Network",
                         "gateway": "192.168.3.1",
                         "netmask": "255.255.255.0",
-                        "dns": ["8.8.8.8", "8.8.4.4"],
+                        "dns": ["192.168.3.1", "8.8.8.8"],
                         "range_start": "192.168.3.30",
                         "range_end": "192.168.3.40",
                         "allocated": {}
@@ -57,7 +57,7 @@ class IPPoolManager:
                         "name": "ESXi Management Network",
                         "gateway": "192.168.2.1",
                         "netmask": "255.255.255.0",
-                        "dns": ["8.8.8.8", "8.8.4.4"],
+                        "dns": ["192.168.3.1", "8.8.8.8"],
                         "range_start": "192.168.2.30",
                         "range_end": "192.168.2.40",
                         "allocated": {}

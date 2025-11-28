@@ -19,6 +19,74 @@ logger = logging.getLogger(__name__)
 
 
 # ============================================================================
+# Synchronous Helper Functions (avoid Celery .get() issues)
+# ============================================================================
+
+def _allocate_network_sync(lab_id: str) -> Dict[str, Any]:
+    """Synchronously allocate a network for a lab"""
+    return asyncio.run(_allocate_network_async(lab_id))
+
+
+def _deploy_vm_sync(
+    lab_id: str,
+    vm_node: Dict[str, Any],
+    vm_index: int,
+    network_config: Optional[Dict[str, Any]],
+    platform_id: str
+) -> Dict[str, Any]:
+    """Synchronously deploy a VM"""
+    return asyncio.run(_deploy_vm_async(
+        lab_id=lab_id,
+        vm_node=vm_node,
+        vm_index=vm_index,
+        network_config=network_config,
+        platform_id=platform_id
+    ))
+
+
+async def _allocate_network_async(lab_id: str) -> Dict[str, Any]:
+    """Async network allocation logic"""
+    from glassdome.core.database import AsyncSessionLocal
+    from glassdome.networking.models import NetworkDefinition
+    from sqlalchemy import select, func
+    
+    async with AsyncSessionLocal() as session:
+        # Find next available VLAN in range 100-170
+        result = await session.execute(
+            select(func.max(NetworkDefinition.vlan_id)).where(
+                NetworkDefinition.vlan_id >= 100,
+                NetworkDefinition.vlan_id <= 170
+            )
+        )
+        max_vlan = result.scalar() or 99
+        vlan_id = min(max_vlan + 1, 170)
+        
+        if vlan_id > 170:
+            return {"success": False, "error": "No VLANs available"}
+        
+        # Create network record
+        network = NetworkDefinition(
+            name=f"lab-{lab_id[:8]}-net",
+            cidr=f"192.168.{vlan_id}.0/24",
+            vlan_id=vlan_id,
+            gateway=f"192.168.{vlan_id}.1",
+            network_type="isolated",
+            lab_id=lab_id
+        )
+        session.add(network)
+        await session.commit()
+        
+        return {
+            "success": True,
+            "vlan_id": vlan_id,
+            "cidr": f"192.168.{vlan_id}.0/24",
+            "gateway": f"192.168.{vlan_id}.1",
+            "bridge": f"vmbr{vlan_id}",
+            "network_id": network.id
+        }
+
+
+# ============================================================================
 # Lab Deployment Tasks
 # ============================================================================
 
@@ -41,45 +109,35 @@ def deploy_lab(self, lab_id: str, lab_data: Dict[str, Any], platform_id: str = "
     
     logger.info(f"Lab {lab_id}: {len(vm_nodes)} VMs, {len(network_nodes)} networks")
     
-    # Step 1: Allocate VLAN (synchronous, must happen first)
+    # Step 1: Allocate VLAN (call directly, not as subtask)
     network_config = None
     if network_nodes:
-        network_config = allocate_lab_network.delay(lab_id).get(timeout=30)
+        network_config = _allocate_network_sync(lab_id)
         if not network_config.get("success"):
             return {"success": False, "error": "Failed to allocate network", "lab_id": lab_id}
         logger.info(f"Allocated VLAN {network_config.get('vlan_id')} for lab {lab_id}")
     
-    # Step 2: Deploy all VMs in PARALLEL using Celery group
-    vm_tasks = []
-    for idx, vm_node in enumerate(vm_nodes):
-        task = deploy_vm.s(
-            lab_id=lab_id,
-            vm_node=vm_node.get("data", vm_node),
-            vm_index=idx,
-            network_config=network_config,
-            platform_id=platform_id
-        )
-        vm_tasks.append(task)
-    
-    # Execute all VM deployments in parallel
-    job = group(vm_tasks)
-    results = job.apply_async()
-    
-    # Wait for all VMs to deploy (with timeout)
-    try:
-        vm_results = results.get(timeout=300)  # 5 minute timeout for all VMs
-    except Exception as e:
-        logger.error(f"VM deployment timeout: {e}")
-        return {"success": False, "error": f"Deployment timeout: {e}", "lab_id": lab_id}
-    
-    # Collect results
+    # Step 2: Deploy all VMs SEQUENTIALLY for now (parallel has .get() issues in Celery)
+    # TODO: Refactor to use callbacks instead of .get()
     deployed_vms = []
     errors = []
-    for result in vm_results:
-        if result.get("success"):
-            deployed_vms.append(result)
-        else:
-            errors.append(result.get("error", "Unknown error"))
+    
+    for idx, vm_node in enumerate(vm_nodes):
+        try:
+            result = _deploy_vm_sync(
+                lab_id=lab_id,
+                vm_node=vm_node.get("data", vm_node),
+                vm_index=idx,
+                network_config=network_config,
+                platform_id=platform_id
+            )
+            if result.get("success"):
+                deployed_vms.append(result)
+            else:
+                errors.append(result.get("error", "Unknown error"))
+        except Exception as e:
+            logger.error(f"VM deploy error: {e}")
+            errors.append(str(e))
     
     # Step 3: Start WhitePawn monitoring (async, don't wait)
     if deployed_vms:
@@ -151,7 +209,7 @@ async def _deploy_vm_async(
     from glassdome.core.config import Settings
     from glassdome.platforms.proxmox_client import ProxmoxClient
     from glassdome.reaper.hot_spare import get_hot_spare_pool
-    from glassdome.core.database import async_session_factory
+    from glassdome.core.database import AsyncSessionLocal
     
     settings = Settings()
     element_id = vm_node.get("elementId", "ubuntu")
@@ -170,7 +228,7 @@ async def _deploy_vm_async(
     os_type = OS_TYPE_MAPPING.get(element_id, "ubuntu")
     vm_name = f"lab-{lab_id[:8]}-{element_id}-{node_id[-4:]}"
     
-    async with async_session_factory() as session:
+    async with AsyncSessionLocal() as session:
         # Try hot spare pool first
         pool = get_hot_spare_pool()
         acquired_spare = await pool.acquire_spare(session, os_type=os_type, mission_id=lab_id)
@@ -243,14 +301,14 @@ def allocate_lab_network(self, lab_id: str) -> Dict[str, Any]:
 
 async def _allocate_network_async(lab_id: str) -> Dict[str, Any]:
     """Async VLAN allocation"""
-    from glassdome.core.database import async_session_factory
+    from glassdome.core.database import AsyncSessionLocal
     from glassdome.networking.models import NetworkDefinition
     from sqlalchemy import select
     
     VLAN_POOL_START = 100
     VLAN_POOL_END = 170
     
-    async with async_session_factory() as session:
+    async with AsyncSessionLocal() as session:
         # Get used VLANs
         result = await session.execute(
             select(NetworkDefinition.vlan_id).where(NetworkDefinition.vlan_id.isnot(None))

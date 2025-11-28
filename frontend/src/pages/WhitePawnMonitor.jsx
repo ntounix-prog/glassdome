@@ -11,27 +11,44 @@ function WhitePawnMonitor() {
   const [connectivityMatrix, setConnectivityMatrix] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
-  const [activeTab, setActiveTab] = useState('map') // 'map', 'matrix', 'alerts'
+  const [activeTab, setActiveTab] = useState('map') // 'map', 'matrix', 'alerts', 'registry'
+  
+  // Registry state
+  const [registryStatus, setRegistryStatus] = useState(null)
+  const [registryLabs, setRegistryLabs] = useState([])
+  const [registryDrifts, setRegistryDrifts] = useState([])
+  const [labSnapshot, setLabSnapshot] = useState(null)
 
   const fetchData = useCallback(async () => {
     try {
-      // Fetch all data in parallel
-      const [statusRes, deploymentsRes, alertsRes, reconcilerRes] = await Promise.all([
+      // Fetch all data in parallel (WhitePawn + Registry)
+      const [statusRes, deploymentsRes, alertsRes, reconcilerRes, regStatusRes, regLabsRes, regDriftRes] = await Promise.all([
         fetch('/api/whitepawn/status'),
         fetch('/api/whitepawn/deployments'),
         fetch('/api/whitepawn/alerts?limit=50'),
-        fetch('/api/whitepawn/reconciler/status')
+        fetch('/api/whitepawn/reconciler/status'),
+        fetch('/api/registry/status').catch(() => ({ json: () => ({}) })),
+        fetch('/api/registry/labs').catch(() => ({ json: () => ({ labs: [] }) })),
+        fetch('/api/registry/drift').catch(() => ({ json: () => ({ drifts: [] }) })),
       ])
 
       const statusData = await statusRes.json()
       const deploymentsData = await deploymentsRes.json()
       const alertsData = await alertsRes.json()
       const reconcilerData = await reconcilerRes.json()
+      
+      // Registry data (with fallbacks)
+      const regStatusData = regStatusRes.json ? await regStatusRes.json() : {}
+      const regLabsData = regLabsRes.json ? await regLabsRes.json() : { labs: [] }
+      const regDriftData = regDriftRes.json ? await regDriftRes.json() : { drifts: [] }
 
       setStatus(statusData)
       setDeployments(deploymentsData.deployments || [])
       setAlerts(alertsData.alerts || [])
       setReconcilerStatus(reconcilerData)
+      setRegistryStatus(regStatusData)
+      setRegistryLabs(regLabsData.labs || [])
+      setRegistryDrifts(regDriftData.drifts || [])
       setError(null)
       
       // Auto-select first deployment if none selected
@@ -39,7 +56,7 @@ function WhitePawnMonitor() {
         setSelectedLab(deploymentsData.deployments[0].lab_id)
       }
     } catch (err) {
-      setError('Failed to fetch WhitePawn data')
+      setError('Failed to fetch monitoring data')
       console.error(err)
     } finally {
       setLoading(false)
@@ -53,13 +70,20 @@ function WhitePawnMonitor() {
     return () => clearInterval(interval)
   }, [fetchData])
 
-  // Fetch connectivity matrix when lab is selected
+  // Fetch connectivity matrix and lab snapshot when lab is selected
   useEffect(() => {
     if (selectedLab) {
+      // WhitePawn matrix
       fetch(`/api/whitepawn/labs/${selectedLab}/matrix`)
         .then(res => res.json())
         .then(data => setConnectivityMatrix(data))
         .catch(err => console.error('Failed to fetch matrix:', err))
+      
+      // Registry lab snapshot
+      fetch(`/api/registry/labs/${selectedLab}`)
+        .then(res => res.ok ? res.json() : null)
+        .then(data => setLabSnapshot(data))
+        .catch(() => setLabSnapshot(null))
     }
   }, [selectedLab])
 
@@ -215,6 +239,21 @@ function WhitePawnMonitor() {
             )}
           </div>
           
+          {/* Registry Status */}
+          <div className="reconciler-card registry-card">
+            <div className="reconciler-header">
+              <span>📊 Registry</span>
+              <span className={`status-dot ${registryStatus?.connected ? 'running' : 'stopped'}`}></span>
+            </div>
+            <div className="registry-stats">
+              <span>{registryStatus?.total_resources || 0} resources</span>
+              <span>{registryStatus?.agents || 0} agents</span>
+            </div>
+            {registryDrifts.length > 0 && (
+              <span className="drift-badge">⚠️ {registryDrifts.length} drifts</span>
+            )}
+          </div>
+          
           {/* Selected Lab Info */}
           {selectedLab && getSelectedDeployment() && (
             <div className="selected-lab-card">
@@ -254,6 +293,12 @@ function WhitePawnMonitor() {
               onClick={() => setActiveTab('alerts')}
             >
               🚨 Alerts {alerts.length > 0 && <span className="badge">{alerts.length}</span>}
+            </button>
+            <button 
+              className={activeTab === 'registry' ? 'active' : ''} 
+              onClick={() => setActiveTab('registry')}
+            >
+              📊 Registry {registryDrifts.length > 0 && <span className="badge warn">{registryDrifts.length}</span>}
             </button>
           </div>
 
@@ -342,6 +387,84 @@ function WhitePawnMonitor() {
                           )}
                           <button onClick={() => resolveAlert(alert.id)}>Resolve</button>
                         </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {activeTab === 'registry' && (
+              <div className="registry-tab">
+                {/* Lab Snapshot */}
+                {labSnapshot ? (
+                  <div className="lab-snapshot">
+                    <h3>Lab: {labSnapshot.lab_id}</h3>
+                    <div className="snapshot-meta">
+                      <span>Status: <strong className={`status-${labSnapshot.status}`}>{labSnapshot.status}</strong></span>
+                      <span>VMs: {labSnapshot.vms?.length || 0}</span>
+                      {labSnapshot.last_updated && (
+                        <span>Updated: {new Date(labSnapshot.last_updated).toLocaleTimeString()}</span>
+                      )}
+                    </div>
+                    
+                    {/* VMs in this lab */}
+                    <div className="registry-vms">
+                      {labSnapshot.vms?.map(vm => (
+                        <div key={vm.platform_id} className={`registry-vm ${vm.state}`}>
+                          <div className="vm-header">
+                            <span className={`status-indicator ${vm.state}`}></span>
+                            <strong>{vm.name}</strong>
+                            <span className="vm-id">#{vm.platform_id}</span>
+                          </div>
+                          <div className="vm-details">
+                            <span>State: {vm.state}</span>
+                            {vm.config?.ip_address && <span>IP: {vm.config.ip_address}</span>}
+                            <span>Platform: {vm.platform_instance}</span>
+                          </div>
+                        </div>
+                      )) || <div className="no-data">No VMs in registry for this lab</div>}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="no-lab-selected">
+                    {selectedLab ? 'Loading lab data...' : 'Select a lab to view Registry state'}
+                  </div>
+                )}
+                
+                {/* All Registry Labs */}
+                <div className="registry-labs-list">
+                  <h4>All Tracked Labs ({registryLabs.length})</h4>
+                  {registryLabs.length === 0 ? (
+                    <div className="no-data">No labs in Registry yet</div>
+                  ) : (
+                    <div className="labs-grid">
+                      {registryLabs.map(lab => (
+                        <div 
+                          key={lab.lab_id} 
+                          className={`lab-card ${lab.lab_id === selectedLab ? 'selected' : ''}`}
+                          onClick={() => setSelectedLab(lab.lab_id)}
+                        >
+                          <span className="lab-name">{lab.lab_id}</span>
+                          <span className="lab-vms">{lab.vm_count || 0} VMs</span>
+                          <span className={`lab-status ${lab.status}`}>{lab.status}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                
+                {/* Drift Alerts */}
+                {registryDrifts.length > 0 && (
+                  <div className="registry-drifts">
+                    <h4>⚠️ Detected Drift ({registryDrifts.length})</h4>
+                    {registryDrifts.map((drift, idx) => (
+                      <div key={idx} className="drift-item">
+                        <span className="drift-resource">{drift.resource_id}</span>
+                        <span className="drift-field">{drift.field}</span>
+                        <span className="drift-change">
+                          {drift.expected} → {drift.actual}
+                        </span>
                       </div>
                     ))}
                   </div>

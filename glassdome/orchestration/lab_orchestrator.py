@@ -189,7 +189,7 @@ class NetworkConfiguration:
         self.ip_address = network.get("ip_address")
         self.netmask = network.get("netmask", "255.255.255.0")
         self.gateway = network.get("gateway")
-        self.dns_servers = network.get("dns_servers", ["8.8.8.8"])
+        self.dns_servers = network.get("dns_servers", ["192.168.3.1", "8.8.8.8"])
         self.vlan = network.get("vlan")
         self.isolated = network.get("isolated", False)
 

@@ -1,11 +1,13 @@
 """
 Canvas Lab Deployment API
 
-Handles deployment of labs designed on the visual canvas.
-- Auto-assigns VLAN from pool (100-170)
-- Creates isolated bridge vmbr{vlan} on Proxmox
-- Configures VMs with net0 on the lab network
-- Uses hot spare pool (fast) or falls back to build agents (slower)
+Lab Network Architecture:
+- pfSense acts as the gateway/DHCP server for each lab
+- pfSense: Dual-NIC (WAN=management DHCP, LAN=lab gateway + DHCP server)
+- Lab VMs: Single-NIC on lab network, get IP from pfSense DHCP
+- Multi-LAN support: pfSense can have additional interfaces for segmented networks
+
+VLAN Pool: 100-170 (auto-assigned per lab)
 """
 
 import asyncio
@@ -24,7 +26,9 @@ from glassdome.networking.models import NetworkDefinition, DeployedVM, VMInterfa
 from glassdome.networking.orchestrator import get_network_orchestrator
 from glassdome.whitepawn.orchestrator import get_whitepawn_orchestrator, auto_deploy_whitepawn
 from glassdome.reaper.hot_spare import get_hot_spare_pool
-from glassdome.api.reaper import deploy_mission_vm  # Reuse existing VM deployment logic
+from glassdome.registry.core import get_registry
+from glassdome.registry.models import Resource, ResourceType, ResourceState
+from glassdome.api.reaper import deploy_mission_vm
 from sqlalchemy import select
 
 logger = logging.getLogger(__name__)
@@ -36,10 +40,8 @@ router = APIRouter(prefix="/api/deployments", tags=["deployments"])
 # VLAN Allocation (100-170)
 # ============================================================================
 
-# Track allocated VLANs in memory (will be persisted via NetworkDefinition)
 VLAN_POOL_START = 100
 VLAN_POOL_END = 170
-_allocated_vlans: Set[int] = set()
 
 
 async def get_allocated_vlans(session: AsyncSession) -> Set[int]:
@@ -63,42 +65,21 @@ async def allocate_vlan(session: AsyncSession) -> int:
 
 
 def derive_network_config(vlan_id: int) -> Dict[str, Any]:
-    """Derive all network config from VLAN ID using convention:
-    VLAN X -> CIDR 192.168.X.0/24, Gateway 192.168.X.1, Bridge vmbrX
+    """
+    Derive all network config from VLAN ID:
+    VLAN X -> CIDR 10.X.0.0/24, Gateway 10.X.0.1, DHCP range 10.X.0.10-254
+    
+    Using 10.X.0.0/24 to avoid conflicts with management 192.168.x.x networks
     """
     return {
         "vlan_id": vlan_id,
-        "cidr": f"192.168.{vlan_id}.0/24",
-        "gateway": f"192.168.{vlan_id}.1",
-        "bridge": f"vmbr{vlan_id}",
-        "network": ipaddress.ip_network(f"192.168.{vlan_id}.0/24")
+        "cidr": f"10.{vlan_id}.0.0/24",
+        "gateway": f"10.{vlan_id}.0.1",
+        "dhcp_start": f"10.{vlan_id}.0.10",
+        "dhcp_end": f"10.{vlan_id}.0.254",
+        "bridge": "vmbr1",  # VLAN-aware bridge
+        "network": ipaddress.ip_network(f"10.{vlan_id}.0.0/24")
     }
-
-
-async def create_lab_bridge(client: ProxmoxClient, node: str, vlan_id: int) -> bool:
-    """Create an isolated bridge for the lab on Proxmox"""
-    bridge_name = f"vmbr{vlan_id}"
-    
-    try:
-        # Check if bridge already exists
-        result = await client.create_network(node, {
-            "iface": bridge_name,
-            "type": "bridge",
-            "bridge_ports": "none",  # Isolated - no physical port
-            "bridge_stp": "off",
-            "bridge_fd": "0",
-            "autostart": 1,
-            "comments": f"Glassdome Lab Network VLAN {vlan_id}"
-        })
-        logger.info(f"Created bridge {bridge_name} on {node}")
-        return True
-    except Exception as e:
-        # Bridge might already exist
-        if "already exists" in str(e).lower():
-            logger.info(f"Bridge {bridge_name} already exists on {node}")
-            return True
-        logger.error(f"Failed to create bridge {bridge_name}: {e}")
-        return False
 
 
 # ============================================================================
@@ -108,7 +89,7 @@ async def create_lab_bridge(client: ProxmoxClient, node: str, vlan_id: int) -> b
 class CanvasNode(BaseModel):
     id: str
     type: str  # 'vm' or 'network'
-    elementId: str  # 'ubuntu', 'kali', 'isolated', etc.
+    elementId: str  # 'ubuntu', 'kali', 'pfsense', etc.
     elementType: Optional[str] = None
     os: Optional[str] = None
     networkConfig: Optional[Dict[str, Any]] = None
@@ -127,7 +108,7 @@ class CanvasLabData(BaseModel):
 
 class CanvasDeployRequest(BaseModel):
     lab_id: str
-    platform_id: str  # "1" = Proxmox, "2" = AWS
+    platform_id: str  # "1" = Proxmox
     lab_data: CanvasLabData
 
 
@@ -136,6 +117,8 @@ class DeployedVMInfo(BaseModel):
     name: str
     vm_id: str
     ip_address: Optional[str] = None
+    lab_ip: Optional[str] = None
+    role: Optional[str] = None  # 'gateway' or 'client'
     status: str
 
 
@@ -145,6 +128,7 @@ class CanvasDeployResponse(BaseModel):
     lab_id: str
     status: str
     message: str
+    network: Optional[Dict[str, Any]] = None
     vms: List[DeployedVMInfo]
     errors: List[str]
 
@@ -153,88 +137,365 @@ class CanvasDeployResponse(BaseModel):
 # Template Mapping
 # ============================================================================
 
-# Map canvas element IDs to Proxmox template IDs
 TEMPLATE_MAPPING = {
-    "ubuntu": 9000,      # Ubuntu 22.04
-    "kali": 9001,        # Kali Linux (if exists)
-    "dvwa": 9000,        # DVWA runs on Ubuntu
-    "metasploitable": 9002,  # Metasploitable
-    "windows": 9010,     # Windows Server
-    "pfsense": 9020,     # pfSense Firewall (needs template created)
+    "ubuntu": 9001,      # Ubuntu 22.04 with guest agent
+    "kali": 9001,        # Use Ubuntu for now (Kali template TBD)
+    "dvwa": 9001,        # DVWA on Ubuntu
+    "metasploitable": 9002,
+    "windows": 9010,
+    "pfsense": 9020,     # pfSense gateway template
 }
 
-# Default VM specs per element type
 VM_SPECS = {
     "ubuntu": {"cores": 2, "memory": 2048, "disk": 20},
     "kali": {"cores": 2, "memory": 4096, "disk": 40},
     "dvwa": {"cores": 1, "memory": 1024, "disk": 10},
     "metasploitable": {"cores": 1, "memory": 1024, "disk": 20},
     "windows": {"cores": 2, "memory": 4096, "disk": 40},
-    "pfsense": {"cores": 1, "memory": 1024, "disk": 8},  # pfSense is lightweight
-}
-
-# Map canvas element IDs to OS types for hot spare pool
-OS_TYPE_MAPPING = {
-    "ubuntu": "ubuntu",
-    "kali": "kali",
-    "dvwa": "ubuntu",  # DVWA runs on Ubuntu
-    "metasploitable": "ubuntu",
-    "windows": "windows",
-    "pfsense": "pfsense",  # Separate pool for pfSense (no hot spares yet)
+    "pfsense": {"cores": 1, "memory": 1024, "disk": 8},
 }
 
 
 # ============================================================================
-# Deployment Logic
+# pfSense Configuration via SSH
 # ============================================================================
 
-async def deploy_vm_from_canvas(
+async def configure_pfsense_lan(
+    wan_ip: str,
+    lan_ip: str,
+    lan_netmask: str = "24",
+    dhcp_start: str = None,
+    dhcp_end: str = None
+) -> Dict[str, Any]:
+    """
+    Configure pfSense LAN interface and DHCP server via SSH.
+    
+    pfSense template has SSH enabled on WAN with firewall rules allowing access.
+    
+    Args:
+        wan_ip: pfSense WAN IP (for SSH connection)
+        lan_ip: IP to assign to LAN interface (e.g., 10.100.0.1)
+        lan_netmask: Subnet mask bits (default 24)
+        dhcp_start: DHCP range start (e.g., 10.100.0.10)
+        dhcp_end: DHCP range end (e.g., 10.100.0.254)
+    """
+    import pexpect
+    
+    result = {"success": False, "wan_ip": wan_ip, "lan_ip": lan_ip}
+    
+    try:
+        logger.info(f"[pfSense] Configuring LAN via SSH to {wan_ip}")
+        
+        # SSH to pfSense
+        child = pexpect.spawn(
+            f'sshpass -p pfsense ssh -o StrictHostKeyChecking=accept-new admin@{wan_ip}',
+            timeout=60
+        )
+        
+        # Wait for pfSense menu
+        child.expect('Enter an option:', timeout=30)
+        
+        # Option 2: Set interface(s) IP address
+        child.sendline('2')
+        child.expect('Enter the number of the interface', timeout=10)
+        
+        # Select LAN (usually option 2)
+        child.sendline('2')
+        child.expect('Enter the new LAN IPv4 address', timeout=10)
+        
+        # Set LAN IP
+        child.sendline(lan_ip)
+        child.expect('Enter the new LAN IPv4 subnet bit count', timeout=10)
+        
+        # Set subnet mask
+        child.sendline(lan_netmask)
+        child.expect('upstream gateway', timeout=10)
+        
+        # No upstream gateway for LAN
+        child.sendline('')
+        child.expect('IPv6', timeout=10)
+        
+        # Skip IPv6
+        child.sendline('n')
+        child.expect('DHCP server', timeout=10)
+        
+        # Enable DHCP server
+        child.sendline('y')
+        child.expect('start address', timeout=10)
+        
+        # DHCP range start
+        child.sendline(dhcp_start or lan_ip.rsplit('.', 1)[0] + '.10')
+        child.expect('end address', timeout=10)
+        
+        # DHCP range end
+        child.sendline(dhcp_end or lan_ip.rsplit('.', 1)[0] + '.254')
+        child.expect('revert to HTTP', timeout=10)
+        
+        # Keep HTTPS
+        child.sendline('n')
+        
+        # Wait for configuration to complete
+        child.expect('Press.*Enter.*continue', timeout=30)
+        child.sendline('')
+        
+        # Exit cleanly
+        child.expect('Enter an option:', timeout=10)
+        child.sendline('0')  # Logout
+        child.close()
+        
+        result["success"] = True
+        result["dhcp_enabled"] = True
+        result["dhcp_range"] = f"{dhcp_start} - {dhcp_end}"
+        
+        logger.info(f"[pfSense] ✓ LAN configured: {lan_ip}/{lan_netmask}, DHCP: {dhcp_start}-{dhcp_end}")
+        
+    except pexpect.TIMEOUT as e:
+        logger.error(f"[pfSense] ✗ SSH timeout: {e}")
+        result["error"] = "SSH timeout"
+    except pexpect.EOF as e:
+        logger.error(f"[pfSense] ✗ SSH connection closed: {e}")
+        result["error"] = "Connection closed"
+    except Exception as e:
+        logger.error(f"[pfSense] ✗ Configuration failed: {e}")
+        result["error"] = str(e)
+    
+    return result
+
+
+async def wait_for_pfsense_wan_ip(
+    client: ProxmoxClient,
+    node: str,
+    vmid: int,
+    mac_address: str,
+    timeout: int = 90
+) -> Optional[str]:
+    """
+    Wait for pfSense to get a WAN IP via DHCP.
+    
+    Uses Ubiquiti Dream Router API to look up IP by MAC address.
+    Falls back to ARP scanning if API fails.
+    """
+    import subprocess
+    import httpx
+    import os
+    
+    logger.info(f"[pfSense VM {vmid}] Waiting for WAN IP (MAC: {mac_address}, timeout: {timeout}s)")
+    mac_lower = mac_address.lower() if mac_address else ""
+    
+    # Get Unifi API credentials
+    unifi_host = os.getenv("UBIQUITI_GATEWAY_HOST", "192.168.2.1")
+    unifi_api_key = os.getenv("UBIQUITI_API_KEY", "")
+    
+    start_time = asyncio.get_event_loop().time()
+    
+    while (asyncio.get_event_loop().time() - start_time) < timeout:
+        # Method 1: Unifi API (preferred)
+        if unifi_api_key:
+            try:
+                async with httpx.AsyncClient(verify=False, timeout=10) as http:
+                    resp = await http.get(
+                        f"https://{unifi_host}/proxy/network/api/s/default/stat/sta",
+                        headers={"X-API-KEY": unifi_api_key}
+                    )
+                    if resp.status_code == 200:
+                        data = resp.json()
+                        for client_info in data.get("data", []):
+                            if client_info.get("mac", "").lower() == mac_lower:
+                                ip = client_info.get("ip")
+                                if ip:
+                                    logger.info(f"[pfSense VM {vmid}] ✓ Found WAN IP via Unifi API: {ip}")
+                                    return ip
+            except Exception as e:
+                logger.debug(f"[pfSense VM {vmid}] Unifi API error: {e}")
+        
+        # Method 2: ARP fallback
+        try:
+            result = subprocess.run(['arp', '-an'], capture_output=True, text=True, timeout=5)
+            for line in result.stdout.split('\n'):
+                if mac_lower in line.lower():
+                    parts = line.split()
+                    for part in parts:
+                        if part.startswith('(') and part.endswith(')'):
+                            ip = part[1:-1]
+                            if ip.startswith('192.168.'):
+                                logger.info(f"[pfSense VM {vmid}] ✓ Found WAN IP via ARP: {ip}")
+                                return ip
+        except Exception as e:
+            logger.debug(f"[pfSense VM {vmid}] ARP error: {e}")
+        
+        await asyncio.sleep(5)
+    
+    logger.warning(f"[pfSense VM {vmid}] ✗ Timeout waiting for WAN IP")
+    return None
+
+
+# ============================================================================
+# VM Deployment
+# ============================================================================
+
+async def deploy_pfsense_gateway(
     node: CanvasNode,
     lab_id: str,
-    network_config: Optional[Dict] = None,
-    session: AsyncSession = None,
+    network_config: Dict[str, Any],
+    session: AsyncSession
+) -> Dict[str, Any]:
+    """
+    Deploy pfSense as the lab gateway.
+    
+    1. Clone from template
+    2. Configure dual-NIC: WAN (mgmt DHCP), LAN (lab VLAN)
+    3. Boot and wait for WAN IP
+    4. Configure LAN IP and DHCP server via SSH
+    """
+    vm_name = f"lab-{lab_id[:8]}-gateway"
+    template_id = TEMPLATE_MAPPING["pfsense"]
+    node_name = "pve02"
+    
+    logger.info(f"[Gateway] Deploying pfSense gateway: {vm_name}")
+    
+    try:
+        # Get Proxmox client
+        pve_config = settings.get_proxmox_config("02")
+        client = ProxmoxClient(
+            host=pve_config["host"],
+            user=pve_config["user"],
+            password=pve_config.get("password"),
+            token_name=pve_config.get("token_name"),
+            token_value=pve_config.get("token_value"),
+            verify_ssl=pve_config.get("verify_ssl", False),
+            default_node=node_name
+        )
+        
+        # Clone from template - get next available VMID
+        next_vmid = client.client.cluster.nextid.get()
+        
+        # Clone using raw API
+        try:
+            client.client.nodes(node_name).qemu(template_id).clone.create(
+                newid=next_vmid,
+                name=vm_name,
+                full=1
+            )
+            # Wait for clone task to complete
+            await asyncio.sleep(10)
+            vmid = next_vmid
+            logger.info(f"[Gateway] Cloned template {template_id} -> VM {vmid}")
+        except Exception as e:
+            return {"success": False, "error": f"Clone failed: {e}"}
+        logger.info(f"[Gateway] Cloned VM {vmid}")
+        
+        # Configure network interfaces
+        vlan_id = network_config["vlan_id"]
+        bridge = network_config["bridge"]
+        
+        # net0 = WAN (management network VLAN 2, DHCP)
+        # net1 = LAN (lab network, will be gateway for DHCP)
+        await client.configure_vm(node_name, vmid, {
+            "net0": "virtio,bridge=vmbr2,tag=2",  # WAN: management DHCP
+            "net1": f"virtio,bridge={bridge},tag={vlan_id}",  # LAN: lab network
+            "delete": "ipconfig0,ipconfig1"  # Clear any cloud-init configs
+        })
+        
+        logger.info(f"[Gateway] Configured NICs: WAN=vmbr2/tag2, LAN={bridge}/tag{vlan_id}")
+        
+        # Start the VM
+        await client.start_vm(vmid)
+        logger.info(f"[Gateway] Started VM {vmid}")
+        
+        # Get MAC address for ARP-based discovery
+        vm_config = client.client.nodes(node_name).qemu(vmid).config.get()
+        net0_config = vm_config.get('net0', '')
+        mac_match = net0_config.split('=')[1].split(',')[0] if '=' in net0_config else None
+        logger.info(f"[Gateway] WAN MAC: {mac_match}")
+        
+        # Wait for pfSense to boot and get WAN IP via DHCP
+        await asyncio.sleep(45)  # Initial boot delay for pfSense
+        wan_ip = await wait_for_pfsense_wan_ip(client, node_name, vmid, mac_match, timeout=60)
+        
+        if not wan_ip:
+            # Try ARP scan as fallback
+            logger.warning("[Gateway] Guest agent didn't return WAN IP, trying ARP...")
+            wan_ip = None  # Could implement ARP scan here
+        
+        # Configure LAN interface and DHCP via SSH
+        lan_config_result = {"success": False}
+        if wan_ip:
+            await asyncio.sleep(10)  # Let pfSense fully initialize
+            lan_config_result = await configure_pfsense_lan(
+                wan_ip=wan_ip,
+                lan_ip=network_config["gateway"],
+                lan_netmask="24",
+                dhcp_start=network_config["dhcp_start"],
+                dhcp_end=network_config["dhcp_end"]
+            )
+        
+        # Register in database
+        orchestrator = get_network_orchestrator()
+        await orchestrator.register_deployed_vm(
+            session=session,
+            lab_id=lab_id,
+            name=vm_name,
+            vm_id=str(vmid),
+            platform="proxmox",
+            platform_instance="02",
+            os_type="pfsense",
+            template_id=str(template_id),
+            cpu_cores=VM_SPECS["pfsense"]["cores"],
+            memory_mb=VM_SPECS["pfsense"]["memory"],
+            disk_gb=VM_SPECS["pfsense"]["disk"],
+            ip_address=wan_ip
+        )
+        
+        return {
+            "success": True,
+            "node_id": node.id,
+            "name": vm_name,
+            "vm_id": str(vmid),
+            "ip_address": wan_ip,
+            "lab_ip": network_config["gateway"],
+            "role": "gateway",
+            "dhcp_configured": lan_config_result.get("success", False),
+            "status": "running"
+        }
+        
+    except Exception as e:
+        logger.error(f"[Gateway] Failed to deploy pfSense: {e}")
+        return {"success": False, "node_id": node.id, "error": str(e)}
+
+
+async def deploy_lab_vm(
+    node: CanvasNode,
+    lab_id: str,
+    network_config: Dict[str, Any],
+    session: AsyncSession,
     vm_index: int = 0
 ) -> Dict[str, Any]:
     """
-    Deploy a single VM from canvas node definition.
+    Deploy a lab VM (non-gateway).
     
-    Strategy:
-    1. Try hot spare pool first (instant deployment)
-    2. Fall back to build agent / clone (slower but reliable)
-    3. Add secondary NIC for isolated lab network with VLAN tag
-    4. Configure static IP on the lab network interface
+    Single NIC on lab network - gets IP from pfSense DHCP.
+    No management access - connect via pfSense or Proxmox console.
     """
-    
     element_id = node.elementId
-    template_id = TEMPLATE_MAPPING.get(element_id, 9000)  # Default to Ubuntu
+    template_id = TEMPLATE_MAPPING.get(element_id, 9001)
     specs = VM_SPECS.get(element_id, {"cores": 2, "memory": 2048, "disk": 20})
-    os_type = OS_TYPE_MAPPING.get(element_id, "ubuntu")
-    
-    # Generate VM name
     vm_name = f"lab-{lab_id[:8]}-{element_id}-{node.id[-4:]}"
-    
-    logger.info(f"Deploying VM: {vm_name} (element: {element_id}, os: {os_type})")
-    if network_config:
-        logger.info(f"  Network config: VLAN {network_config.get('vlan_id')}, CIDR {network_config.get('cidr')}")
-    
-    vm_id = None
-    ip_address = None  # Management IP
-    lab_ip = None      # Lab network IP
-    client = None
     node_name = "pve02"
     
+    logger.info(f"[Lab VM] Deploying: {vm_name} (template {template_id})")
+    
     try:
-        # Strategy 1: Try hot spare pool (instant!)
+        # Try hot spare pool first
         pool = get_hot_spare_pool()
+        os_type = element_id if element_id in ["ubuntu", "windows"] else "ubuntu"
         acquired_spare = await pool.acquire_spare(session, os_type=os_type, mission_id=lab_id)
         
         if acquired_spare:
-            logger.info(f"⚡ Hot spare acquired: {acquired_spare.name} (VMID {acquired_spare.vmid})")
-            vm_id = str(acquired_spare.vmid)
-            ip_address = acquired_spare.ip_address
+            logger.info(f"[Lab VM] ⚡ Hot spare acquired: {acquired_spare.name} (VMID {acquired_spare.vmid})")
+            vmid = acquired_spare.vmid
             node_name = acquired_spare.node
             
-            # Get Proxmox client for configuration
+            # Get client for this node
             pve_config = settings.get_proxmox_config(acquired_spare.platform_instance)
             client = ProxmoxClient(
                 host=pve_config["host"],
@@ -243,54 +504,16 @@ async def deploy_vm_from_canvas(
                 token_name=pve_config.get("token_name"),
                 token_value=pve_config.get("token_value"),
                 verify_ssl=pve_config.get("verify_ssl", False),
-                default_node=acquired_spare.node
+                default_node=node_name
             )
             
-            # Rename the spare to match the lab
-            try:
-                logger.info(f"Renaming VM {acquired_spare.vmid} from '{acquired_spare.name}' to '{vm_name}'")
-                result = await client.configure_vm(
-                    acquired_spare.node,
-                    acquired_spare.vmid,
-                    {"name": vm_name}
-                )
-                if result.get("success"):
-                    logger.info(f"✓ Renamed VM {acquired_spare.vmid} to '{vm_name}'")
-                    # Update the spare record with the new name
-                    acquired_spare.name = vm_name
-                    await session.commit()
-                else:
-                    logger.error(f"✗ Rename failed: {result.get('error')}")
-            except Exception as e:
-                logger.error(f"✗ Exception renaming VM: {e}")
-        
+            # Rename spare
+            await client.configure_vm(node_name, vmid, {"name": vm_name})
+            
         else:
-            # Strategy 2: Fall back to build agent / clone
-            logger.info(f"No hot spares available, using build agent for {vm_name}")
+            # Fall back to clone
+            logger.info(f"[Lab VM] No hot spares, cloning from template {template_id}")
             
-            vm_config = {
-                "name": vm_name,
-                "template_id": template_id,
-                "cores": specs["cores"],
-                "memory": specs["memory"],
-                "os_type": "linux" if os_type != "windows" else "windows",
-                "proxmox_instance": "02",  # Use pve02 which has working template
-            }
-            
-            # Use the same deployment logic as Reaper
-            result = await deploy_mission_vm("proxmox", vm_config)
-            
-            if not result.get("success"):
-                return {
-                    "success": False,
-                    "node_id": node.id,
-                    "error": result.get("error", "Failed to deploy VM")
-                }
-            
-            vm_id = result.get("vm_id")
-            ip_address = result.get("ip_address")
-            
-            # Get client for network configuration
             pve_config = settings.get_proxmox_config("02")
             client = ProxmoxClient(
                 host=pve_config["host"],
@@ -301,112 +524,77 @@ async def deploy_vm_from_canvas(
                 verify_ssl=pve_config.get("verify_ssl", False),
                 default_node=node_name
             )
-        
-        # ====================================================================
-        # Configure primary NIC (net0) for isolated lab network
-        # VMs get ONLY the lab network - no management interface
-        # pfSense gets .1 (gateway), other VMs get .10, .11, .12...
-        # ====================================================================
-        if network_config and client and vm_id:
-            bridge = network_config.get("bridge")  # vmbr{vlan}
-            network_obj = network_config.get("network")  # ipaddress network object
-            gateway = network_config.get("gateway")
             
-            if bridge and network_obj:
-                prefix_len = network_obj.prefixlen
-                
-                # pfSense gets the gateway IP (.1), other VMs get .10+
-                if element_id == "pfsense":
-                    lab_ip = gateway  # pfSense IS the gateway
-                    # pfSense doesn't need a gateway - it IS the gateway
-                    ipconfig0 = f"ip={lab_ip}/{prefix_len}"
-                    logger.info(f"🛡️ pfSense configured as gateway: {lab_ip}")
-                else:
-                    # Regular VMs start at .10
-                    lab_ip = str(list(network_obj.hosts())[9 + vm_index])
-                    ipconfig0 = f"ip={lab_ip}/{prefix_len},gw={gateway}"
-                
-                logger.info(f"Configuring net0 on {bridge}: IP {lab_ip}/{prefix_len}")
-                
-                try:
-                    # Configure net0 to use the lab bridge (isolated network)
-                    net0_config = f"virtio,bridge={bridge}"
-                    
-                    await client.configure_vm(
-                        node_name,
-                        int(vm_id),
-                        {"net0": net0_config}
-                    )
-                    logger.info(f"Set net0 to bridge {bridge}")
-                    
-                    await client.configure_vm(
-                        node_name,
-                        int(vm_id),
-                        {"ipconfig0": ipconfig0}
-                    )
-                    logger.info(f"Configured ipconfig0: {ipconfig0}")
-                    
-                except Exception as e:
-                    logger.error(f"Failed to configure lab network: {e}")
-                    # Don't fail the whole deployment, just log the error
-        
-        logger.info(f"VM deployed: {vm_name} (VMID {vm_id}, Mgmt IP {ip_address}, Lab IP {lab_ip})")
-        
-        # Register in DeployedVM table
-        if session and vm_id:
-            orchestrator = get_network_orchestrator()
-            await orchestrator.register_deployed_vm(
-                session=session,
-                lab_id=lab_id,
-                name=vm_name,
-                vm_id=vm_id,
-                platform="proxmox",
-                platform_instance="02",
-                os_type=os_type,
-                template_id=str(template_id),
-                cpu_cores=specs["cores"],
-                memory_mb=specs["memory"],
-                disk_gb=specs["disk"],
-                ip_address=ip_address  # Management IP for SSH access
-            )
+            # Get next available VMID
+            next_vmid = client.client.cluster.nextid.get()
             
-            # Also register the lab network interface
-            if lab_ip and network_config:
-                try:
-                    from glassdome.networking.models import VMInterface
-                    vm_interface = VMInterface(
-                        vm_id=vm_id,
-                        network_id=None,  # Could link to NetworkDefinition if we had the ID
-                        lab_id=lab_id,
-                        interface_name="net1",
-                        mac_address=None,  # Will be auto-assigned by Proxmox
-                        ip_address=lab_ip,
-                        ip_source="static"
-                    )
-                    session.add(vm_interface)
-                    await session.commit()
-                    logger.info(f"Registered lab interface: {lab_ip}")
-                except Exception as e:
-                    logger.warning(f"Could not register lab interface: {e}")
+            # Clone using raw API
+            try:
+                client.client.nodes(node_name).qemu(template_id).clone.create(
+                    newid=next_vmid,
+                    name=vm_name,
+                    full=1
+                )
+                await asyncio.sleep(5)
+                vmid = next_vmid
+                logger.info(f"[Lab VM] Cloned template {template_id} -> VM {vmid}")
+            except Exception as e:
+                return {"success": False, "node_id": node.id, "error": f"Clone failed: {e}"}
+        
+        # Configure single NIC on lab network (DHCP from pfSense)
+        vlan_id = network_config["vlan_id"]
+        bridge = network_config["bridge"]
+        
+        await client.configure_vm(node_name, vmid, {
+            "net0": f"virtio,bridge={bridge},tag={vlan_id}",
+            "delete": "net1,ipconfig0,ipconfig1"  # Remove any extra NICs/configs
+        })
+        
+        logger.info(f"[Lab VM {vmid}] Configured: {bridge}/tag{vlan_id} (DHCP from pfSense)")
+        
+        # Start the VM
+        await client.start_vm(vmid)
+        logger.info(f"[Lab VM {vmid}] Started")
+        
+        # VM will get IP from pfSense DHCP
+        # We can query it later via guest agent or ARP
+        
+        # Register in database
+        orchestrator = get_network_orchestrator()
+        await orchestrator.register_deployed_vm(
+            session=session,
+            lab_id=lab_id,
+            name=vm_name,
+            vm_id=str(vmid),
+            platform="proxmox",
+            platform_instance="02",
+            os_type=element_id,
+            template_id=str(template_id),
+            cpu_cores=specs["cores"],
+            memory_mb=specs["memory"],
+            disk_gb=specs["disk"],
+            ip_address=None  # Will be assigned by pfSense DHCP
+        )
         
         return {
             "success": True,
             "node_id": node.id,
             "name": vm_name,
-            "vm_id": vm_id,
-            "ip_address": ip_address,
-            "lab_ip": lab_ip,
+            "vm_id": str(vmid),
+            "ip_address": None,  # DHCP from pfSense
+            "lab_ip": "DHCP",
+            "role": "client",
             "status": "running"
         }
         
     except Exception as e:
-        logger.error(f"Failed to deploy VM {vm_name}: {e}")
-        return {
-            "success": False,
-            "node_id": node.id,
-            "error": str(e)
-        }
+        logger.error(f"[Lab VM] Failed to deploy {vm_name}: {e}")
+        return {"success": False, "node_id": node.id, "error": str(e)}
 
+
+# ============================================================================
+# Main Deployment Orchestration
+# ============================================================================
 
 async def deploy_canvas_lab(
     request: CanvasDeployRequest,
@@ -415,25 +603,23 @@ async def deploy_canvas_lab(
     """
     Deploy a complete lab from canvas definition.
     
-    Auto-assigns VLAN from pool (100-170), creates isolated bridge,
-    configures all VMs on that network with static IPs.
+    Architecture:
+    1. Allocate VLAN from pool (100-170)
+    2. Deploy pfSense as gateway (if in canvas, or auto-add)
+    3. Configure pfSense LAN + DHCP
+    4. Deploy all other VMs on lab network
+    5. VMs get IPs from pfSense DHCP automatically
     """
     
     lab_id = request.lab_id
     platform_id = request.platform_id
     nodes = request.lab_data.nodes
-    edges = request.lab_data.edges
     
-    # Only Proxmox supported for now
     if platform_id != "1":
         return CanvasDeployResponse(
-            success=False,
-            deployment_id="",
-            lab_id=lab_id,
-            status="failed",
+            success=False, deployment_id="", lab_id=lab_id, status="failed",
             message="Only Proxmox deployment is currently supported",
-            vms=[],
-            errors=["Platform not supported"]
+            vms=[], errors=["Platform not supported"]
         )
     
     deployment_id = f"deploy-{lab_id[:12]}-{datetime.utcnow().strftime('%H%M%S')}"
@@ -444,88 +630,67 @@ async def deploy_canvas_lab(
     
     if not vm_nodes:
         return CanvasDeployResponse(
-            success=False,
-            deployment_id=deployment_id,
-            lab_id=lab_id,
-            status="failed",
-            message="No VMs to deploy",
-            vms=[],
-            errors=["No VM nodes found in canvas"]
+            success=False, deployment_id=deployment_id, lab_id=lab_id, status="failed",
+            message="No VMs to deploy", vms=[], errors=["No VM nodes found"]
         )
     
-    logger.info(f"Deploying lab {lab_id}: {len(vm_nodes)} VMs, {len(network_nodes)} networks")
+    logger.info(f"╔══════════════════════════════════════════════════════════════╗")
+    logger.info(f"║ Deploying Lab: {lab_id[:40]:<40} ║")
+    logger.info(f"║ VMs: {len(vm_nodes):<3} Networks: {len(network_nodes):<3}                              ║")
+    logger.info(f"╚══════════════════════════════════════════════════════════════╝")
     
     # ========================================================================
-    # Auto-assign VLAN and create isolated network
+    # Step 1: Allocate VLAN and setup network config
     # ========================================================================
-    network_config = None
+    try:
+        vlan_id = await allocate_vlan(session)
+        network_config = derive_network_config(vlan_id)
+        
+        logger.info(f"[Network] VLAN {vlan_id}: {network_config['cidr']}")
+        logger.info(f"[Network] Gateway: {network_config['gateway']}")
+        logger.info(f"[Network] DHCP: {network_config['dhcp_start']} - {network_config['dhcp_end']}")
+        
+        # Save network definition
+        net_def = NetworkDefinition(
+            name=f"lab-{lab_id[:8]}-net",
+            display_name=f"Lab Network",
+            cidr=network_config["cidr"],
+            vlan_id=vlan_id,
+            gateway=network_config["gateway"],
+            network_type="isolated",
+            lab_id=lab_id
+        )
+        session.add(net_def)
+        await session.commit()
+        
+    except Exception as e:
+        logger.error(f"[Network] Failed to setup: {e}")
+        return CanvasDeployResponse(
+            success=False, deployment_id=deployment_id, lab_id=lab_id, status="failed",
+            message=f"Network setup failed: {e}", vms=[], errors=[str(e)]
+        )
     
-    if network_nodes:
-        # Lab has a network - allocate VLAN and create bridge
-        try:
-            vlan_id = await allocate_vlan(session)
-            network_config = derive_network_config(vlan_id)
-            
-            logger.info(f"Lab {lab_id} assigned VLAN {vlan_id}: {network_config['cidr']}, bridge {network_config['bridge']}")
-            
-            # Get Proxmox client to create bridge
-            pve_config = settings.get_proxmox_config("02")
-            client = ProxmoxClient(
-                host=pve_config["host"],
-                user=pve_config["user"],
-                password=pve_config.get("password"),
-                token_name=pve_config.get("token_name"),
-                token_value=pve_config.get("token_value"),
-                verify_ssl=pve_config.get("verify_ssl", False),
-                default_node="pve02"
-            )
-            
-            # Create the isolated bridge
-            await create_lab_bridge(client, "pve02", vlan_id)
-            
-            # Save network definition to database
-            net_def = NetworkDefinition(
-                name=f"lab-{lab_id[:8]}-net",
-                display_name=f"Lab Network",
-                cidr=network_config["cidr"],
-                vlan_id=vlan_id,
-                gateway=network_config["gateway"],
-                network_type="isolated",
-                lab_id=lab_id
-            )
-            session.add(net_def)
-            await session.commit()
-            
-        except Exception as e:
-            logger.error(f"Failed to setup lab network: {e}")
-            return CanvasDeployResponse(
-                success=False,
-                deployment_id=deployment_id,
-                lab_id=lab_id,
-                status="failed",
-                message=f"Failed to setup network: {e}",
-                vms=[],
-                errors=[str(e)]
-            )
-    
-    # Deploy each VM (uses hot spares first, falls back to build agent)
-    # pfSense gets deployed FIRST as it's the gateway
     deployed_vms: List[DeployedVMInfo] = []
     errors: List[str] = []
     
-    # Sort VMs: pfSense first (it's the gateway), then others
+    # ========================================================================
+    # Step 2: Deploy pfSense Gateway FIRST
+    # ========================================================================
     pfsense_nodes = [n for n in vm_nodes if n.elementId == "pfsense"]
     other_nodes = [n for n in vm_nodes if n.elementId != "pfsense"]
-    sorted_vm_nodes = pfsense_nodes + other_nodes
     
-    for vm_index, vm_node in enumerate(sorted_vm_nodes):
-        result = await deploy_vm_from_canvas(
-            node=vm_node,
-            lab_id=lab_id,
-            network_config=network_config,  # Same network for all VMs in lab
-            session=session,
-            vm_index=vm_index
-        )
+    # Auto-add pfSense if not in canvas but network exists
+    if not pfsense_nodes and network_nodes:
+        logger.info("[Gateway] Auto-adding pfSense gateway (not in canvas but network requested)")
+        pfsense_nodes = [CanvasNode(
+            id="auto-pfsense",
+            type="vm",
+            elementId="pfsense"
+        )]
+    
+    # Deploy gateway first
+    for pf_node in pfsense_nodes:
+        result = await deploy_pfsense_gateway(pf_node, lab_id, network_config, session)
         
         if result["success"]:
             deployed_vms.append(DeployedVMInfo(
@@ -533,28 +698,107 @@ async def deploy_canvas_lab(
                 name=result["name"],
                 vm_id=result["vm_id"],
                 ip_address=result.get("ip_address"),
+                lab_ip=result.get("lab_ip"),
+                role="gateway",
                 status=result.get("status", "running")
             ))
+            logger.info(f"[Gateway] ✓ pfSense deployed: WAN={result.get('ip_address')}, LAN={result.get('lab_ip')}")
         else:
-            errors.append(f"{vm_node.elementId}: {result.get('error', 'Unknown error')}")
+            errors.append(f"pfSense gateway: {result.get('error')}")
+            logger.error(f"[Gateway] ✗ Failed: {result.get('error')}")
     
-    # Auto-deploy WhitePawn for monitoring
+    # Wait for pfSense DHCP to be ready
+    if deployed_vms:
+        logger.info("[Gateway] Waiting 15s for DHCP server to initialize...")
+        await asyncio.sleep(15)
+    
+    # ========================================================================
+    # Step 3: Deploy Lab VMs (they get DHCP from pfSense)
+    # ========================================================================
+    for idx, vm_node in enumerate(other_nodes):
+        result = await deploy_lab_vm(vm_node, lab_id, network_config, session, idx)
+        
+        if result["success"]:
+            deployed_vms.append(DeployedVMInfo(
+                node_id=result["node_id"],
+                name=result["name"],
+                vm_id=result["vm_id"],
+                ip_address=result.get("ip_address"),
+                lab_ip=result.get("lab_ip"),
+                role="client",
+                status=result.get("status", "running")
+            ))
+            logger.info(f"[Lab VM] ✓ {result['name']} deployed (VMID {result['vm_id']})")
+        else:
+            errors.append(f"{vm_node.elementId}: {result.get('error')}")
+            logger.error(f"[Lab VM] ✗ {vm_node.elementId} failed: {result.get('error')}")
+    
+    # ========================================================================
+    # Step 4: Register VMs with Lab Registry (source of truth)
+    # ========================================================================
+    if deployed_vms:
+        try:
+            registry = get_registry()
+            for vm_info in deployed_vms:
+                # Build the expected name for drift detection
+                expected_name = f"lab-{lab_id[:8]}-{vm_info.name}"
+                
+                resource = Resource(
+                    id=Resource.make_id("proxmox", "lab_vm", vm_info.vm_id, "02"),
+                    resource_type=ResourceType.LAB_VM,
+                    name=vm_info.name,
+                    platform="proxmox",
+                    platform_instance="02",
+                    platform_id=vm_info.vm_id,
+                    state=ResourceState.RUNNING,  # VMs should be running after deploy
+                    lab_id=lab_id,
+                    config={
+                        "node": "pve02",
+                        "vmid": int(vm_info.vm_id),
+                        "vlan_id": vlan_id,
+                        "role": "gateway" if vm_info.name.lower() == "pfsense" else "lab_vm",
+                    },
+                    # Set desired state for reconciliation
+                    desired_state=ResourceState.RUNNING,
+                    desired_config={"name": expected_name},
+                    tier=1,  # Lab VMs are Tier 1 (1s updates)
+                )
+                await registry.register(resource)
+            logger.info(f"[Registry] Registered {len(deployed_vms)} VMs in Lab Registry")
+        except Exception as e:
+            logger.warning(f"[Registry] Failed to register VMs: {e}")
+    
+    # ========================================================================
+    # Step 5: Start WhitePawn monitoring
+    # ========================================================================
     if deployed_vms:
         try:
             await auto_deploy_whitepawn(lab_id, f"Canvas Lab {lab_id[:8]}")
-            logger.info(f"WhitePawn monitoring deployed for lab {lab_id}")
+            logger.info(f"[Monitor] WhitePawn deployed for lab")
         except Exception as e:
-            logger.warning(f"Failed to deploy WhitePawn: {e}")
+            logger.warning(f"[Monitor] WhitePawn failed: {e}")
     
+    # Summary
     success = len(deployed_vms) > 0
     status = "completed" if success and not errors else "partial" if deployed_vms else "failed"
+    
+    logger.info(f"╔══════════════════════════════════════════════════════════════╗")
+    logger.info(f"║ Deployment Complete: {status.upper():<40} ║")
+    logger.info(f"║ VMs: {len(deployed_vms)}/{len(vm_nodes) + len(pfsense_nodes)} deployed                                     ║")
+    logger.info(f"╚══════════════════════════════════════════════════════════════╝")
     
     return CanvasDeployResponse(
         success=success,
         deployment_id=deployment_id,
         lab_id=lab_id,
         status=status,
-        message=f"Deployed {len(deployed_vms)}/{len(vm_nodes)} VMs" + (f" with {len(errors)} errors" if errors else ""),
+        message=f"Deployed {len(deployed_vms)} VMs on VLAN {vlan_id}" + (f" ({len(errors)} errors)" if errors else ""),
+        network={
+            "vlan_id": vlan_id,
+            "cidr": network_config["cidr"],
+            "gateway": network_config["gateway"],
+            "dhcp_range": f"{network_config['dhcp_start']} - {network_config['dhcp_end']}"
+        },
         vms=deployed_vms,
         errors=errors
     )
@@ -570,17 +814,9 @@ async def deploy_from_canvas(
     background_tasks: BackgroundTasks,
     session: AsyncSession = Depends(get_db)
 ):
-    """
-    Deploy a lab designed on the canvas.
-    
-    Creates VMs on Proxmox, configures networking, and starts WhitePawn monitoring.
-    """
+    """Deploy a lab designed on the canvas."""
     logger.info(f"Canvas deployment request: lab={request.lab_id}, platform={request.platform_id}")
-    
-    # For now, deploy synchronously (could be background task for large labs)
-    result = await deploy_canvas_lab(request, session)
-    
-    return result
+    return await deploy_canvas_lab(request, session)
 
 
 @router.get("")
@@ -600,11 +836,7 @@ async def list_deployments(session: AsyncSession = Depends(get_db)):
     
     return {
         "deployments": [
-            {
-                "lab_id": lab_id,
-                "vms": vm_list,
-                "vm_count": len(vm_list)
-            }
+            {"lab_id": lab_id, "vms": vm_list, "vm_count": len(vm_list)}
             for lab_id, vm_list in labs.items()
         ],
         "total": len(labs)
@@ -622,8 +854,19 @@ async def get_deployment(lab_id: str, session: AsyncSession = Depends(get_db)):
     if not vms:
         raise HTTPException(status_code=404, detail=f"No deployment found for lab {lab_id}")
     
+    # Get network config
+    net_result = await session.execute(
+        select(NetworkDefinition).where(NetworkDefinition.lab_id == lab_id)
+    )
+    network = net_result.scalar_one_or_none()
+    
     return {
         "lab_id": lab_id,
+        "network": {
+            "vlan_id": network.vlan_id if network else None,
+            "cidr": network.cidr if network else None,
+            "gateway": network.gateway if network else None
+        } if network else None,
         "vms": [vm.to_dict() for vm in vms],
         "vm_count": len(vms)
     }
@@ -631,7 +874,7 @@ async def get_deployment(lab_id: str, session: AsyncSession = Depends(get_db)):
 
 @router.delete("/{lab_id}")
 async def destroy_deployment(lab_id: str, session: AsyncSession = Depends(get_db)):
-    """Destroy all VMs in a lab deployment"""
+    """Destroy all VMs in a lab deployment and release VLAN"""
     result = await session.execute(
         select(DeployedVM).where(DeployedVM.lab_id == lab_id)
     )
@@ -641,23 +884,42 @@ async def destroy_deployment(lab_id: str, session: AsyncSession = Depends(get_db
         raise HTTPException(status_code=404, detail=f"No deployment found for lab {lab_id}")
     
     # Get Proxmox client
-    client = await get_proxmox_client("02")
+    pve_config = settings.get_proxmox_config("02")
+    client = ProxmoxClient(
+        host=pve_config["host"],
+        user=pve_config["user"],
+        password=pve_config.get("password"),
+        token_name=pve_config.get("token_name"),
+        token_value=pve_config.get("token_value"),
+        verify_ssl=pve_config.get("verify_ssl", False),
+        default_node="pve02"
+    )
     
     destroyed = []
     errors = []
     
     for vm in vms:
         try:
-            # Stop and delete VM
+            logger.info(f"Destroying VM {vm.name} (VMID {vm.vm_id})")
             await client.stop_vm(int(vm.vm_id), force=True)
             await asyncio.sleep(2)
             await client.delete_vm(int(vm.vm_id))
-            
             vm.status = "deleted"
             destroyed.append(vm.vm_id)
-            
         except Exception as e:
             errors.append(f"{vm.name}: {e}")
+    
+    # Delete network definition (releases VLAN)
+    await session.execute(
+        select(NetworkDefinition).where(NetworkDefinition.lab_id == lab_id)
+    )
+    net_result = await session.execute(
+        select(NetworkDefinition).where(NetworkDefinition.lab_id == lab_id)
+    )
+    network = net_result.scalar_one_or_none()
+    if network:
+        await session.delete(network)
+        logger.info(f"Released VLAN {network.vlan_id}")
     
     await session.commit()
     
@@ -668,9 +930,19 @@ async def destroy_deployment(lab_id: str, session: AsyncSession = Depends(get_db
     except:
         pass
     
+    # Clean up registry entries
+    try:
+        registry = get_registry()
+        lab_resources = await registry.list_by_lab(lab_id)
+        for resource in lab_resources:
+            await registry.delete(resource.id)
+        logger.info(f"[Registry] Cleaned up {len(lab_resources)} resources for lab {lab_id}")
+    except Exception as e:
+        logger.warning(f"[Registry] Cleanup failed: {e}")
+    
     return {
         "success": len(errors) == 0,
         "destroyed": destroyed,
+        "vlan_released": network.vlan_id if network else None,
         "errors": errors
     }
-

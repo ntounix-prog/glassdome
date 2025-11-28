@@ -528,6 +528,254 @@
   color: #00ff88;
 }
 
+/* Registry Card in Sidebar */
+.registry-card {
+  background: rgba(0, 212, 255, 0.03);
+  border-color: rgba(0, 212, 255, 0.2);
+}
+
+.registry-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  font-size: 0.75rem;
+  color: #888;
+}
+
+/* Registry Tab */
+.registry-tab {
+  height: 100%;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.lab-snapshot {
+  background: rgba(0, 212, 255, 0.05);
+  border: 1px solid rgba(0, 212, 255, 0.2);
+  border-radius: 8px;
+  padding: 1rem;
+}
+
+.lab-snapshot h3 {
+  margin: 0 0 0.75rem 0;
+  color: #00d4ff;
+  font-size: 1rem;
+}
+
+.snapshot-meta {
+  display: flex;
+  gap: 1.5rem;
+  font-size: 0.85rem;
+  color: #888;
+  margin-bottom: 1rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.snapshot-meta .status-running {
+  color: #00ff88;
+}
+
+.snapshot-meta .status-stopped {
+  color: #ff6464;
+}
+
+.registry-vms {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 0.75rem;
+}
+
+.registry-vm {
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 6px;
+  padding: 0.75rem;
+  border-left: 3px solid;
+}
+
+.registry-vm.running {
+  border-color: #00ff88;
+}
+
+.registry-vm.stopped {
+  border-color: #ff6464;
+}
+
+.registry-vm.unknown {
+  border-color: #666;
+}
+
+.vm-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.vm-header .status-indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.vm-header .status-indicator.running {
+  background: #00ff88;
+}
+
+.vm-header .status-indicator.stopped {
+  background: #ff6464;
+}
+
+.vm-header .status-indicator.unknown {
+  background: #666;
+}
+
+.vm-header strong {
+  color: #fff;
+  font-size: 0.9rem;
+}
+
+.vm-id {
+  color: #666;
+  font-size: 0.75rem;
+  margin-left: auto;
+}
+
+.vm-details {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  font-size: 0.8rem;
+  color: #888;
+}
+
+/* Registry Labs List */
+.registry-labs-list {
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 8px;
+  padding: 1rem;
+}
+
+.registry-labs-list h4 {
+  margin: 0 0 0.75rem 0;
+  color: #888;
+  font-size: 0.9rem;
+}
+
+.labs-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 0.5rem;
+}
+
+.lab-card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  padding: 0.75rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.lab-card:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(0, 212, 255, 0.3);
+}
+
+.lab-card.selected {
+  background: rgba(0, 212, 255, 0.1);
+  border-color: #00d4ff;
+}
+
+.lab-card .lab-name {
+  color: #fff;
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+
+.lab-card .lab-vms {
+  color: #888;
+  font-size: 0.75rem;
+}
+
+.lab-card .lab-status {
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+
+.lab-card .lab-status.active {
+  color: #00ff88;
+}
+
+.lab-card .lab-status.deployed {
+  color: #00d4ff;
+}
+
+.lab-card .lab-status.failed {
+  color: #ff6464;
+}
+
+/* Registry Drifts */
+.registry-drifts {
+  background: rgba(255, 170, 0, 0.05);
+  border: 1px solid rgba(255, 170, 0, 0.2);
+  border-radius: 8px;
+  padding: 1rem;
+}
+
+.registry-drifts h4 {
+  margin: 0 0 0.75rem 0;
+  color: #ffaa00;
+  font-size: 0.9rem;
+}
+
+.drift-item {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  font-size: 0.85rem;
+}
+
+.drift-item:last-child {
+  border-bottom: none;
+}
+
+.drift-resource {
+  color: #fff;
+  font-weight: 600;
+}
+
+.drift-field {
+  color: #888;
+}
+
+.drift-change {
+  color: #ffaa00;
+  margin-left: auto;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.no-lab-selected {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 150px;
+  color: #666;
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 8px;
+}
+
+.tab-nav .badge.warn {
+  background: #ffaa00;
+}
+
 /* Responsive */
 @media (max-width: 1024px) {
   .stats-sidebar {

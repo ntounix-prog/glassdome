@@ -8,7 +8,7 @@
 import { useState, useRef, useEffect } from 'react'
 import './ChatToggle.css'
 
-export default function ChatToggle({ onClick, hasUnread }) {
+export default function ChatToggle({ onClick, hasUnread, isPlaying }) {
   // Load saved position from localStorage or use default
   const getInitialPosition = () => {
     const saved = localStorage.getItem('overseer-button-position')
@@ -109,7 +109,7 @@ export default function ChatToggle({ onClick, hasUnread }) {
   return (
     <button 
       ref={buttonRef}
-      className={`chat-toggle ${hasUnread ? 'has-unread' : ''} ${isDragging ? 'dragging' : ''}`}
+      className={`chat-toggle ${hasUnread ? 'has-unread' : ''} ${isDragging ? 'dragging' : ''} ${isPlaying ? 'radio-playing' : ''}`}
       onMouseDown={handleMouseDown}
       onClick={handleClick}
       onDoubleClick={handleDoubleClick}
@@ -119,6 +119,7 @@ export default function ChatToggle({ onClick, hasUnread }) {
       <span className="chat-toggle-drag-hint">⋮⋮</span>
       <span className="chat-toggle-icon">🧠</span>
       <span className="chat-toggle-label">Overseer</span>
+      {isPlaying && <span className="radio-playing-indicator">🎵</span>}
       {hasUnread && <span className="unread-indicator" />}
     </button>
   )

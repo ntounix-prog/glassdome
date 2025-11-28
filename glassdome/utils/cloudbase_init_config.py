@@ -99,7 +99,7 @@ def generate_user_data_script(config: Dict[str, Any]) -> str:
     disable_firewall = config.get("disable_firewall", True)
     static_ip = config.get("static_ip")
     gateway = config.get("gateway", "192.168.3.1")
-    dns_servers = config.get("dns_servers", ["8.8.8.8", "8.8.4.4"])
+    dns_servers = config.get("dns_servers", ["192.168.3.1", "8.8.8.8"])
     custom_scripts = config.get("custom_scripts", [])
     
     script = f"""# PowerShell script for Cloudbase-Init
@@ -246,7 +246,7 @@ if __name__ == "__main__":
         "disable_firewall": True,
         "static_ip": "192.168.3.100",
         "gateway": "192.168.3.1",
-        "dns_servers": ["8.8.8.8", "8.8.4.4"],
+        "dns_servers": ["192.168.3.1", "8.8.8.8"],
         "instance_id": "test-instance-001"
     }
     

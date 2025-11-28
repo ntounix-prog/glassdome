@@ -1,22 +1,39 @@
-import { useState } from 'react'
-import { useNavigate, Link } from 'react-router-dom'
+import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import DemoShowcase from '../components/DemoShowcase'
 import '../styles/Dashboard.css'
+
+// Registry status hook
+function useRegistryStatus() {
+  const [status, setStatus] = useState(null)
+  
+  useEffect(() => {
+    const fetchStatus = async () => {
+      try {
+        const response = await fetch('/api/registry/status')
+        if (response.ok) {
+          setStatus(await response.json())
+        }
+      } catch (err) {
+        console.error('Registry status error:', err)
+      }
+    }
+    fetchStatus()
+    const interval = setInterval(fetchStatus, 10000)
+    return () => clearInterval(interval)
+  }, [])
+  
+  return status
+}
 
 function Dashboard({ healthStatus }) {
   const navigate = useNavigate()
   const [isDemoOpen, setIsDemoOpen] = useState(false)
-
-  const platforms = [
-    { id: 'proxmox', name: 'Proxmox', icon: '🖥️', path: '/platform/proxmox' },
-    { id: 'esxi', name: 'ESXi', icon: '🏢', path: '/platform/esxi' },
-    { id: 'aws', name: 'AWS', icon: '☁️', path: '/platform/aws' },
-    { id: 'azure', name: 'Azure', icon: '🌐', path: '/platform/azure' },
-  ]
+  const registryStatus = useRegistryStatus()
 
   return (
     <div className="dashboard">
-      {/* Demo Button - Only on Dashboard */}
+      {/* Demo Button */}
       <button 
         className="demo-button"
         onClick={() => setIsDemoOpen(true)}
@@ -24,11 +41,11 @@ function Dashboard({ healthStatus }) {
         ▶ Demo
       </button>
 
-      {/* Demo Showcase */}
       <DemoShowcase 
         isOpen={isDemoOpen} 
         onClose={() => setIsDemoOpen(false)} 
       />
+
       <div className="hero-section">
         <h1>Agentic Cyber Range Deployment</h1>
         <p className="hero-subtitle">
@@ -39,110 +56,76 @@ function Dashboard({ healthStatus }) {
         </button>
       </div>
 
-      <div className="features-grid">
-        <div className="feature-card">
-          <div className="feature-icon">🤖</div>
-          <h3>Autonomous Agents</h3>
-          <p>AI-powered deployment agents handle complex orchestration automatically</p>
-        </div>
-
-        <div className="feature-card">
-          <div className="feature-icon">🎨</div>
-          <h3>Drag & Drop Design</h3>
-          <p>Visual lab designer with intuitive drag-and-drop interface</p>
-        </div>
-
-        <div className="feature-card">
-          <div className="feature-icon">☁️</div>
-          <h3>Multi-Platform</h3>
-          <p>Deploy to Proxmox, Azure, AWS, or hybrid environments</p>
-        </div>
-
-        <div className="feature-card">
-          <div className="feature-icon">⚡</div>
-          <h3>Rapid Deployment</h3>
-          <p>Go from design to deployed lab in minutes, not hours</p>
-        </div>
-
-        <div className="feature-card">
-          <div className="feature-icon">🔄</div>
-          <h3>Orchestration</h3>
-          <p>Complex dependency management and parallel execution</p>
-        </div>
-
-        <div className="feature-card">
-          <div className="feature-icon">📊</div>
-          <h3>Real-time Monitoring</h3>
-          <p>Track deployment progress and resource health in real-time</p>
-        </div>
-      </div>
-
-      <div className="platforms-section">
-        <h2>Platforms</h2>
-        <p className="platforms-subtitle">Click a platform to view status and manage VMs</p>
-        <div className="platform-badges">
-          {platforms.map((platform) => (
-            <Link 
-              key={platform.id} 
-              to={platform.path} 
-              className="platform-badge clickable"
-            >
-              <span className="badge-icon">{platform.icon}</span>
-              <span>{platform.name}</span>
-              <span className="badge-arrow">→</span>
-            </Link>
-          ))}
-        </div>
-      </div>
-
-      {/* Tools Section */}
-      <div className="tools-section">
-        <h2>Tools</h2>
-        <div className="tools-grid">
-          <Link to="/reaper" className="tool-card reaper">
-            <span className="tool-icon">💀</span>
-            <div className="tool-info">
-              <h3>REAPER</h3>
-              <p>Vulnerability Injection System</p>
-            </div>
-            <span className="tool-arrow">→</span>
-          </Link>
-          <Link to="/whiteknight" className="tool-card whiteknight">
-            <span className="tool-icon">🛡️</span>
-            <div className="tool-info">
-              <h3>WHITE KNIGHT</h3>
-              <p>Automated Validation Engine</p>
-            </div>
-            <span className="tool-arrow">→</span>
-          </Link>
-          <Link to="/creator" className="tool-card creator">
-            <span className="tool-icon">🎨</span>
-            <div className="tool-info">
-              <h3>Lab Creator</h3>
-              <p>Design & Deploy Labs</p>
-            </div>
-            <span className="tool-arrow">→</span>
-          </Link>
-        </div>
-      </div>
-
       <div className="status-section">
-        <h3>System Status</h3>
         <div className="status-grid">
           <div className="status-item">
             <span className="status-label">Backend API</span>
             <span className={`status-value ${healthStatus ? 'healthy' : 'error'}`}>
-              {healthStatus ? 'Operational' : 'Down'}
+              {healthStatus ? '✓ Operational' : '✗ Down'}
             </span>
           </div>
           <div className="status-item">
-            <span className="status-label">Agent Manager</span>
-            <span className="status-value healthy">Ready</span>
+            <span className="status-label">Lab Registry</span>
+            <span className={`status-value ${registryStatus?.connected ? 'healthy' : 'error'}`}>
+              {registryStatus?.connected ? `✓ ${registryStatus.total_resources} Resources` : '✗ Offline'}
+            </span>
           </div>
           <div className="status-item">
-            <span className="status-label">Orchestration Engine</span>
-            <span className="status-value healthy">Ready</span>
+            <span className="status-label">Agents</span>
+            <span className={`status-value ${registryStatus?.agents > 0 ? 'healthy' : 'warning'}`}>
+              {registryStatus?.agents || 0} Active
+            </span>
           </div>
+          <div className="status-item">
+            <span className="status-label">Drifts</span>
+            <span className={`status-value ${registryStatus?.active_drifts > 0 ? 'warning' : 'healthy'}`}>
+              {registryStatus?.active_drifts || 0}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <div className="features-grid">
+        <div className="feature-card clickable" onClick={() => navigate('/features/agents')}>
+          <div className="feature-icon">🤖</div>
+          <h3>Autonomous Agents</h3>
+          <p>AI-powered deployment agents handle complex orchestration automatically</p>
+          <span className="feature-link">Learn more →</span>
+        </div>
+
+        <div className="feature-card clickable" onClick={() => navigate('/features/designer')}>
+          <div className="feature-icon">🎨</div>
+          <h3>Drag & Drop Design</h3>
+          <p>Visual lab designer with intuitive drag-and-drop interface</p>
+          <span className="feature-link">Learn more →</span>
+        </div>
+
+        <div className="feature-card clickable" onClick={() => navigate('/features/platforms')}>
+          <div className="feature-icon">☁️</div>
+          <h3>Multi-Platform</h3>
+          <p>Deploy to Proxmox, Azure, AWS, or hybrid environments</p>
+          <span className="feature-link">Learn more →</span>
+        </div>
+
+        <div className="feature-card clickable" onClick={() => navigate('/features/deployment')}>
+          <div className="feature-icon">⚡</div>
+          <h3>Rapid Deployment</h3>
+          <p>Go from design to deployed lab in minutes, not hours</p>
+          <span className="feature-link">Learn more →</span>
+        </div>
+
+        <div className="feature-card clickable" onClick={() => navigate('/features/orchestration')}>
+          <div className="feature-icon">🔄</div>
+          <h3>Orchestration</h3>
+          <p>Complex dependency management and parallel execution</p>
+          <span className="feature-link">Learn more →</span>
+        </div>
+
+        <div className="feature-card clickable" onClick={() => navigate('/features/monitoring')}>
+          <div className="feature-icon">📊</div>
+          <h3>Real-time Monitoring</h3>
+          <p>Track deployment progress and resource health in real-time</p>
+          <span className="feature-link">Learn more →</span>
         </div>
       </div>
     </div>
@@ -150,4 +133,3 @@ function Dashboard({ healthStatus }) {
 }
 
 export default Dashboard
-

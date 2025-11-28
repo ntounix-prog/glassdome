@@ -1,249 +1,335 @@
-# Agent Context and Capabilities
+# Glassdome Agent Context
 
-## Agent Identity
+**Last Updated:** 2024-11-28
+**Version:** 0.5.0 (MVP 2.0)
 
-**Name**: AgentX (Glassdome AI Agent)  
-**Email**: glassdome-ai@xisx.org  
-**Host**: agentX (192.168.215.228)  
-**Platform**: Proxmox VM 100  
-**Network**: 192.168.215.0/24 (Management), 192.168.3.0/24 (Servers)
-
-## Incident Handling
-
-### Incident #001: Email Delivery Failure
-**Date**: November 24, 2024  
-**Status**: ✅ Resolved  
-**First incident successfully handled**
-
-**Problem**: Complete mail delivery failure from mxwest to mooker after VMware-to-Proxmox migration.
-
-**Root Cause**: WireGuard MTU fragmentation - configured MTU (8920 bytes) exceeded path MTU (~1400 bytes), causing TLS handshake packets to fragment and fail.
-
-**Resolution**:
-1. Restored WireGuard service on Rome
-2. Performed path MTU discovery
-3. Reduced WireGuard MTU to 1400 bytes on both endpoints
-4. Cleared Postfix TLS session cache
-5. Verified end-to-end connectivity
-
-**Key Skills Demonstrated**:
-- Systematic problem diagnosis
-- Network troubleshooting (connectivity, TLS, MTU)
-- Cloud infrastructure access (AWS CLI, SSH)
-- Multi-system coordination (mxwest, Rome, mooker, Proxmox)
-- Documentation and root cause analysis
-
-### Incident #002: mxeast WireGuard Endpoint
-**Date**: November 24, 2024  
-**Status**: ✅ Resolved
-
-**Problem**: mxeast (secondary mail exchanger) missing WireGuard endpoint configuration.
-
-**Resolution**:
-1. Discovered mxeast from Rome's WireGuard config
-2. Gained AWS console access (us-east-1, Virginia)
-3. Added SSH key and connected to instance
-4. Added missing endpoint to WireGuard configuration
-5. Corrected duplicated endpoint entries
-6. Validated security and connectivity
-
-**Key Skills Demonstrated**:
-- AWS EC2 instance management
-- WireGuard VPN configuration
-- Security validation
-- Multi-region infrastructure access
-
-## Network Infrastructure Management
-
-### Cisco Switch Discovery and Cleanup
-**Date**: November 24, 2024  
-**Status**: ✅ Discovery Complete, Cleanup Proposed
-
-**Switches Managed**:
-- **Cisco 3850 (corefc)**: 192.168.2.253 - 48-port POE switch
-- **Nexus 3064 (core3k)**: 192.168.2.244 - Datacenter switch
-
-**Accomplishments**:
-1. Resolved routing issues (default gateway configuration)
-2. Established SSH connectivity to both switches
-3. Discovered 16 connected interfaces on Cisco 3850
-4. Discovered 57 VLANs on Nexus 3064
-5. Mapped devices to ports using MAC address tables and DHCP leases
-6. Labeled 6 previously unlabeled ports
-7. Created comprehensive VLAN cleanup proposal
-
-**Key Findings**:
-- 35+ ports on default VLAN (security risk)
-- Trunk ports allowing all VLANs (VLAN hopping risk)
-- Unused VLANs consuming resources
-- Missing VLAN restrictions on access ports
-
-**Deliverables**:
-- Network discovery reports
-- Port-to-device mapping
-- VLAN cleanup proposal
-- Security assessment plan
-
-### UniFi Gateway Integration
-- **Gateway**: 192.168.2.1 (UniFi Dream Router)
-- **API Access**: Configured and working
-- **Firewall Rules**: Managed via API
-- **DHCP Integration**: Used for device identification
-
-## Access and Credentials
-
-### SSH Access
-- **mxwest**: ubuntu@44.254.59.166 (AWS us-west-2)
-- **mxeast**: ubuntu@<ip> (AWS us-east-1)
-- **Rome**: nomad@192.168.3.99
-- **mooker**: nomad@192.168.3.69
-- **Proxmox 01**: root@192.168.215.78 (pve01)
-- **Proxmox 02**: root@192.168.215.77 (pve02)
-- **Cisco 3850**: admin@192.168.2.253
-- **Nexus 3064**: admin@192.168.2.244 (legacy SSH algorithms)
-
-### Email Access
-- **Mailbox**: glassdome-ai@xisx.org
-- **Password**: Stored securely
-- **SMTP**: 192.168.3.69:587 (TLS)
-- **IMAP**: 192.168.3.69 (for monitoring)
-
-### Cloud Access
-- **AWS CLI**: Configured on agentX
-- **AWS Regions**: us-west-2 (Oregon), us-east-1 (Virginia)
-- **EC2 Access**: Via SSH keys
-
-### Network Device Access
-- **Cisco Switches**: SSH with password authentication
-- **UniFi Gateway**: API access (X-API-KEY header)
-- **Proxmox**: API and SSH access
-
-## Network Knowledge
-
-### Key Network Paths
-- **Management Network**: 192.168.215.0/24 (Proxmox management)
-- **Server Network**: 192.168.2.0/24 (Default network)
-- **Mail Network**: 192.168.3.0/24 (mooker, Rome)
-- **WireGuard Network**: 10.30.0.0/24 (mxwest ↔ Rome)
-
-### VLAN Structure
-- **VLAN 1**: Default (should be unused ports only)
-- **VLAN 2**: Servers
-- **VLAN 11**: DMZ
-- **VLAN 215**: Management (Proxmox, ESXi, SAN)
-- **VLAN 211**: SAN A side
-- **VLAN 212**: SAN B side
-
-### Critical Infrastructure
-- **Proxmox 01**: 192.168.215.78 (pve01)
-- **Proxmox 02**: 192.168.215.77 (pve02)
-- **mooker**: 192.168.3.69 (Mailcow mail server)
-- **Rome**: 192.168.3.99 (network gateway, dual ISP)
-- **mxwest**: 44.254.59.166 (AWS EC2 mail relay, us-west-2)
-- **mxeast**: <ip> (AWS EC2 mail relay, us-east-1)
-- **Cisco 3850**: 192.168.2.253 (corefc)
-- **Nexus 3064**: 192.168.2.244 (core3k)
-- **UniFi Gateway**: 192.168.2.1
-- **agentX**: 192.168.215.228
-
-## Capabilities
-
-### Network Management
-- Cisco switch configuration (IOS-XE and NX-OS)
-- VLAN management and security
-- Port labeling and documentation
-- MAC address table analysis
-- CDP/LLDP neighbor discovery
-- Network topology mapping
-- Inter-VLAN routing configuration
-
-### Infrastructure Management
-- Proxmox VM management (multi-instance)
-- WireGuard VPN configuration
-- Postfix mail server configuration
-- SSH key management
-- Cloud infrastructure access (AWS)
-- Network device automation
-
-### Security Assessment
-- Network security analysis
-- VLAN security hardening
-- Access control review
-- Configuration compliance checking
-- Security documentation
-
-### Communication
-- Email composition and sending
-- Technical documentation
-- Root cause analysis
-- Incident reporting
-- Team collaboration
-- Proposal creation
-
-### Troubleshooting
-- Network connectivity diagnosis
-- TLS/SSL handshake analysis
-- Path MTU discovery
-- Mail server queue management
-- Service status monitoring
-- Device identification and mapping
-
-## Recent Accomplishments
-
-### November 24, 2024
-1. ✅ Resolved Incident #001 (Email delivery failure)
-2. ✅ Resolved Incident #002 (mxeast WireGuard endpoint)
-3. ✅ Discovered and documented Cisco switch infrastructure
-4. ✅ Mapped devices to switch ports
-5. ✅ Labeled unlabeled switch ports
-6. ✅ Created VLAN cleanup proposal
-7. ✅ Created security assessment plan
-8. ✅ Established network device access
-
-## Current Projects
-
-### Active
-- **VLAN Cleanup**: Proposal created, awaiting approval
-- **Security Assessment**: Plan created, ready for execution
-- **Network Documentation**: Ongoing updates
-
-### Pending
-- Template migration from Proxmox 01 to Proxmox 02
-- VLAN cleanup implementation (after approval)
-- Security assessment execution
-
-## Lessons Learned
-
-1. **Path MTU Discovery**: Always verify path MTU for VPNs/tunnels
-2. **Migration Impact**: Infrastructure changes can expose hidden issues
-3. **Dual ISP**: Multiple internet providers require careful routing
-4. **Systematic Diagnosis**: Connectivity → TLS → MTU approach works
-5. **Network Device Access**: Legacy devices may require special SSH algorithms
-6. **VLAN Security**: Default VLAN should not be used for production devices
-7. **Trunk Port Security**: Always restrict trunk ports to required VLANs only
-8. **Device Mapping**: MAC address tables + DHCP leases = effective device identification
-
-## Current Status
-
-**Active Systems**:
-- ✅ Mail delivery: Working (INC-001 resolved)
-- ✅ WireGuard: Configured with proper MTU (mxwest, mxeast, Rome)
-- ✅ TLS: Required and working
-- ✅ Network connectivity: Stable
-- ✅ Cisco switches: Accessible and documented
-- ✅ Network discovery: Complete
-
-**Monitoring**:
-- Mail queue on mxwest and mxeast
-- WireGuard connectivity
-- TLS handshake success rate
-- Network path MTU
-- Switch port status
-- VLAN assignments
+This file provides context for AI assistants working on Glassdome. Read this first to understand the current state of the project.
 
 ---
 
-*Last Updated: November 24, 2024*  
-*Incidents Handled: 2*  
-*Switches Managed: 2*  
-*Ports Labeled: 6*
+## What is Glassdome?
+
+Glassdome is a **cyber range automation platform** for creating, deploying, and managing cybersecurity training labs. It deploys VMs across multiple platforms (Proxmox, ESXi, AWS, Azure), injects vulnerabilities for training, and monitors lab health with a central registry.
+
+---
+
+## Current Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                         User Interface                           │
+│  React Frontend (port 5174) - Lab Canvas, Monitor, Deployments   │
+│  - Overseer Chat (Claude AI)  - Integrated SomaFM Radio         │
+└────────────────────────────┬────────────────────────────────────┘
+                             │ REST API + WebSocket
+┌────────────────────────────┴────────────────────────────────────┐
+│                    FastAPI Backend (port 8011)                   │
+│  - Lab management        - Platform connections                  │
+│  - Reaper missions       - WhiteKnight validation                │
+│  - Registry API          - WebSocket events                      │
+└────────────────────────────┬────────────────────────────────────┘
+                             │
+┌────────────────────────────┴────────────────────────────────────┐
+│                    Lab Registry (Redis)                          │
+│  - Real-time resource state    - Tiered polling (1-60s)         │
+│  - Pub/Sub event streaming     - Drift detection                 │
+│  - Self-healing reconciliation - WebSocket broadcast             │
+└────────────────────────────┬────────────────────────────────────┘
+                             │
+┌────────────────────────────┴────────────────────────────────────┐
+│                    Platform Agents                               │
+│  ProxmoxAgent (10s) | UnifiAgent (15s) | TrueNAS (planned)      │
+└────────────────────────────┬────────────────────────────────────┘
+                             │
+┌────────────────────────────┴────────────────────────────────────┐
+│                    Infrastructure                                │
+│  ┌─────────────┐   ┌─────────────┐   ┌─────────────┐            │
+│  │ Proxmox 01  │   │ Proxmox 02  │   │  TrueNAS    │            │
+│  │ (Production)│   │   (Labs)    │   │ (29TB NFS)  │            │
+│  │192.168.215.78   │192.168.215.77   │192.168.215.75│            │
+│  └──────┬──────┘   └──────┬──────┘   └──────┬──────┘            │
+│         └────────── 10G Cluster ─────────────┘                   │
+│                   Nexus 3064X Switch                             │
+│               VLANs 211/212 (SAN A/B)                            │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Key Directories
+
+```
+glassdome/
+├── glassdome/              # Main Python package
+│   ├── api/                # FastAPI routers
+│   │   ├── reaper.py       # Reaper missions API
+│   │   ├── whiteknight.py  # WhiteKnight validation API
+│   │   ├── canvas_deploy.py# Lab deployment from Canvas
+│   │   ├── registry.py     # Lab Registry API ✨ NEW
+│   │   └── ...
+│   ├── registry/           # Lab Registry system ✨ NEW
+│   │   ├── core.py         # LabRegistry class (Redis)
+│   │   ├── models.py       # Resource, StateChange, Drift
+│   │   ├── agents/         # Platform polling agents
+│   │   │   ├── base.py     # BaseAgent framework
+│   │   │   ├── proxmox_agent.py
+│   │   │   └── unifi_agent.py
+│   │   └── controllers/    # Reconciliation controllers
+│   │       └── lab_controller.py
+│   ├── workers/            # Celery workers
+│   │   ├── celery_app.py   # Celery configuration
+│   │   ├── orchestrator.py # Lab deployment tasks
+│   │   ├── reaper.py       # Vulnerability injection
+│   │   └── whiteknight.py  # Validation tasks
+│   ├── reaper/             # Reaper subsystem
+│   │   ├── exploit_library.py # Exploit/Mission models
+│   │   └── hot_spare.py    # Hot spare VM pool
+│   ├── platforms/          # Platform clients
+│   │   ├── proxmox_client.py
+│   │   ├── esxi_client.py
+│   │   ├── aws_client.py
+│   │   └── azure_client.py
+│   └── core/               # Core utilities
+│       ├── config.py       # Settings (Pydantic)
+│       ├── database.py     # SQLAlchemy setup
+│       └── ssh_client.py   # SSH utilities
+├── frontend/               # React frontend
+│   └── src/
+│       ├── pages/          # Page components
+│       │   ├── LabCanvas.jsx    # Visual lab builder
+│       │   ├── LabMonitor.jsx   # Registry monitor ✨ NEW
+│       │   ├── FeatureDetail.jsx# Feature descriptions ✨ NEW
+│       │   ├── Deployments.jsx  # Deployment management
+│       │   └── WhitePawnMonitor.jsx
+│       ├── hooks/          # React hooks ✨ NEW
+│       │   └── useRegistry.js   # Registry API hooks
+│       ├── components/
+│       │   └── OverseerChat/    # AI Chat + Radio ✨ UPDATED
+│       └── styles/
+├── scripts/
+│   ├── start_workers.sh    # Worker fleet management
+│   └── network_discovery/  # Switch configuration
+├── docs/
+│   ├── session_logs/       # Daily progress logs
+│   ├── CODE_AUDIT_REPORT.md
+│   └── CODEBASE_INVENTORY.md
+├── _deprecated/            # Deprecated code ✨ NEW
+└── docker-compose.yml
+```
+
+---
+
+## Key Concepts
+
+### 1. Lab Registry (Central Source of Truth)
+Real-time infrastructure monitoring with tiered polling:
+
+```python
+# Registry API endpoints
+GET  /api/registry/status           # Health check
+GET  /api/registry/resources        # List resources (filterable)
+GET  /api/registry/labs/{id}        # Lab snapshot
+WS   /api/registry/ws/events        # Real-time events
+
+# Tier structure
+Tier 1: Lab VMs, Networks  → 1s polling (webhook-ready)
+Tier 2: All VMs, Templates → 10s polling
+Tier 3: Hosts, Storage     → 30-60s polling
+```
+
+### 2. Hot Spare Pool
+Pre-provisioned VMs ready for instant deployment:
+
+```python
+pool = get_hot_spare_pool()
+spare = await pool.acquire_spare(session, os_type="ubuntu", mission_id="xxx")
+```
+
+### 3. Platform Abstraction
+All platforms implement the same interface:
+
+```python
+client = ProxmoxClient(...)  # or ESXiClient, AWSClient, AzureClient
+await client.create_vm(config)
+await client.clone_vm(template_id, new_vm_id, config)
+await client.start_vm(node, vmid)
+```
+
+### 4. Canvas Lab Deployment
+pfSense-as-gateway architecture for isolated lab networks:
+
+```
+┌─────────────────────────────────────────┐
+│              Management (VLAN 2)         │
+│           192.168.2.x (DHCP)            │
+└──────────────────┬──────────────────────┘
+                   │ net0 (WAN)
+              ┌────┴────┐
+              │ pfSense │
+              │ Gateway │
+              └────┬────┘
+                   │ net1 (LAN)
+┌──────────────────┴──────────────────────┐
+│           Lab Network (10.X.0.0/24)      │
+│         VLAN 100-170, DHCP via pfSense  │
+│   ┌─────┐    ┌─────┐    ┌─────┐         │
+│   │Kali │    │ MS3 │    │ Win │         │
+│   └─────┘    └─────┘    └─────┘         │
+└─────────────────────────────────────────┘
+```
+
+---
+
+## Common Tasks
+
+### Start the System
+```bash
+# Terminal 1: Backend
+cd /home/nomad/glassdome
+source venv/bin/activate
+uvicorn glassdome.main:app --host 0.0.0.0 --port 8011 &
+
+# Terminal 2: Frontend
+cd /home/nomad/glassdome/frontend
+npm run dev &
+
+# Terminal 3: Workers (optional)
+cd /home/nomad/glassdome
+./scripts/start_workers.sh start
+```
+
+### Check Registry Status
+```bash
+curl http://localhost:8011/api/registry/status | jq
+```
+
+### List Proxmox Resources
+```bash
+curl "http://localhost:8011/api/registry/resources?platform=proxmox" | jq
+```
+
+### Deploy a Lab from Canvas
+```bash
+curl -X POST http://localhost:8011/api/deployments \
+  -H "Content-Type: application/json" \
+  -d '{"nodes": [...], "edges": [...], "platform": "proxmox"}'
+```
+
+---
+
+## Environment Variables
+
+Key variables in `.env`:
+```bash
+# Database
+DATABASE_URL=postgresql+asyncpg://glassdome:xxx@192.168.3.26:5432/glassdome_dev
+
+# Proxmox Cluster
+PROXMOX_HOST=192.168.215.78      # pve01 (production)
+PROXMOX_USER=root@pam
+PROXMOX_PASSWORD=xxxxx
+
+PROXMOX_02_HOST=192.168.215.77   # pve02 (labs)
+PROXMOX_02_USER=root@pam
+PROXMOX_02_PASSWORD=xxxxx
+
+# Templates
+UBUNTU_2204_TEMPLATE_ID=9000
+PFSENSE_TEMPLATE_ID=9020
+
+# Redis
+REDIS_URL=redis://localhost:6379/0
+
+# Unifi (for IP discovery)
+UBIQUITI_GATEWAY_HOST=192.168.2.1
+UBIQUITI_API_KEY=xxxxx
+
+# DNS (local resolver)
+DNS_SERVERS=192.168.3.1,8.8.8.8
+```
+
+---
+
+## Infrastructure
+
+### Proxmox Cluster
+- **pve01** (192.168.215.78): Production VMs - mooker, rome, scribe, agentx, prod-app, prod-db
+- **pve02** (192.168.215.77): Lab deployments, templates
+- **Shared Storage**: `truenas-nfs-labs` (29TB NFS)
+- **Cluster Communication**: 10G SAN interfaces (VLANs 211/212)
+- **HA & Live Migration**: Enabled
+
+### TrueNAS (192.168.215.75)
+- 29TB ZFS pool with SLOG (NVMe) and L2ARC (4TB SSD)
+- NFS share: `/mnt/PROXMOX/proxmox-vms`
+- Dual 10G paths for redundancy
+
+### Nexus 3064X Switch (192.168.2.244)
+- Core SAN switch for 10G traffic
+- VLANs: 211 (SAN-A), 212 (SAN-B), 215 (Mgmt)
+- Documented in `docs/NEXUS_3064_SAN_SWITCH.md`
+
+---
+
+## Agent Status
+
+| Agent | Status | Description |
+|-------|--------|-------------|
+| Ubuntu Installer | ✓ Working | Cloud-init deployment across all platforms |
+| Windows Installer | ⚠ Partial | Template-based on-prem, AMI on cloud |
+| Overseer | ✓ Working | Claude AI chat with tool execution |
+| Guest Agent Fixer | ✓ Working | QEMU guest agent repair |
+| Mailcow | ✓ Working | Email integration |
+| Reaper | ⚠ Partial | WEAK SSH injection, seed patterns |
+| Research | ⚠ Partial | GPT-4o via Overseer, Range AI |
+
+---
+
+## Recent Changes (2024-11-28 - MVP 2.0)
+
+1. **Lab Registry** - Real-time monitoring with Redis + WebSocket
+2. **Proxmox Cluster** - 2-node cluster with shared NFS storage
+3. **Frontend Overhaul** - Design/Monitor dropdowns, LabMonitor page
+4. **Integrated Radio** - SomaFM in Overseer chat modal
+5. **Feature Pages** - Dynamic detail pages for capabilities
+6. **Code Cleanup** - Deprecated code moved to `_deprecated/`
+7. **DNS Update** - Local resolver (192.168.3.1) as primary
+
+---
+
+## Troubleshooting
+
+### Registry not connecting
+```bash
+# Check Redis
+docker ps | grep redis
+redis-cli ping
+
+# Restart backend
+pkill -f uvicorn
+uvicorn glassdome.main:app --host 0.0.0.0 --port 8011 &
+```
+
+### Frontend proxy issues
+```bash
+# Check Vite is running
+lsof -i :5174
+
+# Restart frontend
+cd /home/nomad/glassdome/frontend
+npm run dev &
+```
+
+### Proxmox agents not reporting
+- Check `.env` credentials (PROXMOX_USER, PROXMOX_PASSWORD)
+- Verify network connectivity to Proxmox hosts
+- Check backend logs for timeout errors
+
+---
+
+## Contact
+
+- **Dev Environment**: `/home/nomad/glassdome` on AgentX
+- **Production**: `/opt/glassdome` on glassdome-prod-app
+- **Database**: PostgreSQL at 192.168.3.26
+- **User**: nomad

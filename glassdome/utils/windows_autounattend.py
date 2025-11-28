@@ -43,7 +43,7 @@ def generate_autounattend_xml(config: Dict[str, Any]) -> str:
     static_ip = config.get("static_ip")
     gateway = config.get("gateway", "192.168.3.1")
     netmask = config.get("netmask", "255.255.255.0")
-    dns_servers = config.get("dns", ["8.8.8.8", "8.8.4.4"])
+    dns_servers = config.get("dns", ["192.168.3.1", "8.8.8.8"])
     
     # Encode admin password for Windows
     admin_password_b64 = base64.b64encode(f"{admin_password}AdministratorPassword".encode('utf-16-le')).decode('ascii')

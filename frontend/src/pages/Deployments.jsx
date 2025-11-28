@@ -1,34 +1,44 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import '../styles/Deployments.css'
 
 function Deployments() {
   const [missions, setMissions] = useState([])
+  const [labs, setLabs] = useState([])
   const [loading, setLoading] = useState(true)
+  const [activeTab, setActiveTab] = useState('all') // 'all', 'labs', 'missions'
   const navigate = useNavigate()
 
-  useEffect(() => {
-    fetchMissions()
-    // Poll for updates every 5 seconds
-    const interval = setInterval(fetchMissions, 5000)
-    return () => clearInterval(interval)
-  }, [])
-
-  const fetchMissions = async () => {
+  const fetchData = useCallback(async () => {
     try {
-      const response = await fetch('/api/reaper/missions')
-      const data = await response.json()
+      // Fetch both missions and labs in parallel
+      const [missionsRes, labsRes] = await Promise.all([
+        fetch('/api/reaper/missions').catch(() => ({ json: () => ({ missions: [] }) })),
+        fetch('/api/registry/labs').catch(() => ({ json: () => ({ labs: [] }) })),
+      ])
+      
+      const missionsData = await missionsRes.json()
+      const labsData = await labsRes.json()
+      
       // Handle both array and { missions: [] } formats
-      const missionsList = data.missions || data || []
+      const missionsList = missionsData.missions || missionsData || []
       // Filter to only show missions that have VMs deployed
       const deploymentsWithVMs = missionsList.filter(m => m.vm_created_id || m.status !== 'pending')
       setMissions(deploymentsWithVMs)
+      setLabs(labsData.labs || [])
       setLoading(false)
     } catch (error) {
-      console.error('Error fetching missions:', error)
+      console.error('Error fetching deployments:', error)
       setLoading(false)
     }
-  }
+  }, [])
+
+  useEffect(() => {
+    fetchData()
+    // Poll for updates every 5 seconds
+    const interval = setInterval(fetchData, 5000)
+    return () => clearInterval(interval)
+  }, [fetchData])
 
   const getStatusColor = (status) => {
     const colors = {
@@ -86,38 +96,119 @@ function Deployments() {
     }
   }
 
+  // Get filtered items based on active tab
+  const getDisplayItems = () => {
+    if (activeTab === 'labs') return { labs, missions: [] }
+    if (activeTab === 'missions') return { labs: [], missions }
+    return { labs, missions }
+  }
+  
+  const { labs: displayLabs, missions: displayMissions } = getDisplayItems()
+  const totalCount = labs.length + missions.length
+
   return (
     <div className="deployments-page">
       <div className="page-header">
-        <h1>🚀 Deployments</h1>
-        <p>Monitor Reaper missions and deployed VMs</p>
+        <div className="header-left">
+          <h1>🚀 Deployments</h1>
+          <p>Labs and Reaper missions</p>
+        </div>
+        <div className="header-actions">
+          <button 
+            className="btn-secondary"
+            onClick={() => navigate('/lab')}
+          >
+            + New Lab
+          </button>
+          <button 
+            className="btn-primary"
+            onClick={() => navigate('/reaper')}
+          >
+            + New Mission
+          </button>
+        </div>
+      </div>
+
+      {/* Filter Tabs */}
+      <div className="filter-tabs">
         <button 
-          className="btn-primary"
-          onClick={() => navigate('/reaper')}
+          className={activeTab === 'all' ? 'active' : ''} 
+          onClick={() => setActiveTab('all')}
         >
-          + New Mission
+          All ({totalCount})
+        </button>
+        <button 
+          className={activeTab === 'labs' ? 'active' : ''} 
+          onClick={() => setActiveTab('labs')}
+        >
+          🧪 Labs ({labs.length})
+        </button>
+        <button 
+          className={activeTab === 'missions' ? 'active' : ''} 
+          onClick={() => setActiveTab('missions')}
+        >
+          💉 Missions ({missions.length})
         </button>
       </div>
 
       {loading ? (
         <div className="loading">Loading deployments...</div>
-      ) : missions.length === 0 ? (
+      ) : totalCount === 0 ? (
         <div className="empty-state">
           <div className="empty-icon">🚀</div>
           <h2>No Active Deployments</h2>
-          <p>Create a Reaper mission to deploy vulnerable VMs</p>
-          <button 
-            className="btn-primary"
-            onClick={() => navigate('/reaper')}
-          >
-            Go to Reaper
-          </button>
+          <p>Create a lab or Reaper mission to get started</p>
+          <div className="empty-actions">
+            <button className="btn-secondary" onClick={() => navigate('/lab')}>
+              Design a Lab
+            </button>
+            <button className="btn-primary" onClick={() => navigate('/reaper')}>
+              Create a Mission
+            </button>
+          </div>
         </div>
       ) : (
         <div className="deployments-grid">
-          {missions.map((mission) => (
-            <div key={mission.id} className="deployment-card">
+          {/* Labs Section */}
+          {displayLabs.map((lab) => (
+            <div key={lab.lab_id} className="deployment-card lab-card">
               <div className="deployment-header">
+                <span className="type-badge lab">🧪 LAB</span>
+                <h3>{lab.lab_id}</h3>
+                <span className={`status-badge status-${lab.status}`}>
+                  {lab.status}
+                </span>
+              </div>
+
+              <div className="deployment-info">
+                <div className="info-row">
+                  <span className="label">VMs:</span>
+                  <span className="value">{lab.vm_count || 0}</span>
+                </div>
+                {lab.network && (
+                  <div className="info-row">
+                    <span className="label">Network:</span>
+                    <span className="value">{lab.network}</span>
+                  </div>
+                )}
+              </div>
+
+              <div className="deployment-actions">
+                <button 
+                  className="btn-small btn-secondary"
+                  onClick={() => navigate('/monitor')}
+                >
+                  View in Monitor
+                </button>
+              </div>
+            </div>
+          ))}
+
+          {/* Missions Section */}
+          {displayMissions.map((mission) => (
+            <div key={mission.id} className="deployment-card mission-card">
+              <div className="deployment-header">
+                <span className="type-badge mission">💉 MISSION</span>
                 <h3>{mission.name || `Mission ${mission.mission_id?.slice(0, 8)}`}</h3>
                 <span
                   className="status-badge"
