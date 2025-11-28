@@ -1,0 +1,74 @@
+/**
+ * LabTimer - Countdown timer styles
+ */
+
+.lab-timer {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+}
+
+.lab-timer.compact {
+  padding: 0.375rem 0.75rem;
+  background: transparent;
+  border: none;
+}
+
+.timer-icon {
+  font-size: 1.1rem;
+}
+
+.timer-value {
+  font-family: 'Fira Code', monospace;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #00ffc8;
+  letter-spacing: 0.05em;
+}
+
+.lab-timer.compact .timer-value {
+  font-size: 1rem;
+}
+
+.timer-label {
+  font-size: 0.75rem;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+/* Warning state (< 10 minutes) */
+.lab-timer.warning .timer-value {
+  color: #ffc864;
+  animation: pulse-warning 1s ease-in-out infinite;
+}
+
+.lab-timer.warning {
+  border-color: rgba(255, 200, 100, 0.3);
+}
+
+@keyframes pulse-warning {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+/* Critical state (< 2 minutes) */
+.lab-timer.critical .timer-value {
+  color: #ff6b6b;
+  animation: pulse-critical 0.5s ease-in-out infinite;
+}
+
+.lab-timer.critical {
+  border-color: rgba(255, 100, 100, 0.5);
+  background: rgba(255, 100, 100, 0.1);
+}
+
+@keyframes pulse-critical {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.8; transform: scale(1.05); }
+}
+

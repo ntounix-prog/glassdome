@@ -1,0 +1,165 @@
+/**
+ * MachineCard - VM card styles
+ */
+
+.machine-card {
+  background: linear-gradient(180deg, rgba(30, 30, 50, 0.8) 0%, rgba(20, 20, 35, 0.9) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  overflow: hidden;
+  transition: all 0.3s ease;
+}
+
+.machine-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+}
+
+.machine-card.online {
+  border-color: rgba(0, 255, 200, 0.3);
+}
+
+.machine-card.online:hover {
+  border-color: rgba(0, 255, 200, 0.5);
+  box-shadow: 0 10px 40px rgba(0, 255, 200, 0.1);
+}
+
+.machine-card.offline {
+  opacity: 0.6;
+}
+
+/* Role-based accents */
+.machine-card.role-attack {
+  border-left: 3px solid #ff6b6b;
+}
+
+.machine-card.role-target {
+  border-left: 3px solid #00ffc8;
+}
+
+.machine-card.role-gateway {
+  border-left: 3px solid #ffd93d;
+}
+
+/* Card Header */
+.machine-card .card-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  background: rgba(0, 0, 0, 0.3);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.os-icon {
+  font-size: 1.5rem;
+}
+
+.os-name {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #888;
+  letter-spacing: 0.1em;
+}
+
+/* Card Body */
+.machine-card .card-body {
+  padding: 1rem;
+}
+
+.machine-name {
+  margin: 0 0 0.25rem;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #fff;
+  font-family: 'Fira Code', monospace;
+}
+
+.machine-role {
+  margin: 0 0 1rem;
+  font-size: 0.85rem;
+  color: #888;
+}
+
+.machine-details {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.detail-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.85rem;
+}
+
+.detail-label {
+  color: #666;
+}
+
+.detail-value {
+  color: #00ffc8;
+  font-family: 'Fira Code', monospace;
+}
+
+.status-badge {
+  padding: 0.125rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+}
+
+.status-badge.online {
+  background: rgba(0, 255, 200, 0.2);
+  color: #00ffc8;
+}
+
+.status-badge.offline {
+  background: rgba(255, 255, 255, 0.1);
+  color: #888;
+}
+
+/* Card Footer */
+.machine-card .card-footer {
+  padding: 1rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.connect-button,
+.start-button {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.connect-button {
+  background: linear-gradient(135deg, #00ffc8, #00b894);
+  color: #000;
+}
+
+.connect-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 5px 20px rgba(0, 255, 200, 0.3);
+}
+
+.start-button {
+  background: rgba(255, 255, 255, 0.1);
+  color: #888;
+  cursor: not-allowed;
+}
+
+.button-icon {
+  font-size: 1rem;
+}
+

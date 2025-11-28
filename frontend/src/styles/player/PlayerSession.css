@@ -1,0 +1,305 @@
+/**
+ * PlayerSession - VM desktop viewer styles
+ */
+
+.player-session {
+  min-height: 100vh;
+  background: #0a0a0f;
+  display: flex;
+  flex-direction: column;
+}
+
+.player-session.fullscreen {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 9999;
+}
+
+/* Toolbar */
+.session-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem 1rem;
+  background: rgba(0, 0, 0, 0.9);
+  border-bottom: 1px solid rgba(0, 255, 200, 0.2);
+  transition: opacity 0.3s, transform 0.3s;
+}
+
+.session-toolbar.hidden {
+  opacity: 0;
+  transform: translateY(-100%);
+  pointer-events: none;
+}
+
+.session-toolbar.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.toolbar-left,
+.toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.toolbar-center {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+}
+
+.toolbar-button {
+  padding: 0.5rem 0.75rem;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  color: #888;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: all 0.2s;
+}
+
+.toolbar-button:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.back-button {
+  padding-left: 1rem;
+  padding-right: 1rem;
+}
+
+.vm-info {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 1rem;
+  background: rgba(0, 255, 200, 0.1);
+  border-radius: 6px;
+  margin-left: 1rem;
+}
+
+.vm-icon {
+  font-size: 1.2rem;
+}
+
+.vm-name {
+  color: #00ffc8;
+  font-weight: 600;
+  font-family: 'Fira Code', monospace;
+}
+
+.connection-status {
+  font-size: 0.8rem;
+  color: #888;
+}
+
+.connection-status.connected {
+  color: #00ffc8;
+}
+
+/* Desktop Container */
+.desktop-container {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #000;
+  position: relative;
+}
+
+.guacamole-frame {
+  width: 100%;
+  height: 100%;
+  border: none;
+}
+
+/* Placeholder (before Guacamole connection) */
+.desktop-placeholder {
+  text-align: center;
+  padding: 2rem;
+  max-width: 600px;
+}
+
+.placeholder-content {
+  background: rgba(30, 30, 50, 0.8);
+  border: 1px solid rgba(0, 255, 200, 0.2);
+  border-radius: 16px;
+  padding: 3rem;
+}
+
+.placeholder-icon {
+  font-size: 4rem;
+  margin-bottom: 1rem;
+}
+
+.placeholder-content h2 {
+  margin: 0 0 0.5rem;
+  color: #00ffc8;
+  font-family: 'Fira Code', monospace;
+}
+
+.placeholder-content > p {
+  margin: 0 0 2rem;
+  color: #888;
+}
+
+.connection-options {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.connect-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 1rem 2rem;
+  background: linear-gradient(135deg, #00ffc8, #00b894);
+  border: none;
+  border-radius: 8px;
+  color: #000;
+  font-size: 1rem;
+  font-weight: 700;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.connect-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 30px rgba(0, 255, 200, 0.3);
+}
+
+.manual-info {
+  padding: 1rem;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.manual-info .info-label {
+  margin: 0 0 0.5rem;
+  color: #666;
+  font-size: 0.85rem;
+}
+
+.info-grid {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.5rem 1rem;
+  text-align: left;
+}
+
+.info-grid .label {
+  color: #888;
+}
+
+.info-grid code {
+  color: #00ffc8;
+  font-family: 'Fira Code', monospace;
+  background: rgba(0, 0, 0, 0.3);
+  padding: 0.125rem 0.5rem;
+  border-radius: 4px;
+}
+
+.integration-note {
+  margin-top: 1.5rem;
+  color: #666;
+  font-size: 0.85rem;
+}
+
+/* Connection Error */
+.connection-error {
+  text-align: center;
+  padding: 2rem;
+}
+
+.connection-error .error-icon {
+  font-size: 4rem;
+  display: block;
+  margin-bottom: 1rem;
+}
+
+.connection-error h2 {
+  color: #ff6b6b;
+  margin: 0 0 0.5rem;
+}
+
+.connection-error p {
+  color: #888;
+  margin: 0 0 1.5rem;
+}
+
+.connection-error button {
+  padding: 0.75rem 2rem;
+  background: #00ffc8;
+  border: none;
+  border-radius: 6px;
+  color: #000;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* Floating Chat Button */
+.floating-chat-button {
+  position: fixed;
+  bottom: 2rem;
+  right: 2rem;
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #00ffc8, #00b894);
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  box-shadow: 0 4px 20px rgba(0, 255, 200, 0.4);
+  transition: all 0.3s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.floating-chat-button:hover {
+  transform: scale(1.1);
+  box-shadow: 0 6px 30px rgba(0, 255, 200, 0.5);
+}
+
+.floating-chat-button .music-indicator {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  font-size: 1rem;
+  animation: bounce 1s infinite;
+}
+
+@keyframes bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
+
+/* Fullscreen specific */
+.player-session.fullscreen .desktop-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+}
+
+.player-session.fullscreen .session-toolbar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+}
+

@@ -9,6 +9,10 @@ import WhiteKnightDesign from './pages/WhiteKnightDesign'
 import WhitePawnMonitor from './pages/WhitePawnMonitor'
 import LabMonitor from './pages/LabMonitor'
 import FeatureDetail from './pages/FeatureDetail'
+// Player Portal
+import PlayerPortal from './pages/player/PlayerPortal'
+import PlayerLobby from './pages/player/PlayerLobby'
+import PlayerSession from './pages/player/PlayerSession'
 import { ChatModal, ChatToggle } from './components/OverseerChat'
 import './App.css'
 
@@ -165,6 +169,7 @@ function App() {
         <Navigation healthStatus={healthStatus} loading={loading} radioState={radioState} />
 
         <Routes>
+          {/* Admin Routes */}
           <Route path="/" element={<Dashboard healthStatus={healthStatus} />} />
           <Route path="/lab" element={<LabCanvas />} />
           <Route path="/lab/:labId" element={<LabCanvas />} />
@@ -176,6 +181,11 @@ function App() {
           <Route path="/whitepawn" element={<WhitePawnMonitor />} />
           <Route path="/monitor" element={<LabMonitor />} />
           <Route path="/features/:featureId" element={<FeatureDetail />} />
+          
+          {/* Player Portal Routes */}
+          <Route path="/player" element={<PlayerPortal />} />
+          <Route path="/player/:labId" element={<PlayerLobby />} />
+          <Route path="/player/:labId/:vmName" element={<PlayerSession />} />
         </Routes>
 
         {/* Overseer Chat with integrated Radio */}
