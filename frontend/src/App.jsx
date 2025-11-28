@@ -142,11 +142,37 @@ function Navigation({ healthStatus, loading, radioState }) {
           <span className="radio-indicator">🎵</span>
         )}
         {loading ? (
-          <span className="status-indicator status-loading">Checking...</span>
+          <span style={{
+            padding: '8px 16px',
+            borderRadius: '20px',
+            fontSize: '14px',
+            fontWeight: '600',
+            whiteSpace: 'nowrap',
+            background: 'rgba(116, 185, 255, 0.2)',
+            color: '#74b9ff',
+          }}>Checking...</span>
         ) : healthStatus ? (
-          <span className="status-indicator status-healthy">✓ Connected</span>
+          <span style={{
+            padding: '8px 16px',
+            borderRadius: '20px',
+            fontSize: '14px',
+            fontWeight: '600',
+            whiteSpace: 'nowrap',
+            background: 'rgba(107, 207, 127, 0.25)',
+            color: '#6bcf7f',
+            border: '1px solid rgba(107, 207, 127, 0.4)',
+            boxShadow: '0 0 10px rgba(107, 207, 127, 0.3)',
+          }}>✓ Connected</span>
         ) : (
-          <span className="status-indicator status-error">✗ Disconnected</span>
+          <span style={{
+            padding: '8px 16px',
+            borderRadius: '20px',
+            fontSize: '14px',
+            fontWeight: '600',
+            whiteSpace: 'nowrap',
+            background: 'rgba(255, 107, 107, 0.2)',
+            color: '#ff6b6b',
+          }}>✗ Disconnected</span>
         )}
         <UserMenu />
       </div>
