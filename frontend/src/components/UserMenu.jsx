@@ -60,7 +60,7 @@ export default function UserMenu() {
           WebkitAppearance: 'none',
           MozAppearance: 'none',
           appearance: 'none',
-          marginLeft: '8px',
+          marginLeft: '20px',
           flexShrink: 0,
         }}
       >
