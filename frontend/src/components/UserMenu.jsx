@@ -121,11 +121,12 @@ export default function UserMenu() {
         }
         
         .user-login-btn {
-          background: none;
-          border: 1px solid #64c8ff;
-          color: #64c8ff;
-          padding: 8px 16px;
-          border-radius: 20px;
+          background: transparent !important;
+          background-color: transparent !important;
+          border: 1px solid #64c8ff !important;
+          color: #64c8ff !important;
+          padding: 8px 16px !important;
+          border-radius: 20px !important;
           cursor: pointer;
           font-size: 14px;
           font-weight: 500;
@@ -133,6 +134,9 @@ export default function UserMenu() {
           letter-spacing: 0.5px;
           white-space: nowrap;
           animation: loginPulse 2s ease-in-out infinite;
+          -webkit-appearance: none;
+          -moz-appearance: none;
+          appearance: none;
         }
         
         @keyframes loginPulse {
@@ -147,7 +151,7 @@ export default function UserMenu() {
         }
         
         .user-login-btn:hover {
-          background: rgba(100, 200, 255, 0.15);
+          background: rgba(100, 200, 255, 0.15) !important;
           box-shadow: 0 0 25px rgba(100, 200, 255, 0.7);
           transform: scale(1.05);
         }
