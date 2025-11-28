@@ -8,7 +8,11 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { BrowserRouter as Router, Routes, Route, Link, useNavigate } from 'react-router-dom'
+import { AuthProvider, useAuth } from './contexts/AuthContext'
+import ProtectedRoute from './components/ProtectedRoute'
+import UserMenu from './components/UserMenu'
 import Dashboard from './pages/Dashboard'
+import Login from './pages/Login'
 import LabCanvas from './pages/LabCanvas'
 import Deployments from './pages/Deployments'
 import PlatformStatus from './pages/PlatformStatus'
@@ -46,7 +50,7 @@ function NavDropdown({ label, items, defaultPath }) {
   const handleMouseLeave = () => {
     closeTimeoutRef.current = setTimeout(() => {
       setIsOpen(false)
-    }, 300) // 300ms delay before closing
+    }, 300)
   }
 
   return (
@@ -81,8 +85,10 @@ function NavDropdown({ label, items, defaultPath }) {
   )
 }
 
-// Navigation Component (needs to be inside Router)
+// Navigation Component (needs to be inside Router and AuthProvider)
 function Navigation({ healthStatus, loading, radioState }) {
+  const { isAuthenticated, hasLevel } = useAuth()
+  
   const monitorItems = [
     { name: 'Lab Monitor', icon: '🔬', path: '/monitor' },
     { name: 'WhitePawn', icon: '♟️', path: '/whitepawn' },
@@ -92,11 +98,12 @@ function Navigation({ healthStatus, loading, radioState }) {
     { name: 'Azure', icon: '🌐', path: '/platform/azure' },
   ]
 
+  // Filter design items based on user level
   const designItems = [
-    { name: 'Lab Designer', icon: '🎨', path: '/lab' },
-    { name: 'Reaper', icon: '💀', path: '/reaper' },
-    { name: 'WhiteKnight', icon: '🛡️', path: '/whiteknight' },
-  ]
+    { name: 'Lab Designer', icon: '🎨', path: '/lab', minLevel: 50 },
+    { name: 'Reaper', icon: '💀', path: '/reaper', minLevel: 50 },
+    { name: 'WhiteKnight', icon: '🛡️', path: '/whiteknight', minLevel: 50 },
+  ].filter(item => !item.minLevel || hasLevel(item.minLevel))
 
   return (
     <nav className="navbar">
@@ -108,9 +115,16 @@ function Navigation({ healthStatus, loading, radioState }) {
       </div>
       <div className="nav-links">
         <Link to="/">Dashboard</Link>
-        <NavDropdown label="Design" items={designItems} defaultPath="/lab" />
-        <NavDropdown label="Monitor" items={monitorItems} defaultPath="/monitor" />
-        <Link to="/deployments">Deployments</Link>
+        {isAuthenticated && designItems.length > 0 && (
+          <NavDropdown label="Design" items={designItems} defaultPath="/lab" />
+        )}
+        {isAuthenticated && (
+          <NavDropdown label="Monitor" items={monitorItems} defaultPath="/monitor" />
+        )}
+        {isAuthenticated && (
+          <Link to="/deployments">Deployments</Link>
+        )}
+        <Link to="/player">Player Portal</Link>
       </div>
       <div className="nav-status">
         {radioState.isPlaying && (
@@ -123,15 +137,18 @@ function Navigation({ healthStatus, loading, radioState }) {
         ) : (
           <span className="status-indicator status-error">✗ Disconnected</span>
         )}
+        <UserMenu />
       </div>
     </nav>
   )
 }
 
-function App() {
+// Main App Content (inside AuthProvider)
+function AppContent() {
   const [healthStatus, setHealthStatus] = useState(null)
   const [loading, setLoading] = useState(true)
   const [isChatOpen, setIsChatOpen] = useState(false)
+  const { isAuthenticated } = useAuth()
   
   // Shared radio state - persists across modal open/close
   const [radioState, setRadioState] = useState({
@@ -162,54 +179,105 @@ function App() {
   }, [radioState.volume])
 
   return (
-    <Router>
-      <div className="App">
-        {/* Persistent audio element - never unmounts */}
-        <audio 
-          ref={audioRef}
-          src={STATIONS[radioState.currentStation]?.stream || STATIONS.defcon.stream}
-          preload="none"
-          onPlay={() => setRadioState(prev => ({ ...prev, isPlaying: true }))}
-          onPause={() => setRadioState(prev => ({ ...prev, isPlaying: false }))}
-          onEnded={() => setRadioState(prev => ({ ...prev, isPlaying: false }))}
-        />
+    <div className="App">
+      {/* Persistent audio element - never unmounts */}
+      <audio 
+        ref={audioRef}
+        src={STATIONS[radioState.currentStation]?.stream || STATIONS.defcon.stream}
+        preload="none"
+        onPlay={() => setRadioState(prev => ({ ...prev, isPlaying: true }))}
+        onPause={() => setRadioState(prev => ({ ...prev, isPlaying: false }))}
+        onEnded={() => setRadioState(prev => ({ ...prev, isPlaying: false }))}
+      />
+      
+      <Navigation healthStatus={healthStatus} loading={loading} radioState={radioState} />
+
+      <Routes>
+        {/* Public Routes */}
+        <Route path="/login" element={<Login />} />
+        <Route path="/" element={<Dashboard healthStatus={healthStatus} />} />
+        <Route path="/features/:featureId" element={<FeatureDetail />} />
         
-        <Navigation healthStatus={healthStatus} loading={loading} radioState={radioState} />
+        {/* Player Portal (public) */}
+        <Route path="/player" element={<PlayerPortal />} />
+        <Route path="/player/:labId" element={<PlayerLobby />} />
+        <Route path="/player/:labId/:vmName" element={<PlayerSession />} />
+        
+        {/* Protected Routes - Engineer+ */}
+        <Route path="/lab" element={
+          <ProtectedRoute minLevel={50}>
+            <LabCanvas />
+          </ProtectedRoute>
+        } />
+        <Route path="/lab/:labId" element={
+          <ProtectedRoute minLevel={50}>
+            <LabCanvas />
+          </ProtectedRoute>
+        } />
+        <Route path="/deployments" element={
+          <ProtectedRoute minLevel={25}>
+            <Deployments />
+          </ProtectedRoute>
+        } />
+        <Route path="/platform/:platform" element={
+          <ProtectedRoute minLevel={25}>
+            <PlatformStatus />
+          </ProtectedRoute>
+        } />
+        <Route path="/platform/:platform/:instanceId" element={
+          <ProtectedRoute minLevel={25}>
+            <PlatformStatus />
+          </ProtectedRoute>
+        } />
+        <Route path="/reaper" element={
+          <ProtectedRoute minLevel={50}>
+            <ReaperDesign />
+          </ProtectedRoute>
+        } />
+        <Route path="/whiteknight" element={
+          <ProtectedRoute minLevel={50}>
+            <WhiteKnightDesign />
+          </ProtectedRoute>
+        } />
+        <Route path="/whitepawn" element={
+          <ProtectedRoute minLevel={25}>
+            <WhitePawnMonitor />
+          </ProtectedRoute>
+        } />
+        <Route path="/monitor" element={
+          <ProtectedRoute minLevel={25}>
+            <LabMonitor />
+          </ProtectedRoute>
+        } />
+      </Routes>
 
-        <Routes>
-          {/* Admin Routes */}
-          <Route path="/" element={<Dashboard healthStatus={healthStatus} />} />
-          <Route path="/lab" element={<LabCanvas />} />
-          <Route path="/lab/:labId" element={<LabCanvas />} />
-          <Route path="/deployments" element={<Deployments />} />
-          <Route path="/platform/:platform" element={<PlatformStatus />} />
-          <Route path="/platform/:platform/:instanceId" element={<PlatformStatus />} />
-          <Route path="/reaper" element={<ReaperDesign />} />
-          <Route path="/whiteknight" element={<WhiteKnightDesign />} />
-          <Route path="/whitepawn" element={<WhitePawnMonitor />} />
-          <Route path="/monitor" element={<LabMonitor />} />
-          <Route path="/features/:featureId" element={<FeatureDetail />} />
-          
-          {/* Player Portal Routes */}
-          <Route path="/player" element={<PlayerPortal />} />
-          <Route path="/player/:labId" element={<PlayerLobby />} />
-          <Route path="/player/:labId/:vmName" element={<PlayerSession />} />
-        </Routes>
+      {/* Overseer Chat with integrated Radio - only for authenticated users */}
+      {isAuthenticated && (
+        <>
+          <ChatToggle 
+            onClick={() => setIsChatOpen(true)} 
+            hasUnread={false}
+            isPlaying={radioState.isPlaying}
+          />
+          <ChatModal 
+            isOpen={isChatOpen} 
+            onClose={() => setIsChatOpen(false)}
+            audioRef={audioRef}
+            radioState={radioState}
+            setRadioState={setRadioState}
+          />
+        </>
+      )}
+    </div>
+  )
+}
 
-        {/* Overseer Chat with integrated Radio */}
-        <ChatToggle 
-          onClick={() => setIsChatOpen(true)} 
-          hasUnread={false}
-          isPlaying={radioState.isPlaying}
-        />
-        <ChatModal 
-          isOpen={isChatOpen} 
-          onClose={() => setIsChatOpen(false)}
-          audioRef={audioRef}
-          radioState={radioState}
-          setRadioState={setRadioState}
-        />
-      </div>
+function App() {
+  return (
+    <Router>
+      <AuthProvider>
+        <AppContent />
+      </AuthProvider>
     </Router>
   )
 }

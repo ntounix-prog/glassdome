@@ -15,6 +15,11 @@ import logging
 import asyncio
 
 from glassdome.core.database import get_db as get_async_session, AsyncSessionLocal as async_session_factory
+from glassdome.auth.models import User
+from glassdome.auth.dependencies import (
+    get_current_user, get_current_user_optional,
+    require_engineer, require_architect, require_level
+)
 from glassdome.reaper.exploit_library import (
     Exploit, ExploitMission, ExploitType, ExploitSeverity, ExploitOS,
     seed_default_exploits
@@ -150,7 +155,8 @@ async def list_exploits(
     severity: Optional[str] = None,
     target_os: Optional[str] = None,
     enabled_only: bool = True,
-    session: AsyncSession = Depends(get_async_session)
+    session: AsyncSession = Depends(get_async_session),
+    current_user: User = Depends(require_engineer)  # Engineer+ can view
 ):
     """
     List all exploits in the library
@@ -186,7 +192,8 @@ async def list_exploits(
 @router.get("/exploits/{exploit_id}")
 async def get_exploit(
     exploit_id: int,
-    session: AsyncSession = Depends(get_async_session)
+    session: AsyncSession = Depends(get_async_session),
+    current_user: User = Depends(require_engineer)  # Engineer+ can view
 ):
     """Get a single exploit by ID"""
     result = await session.execute(
@@ -209,7 +216,8 @@ async def get_exploit(
 @router.post("/exploits")
 async def create_exploit(
     exploit: ExploitCreate,
-    session: AsyncSession = Depends(get_async_session)
+    session: AsyncSession = Depends(get_async_session),
+    current_user: User = Depends(require_architect)  # Architect+ can create
 ):
     """Create a new exploit definition"""
     # Check for duplicate name
@@ -232,7 +240,8 @@ async def create_exploit(
 async def update_exploit(
     exploit_id: int,
     exploit: ExploitUpdate,
-    session: AsyncSession = Depends(get_async_session)
+    session: AsyncSession = Depends(get_async_session),
+    current_user: User = Depends(require_architect)  # Architect+ can modify
 ):
     """Update an existing exploit"""
     result = await session.execute(
@@ -258,7 +267,8 @@ async def update_exploit(
 @router.delete("/exploits/{exploit_id}")
 async def delete_exploit(
     exploit_id: int,
-    session: AsyncSession = Depends(get_async_session)
+    session: AsyncSession = Depends(get_async_session),
+    current_user: User = Depends(require_architect)  # Architect+ can delete
 ):
     """Delete an exploit from the library"""
     result = await session.execute(
@@ -281,7 +291,8 @@ async def delete_exploit(
 
 @router.post("/exploits/seed")
 async def seed_exploits(
-    session: AsyncSession = Depends(get_async_session)
+    session: AsyncSession = Depends(get_async_session),
+    current_user: User = Depends(require_architect)  # Architect+ can seed
 ):
     """Seed the database with default exploits"""
     await seed_default_exploits(session)
@@ -291,7 +302,8 @@ async def seed_exploits(
 @router.post("/exploits/import")
 async def import_exploits(
     data: ExploitBulkImport,
-    session: AsyncSession = Depends(get_async_session)
+    session: AsyncSession = Depends(get_async_session),
+    current_user: User = Depends(require_architect)  # Architect+ can import
 ):
     """
     Bulk import exploits from JSON
@@ -345,7 +357,9 @@ async def import_exploits(
 
 
 @router.get("/exploits/template")
-async def get_exploit_template():
+async def get_exploit_template(
+    current_user: User = Depends(require_engineer)  # Engineer+ can view templates
+):
     """
     Get example JSON template for creating exploits
     
@@ -431,7 +445,8 @@ sshpass -p 'trainee123' ssh -o StrictHostKeyChecking=no trainee@localhost echo '
 
 @router.get("/exploits/export")
 async def export_exploits(
-    session: AsyncSession = Depends(get_async_session)
+    session: AsyncSession = Depends(get_async_session),
+    current_user: User = Depends(require_architect)  # Architect+ can export
 ):
     """
     Export all exploits as JSON for backup or sharing
@@ -482,7 +497,8 @@ async def export_exploits(
 async def list_missions(
     status: Optional[str] = None,
     limit: int = 50,
-    session: AsyncSession = Depends(get_async_session)
+    session: AsyncSession = Depends(get_async_session),
+    current_user: User = Depends(require_engineer)  # Engineer+ can view
 ):
     """
     List all missions
@@ -509,7 +525,8 @@ async def list_missions(
 @router.get("/missions/{mission_id}")
 async def get_mission(
     mission_id: str,
-    session: AsyncSession = Depends(get_async_session)
+    session: AsyncSession = Depends(get_async_session),
+    current_user: User = Depends(require_engineer)  # Engineer+ can view
 ):
     """Get mission status by ID"""
     result = await session.execute(
@@ -536,7 +553,8 @@ async def get_mission(
 async def create_mission(
     mission: MissionCreate,
     background_tasks: BackgroundTasks,
-    session: AsyncSession = Depends(get_async_session)
+    session: AsyncSession = Depends(get_async_session),
+    current_user: User = Depends(require_engineer)  # Engineer+ can create missions
 ):
     """
     Create a new exploit mission
@@ -582,7 +600,8 @@ async def create_mission(
 async def start_mission(
     mission_id: str,
     background_tasks: BackgroundTasks,
-    session: AsyncSession = Depends(get_async_session)
+    session: AsyncSession = Depends(get_async_session),
+    current_user: User = Depends(require_engineer)  # Engineer+ can start
 ):
     """
     Start executing a mission
@@ -624,7 +643,8 @@ async def start_mission(
 @router.post("/missions/{mission_id}/cancel")
 async def cancel_mission(
     mission_id: str,
-    session: AsyncSession = Depends(get_async_session)
+    session: AsyncSession = Depends(get_async_session),
+    current_user: User = Depends(require_engineer)  # Engineer+ can cancel
 ):
     """Cancel a running mission"""
     result = await session.execute(
@@ -1126,7 +1146,8 @@ async def verify_with_whiteknight(vm_ip: str, exploit: Exploit) -> Dict[str, Any
 
 @router.get("/stats")
 async def get_reaper_stats(
-    session: AsyncSession = Depends(get_async_session)
+    session: AsyncSession = Depends(get_async_session),
+    current_user: User = Depends(require_engineer)  # Engineer+ can view stats
 ):
     """Get Reaper statistics"""
     # Count exploits
@@ -1171,7 +1192,10 @@ from fastapi import WebSocket
 from starlette.websockets import WebSocketDisconnect
 
 @router.get("/logs")
-async def get_recent_logs(lines: int = 100):
+async def get_recent_logs(
+    lines: int = 100,
+    current_user: User = Depends(require_engineer)  # Engineer+ can view logs
+):
     """Get recent Reaper log entries"""
     try:
         if reaper_log_file.exists():
@@ -1261,7 +1285,10 @@ class PoolStatusResponse(BaseModel):
 
 
 @router.get("/pool/status")
-async def get_pool_status(session: AsyncSession = Depends(get_async_session)):
+async def get_pool_status(
+    session: AsyncSession = Depends(get_async_session),
+    current_user: User = Depends(require_engineer)  # Engineer+ can view pool
+):
     """Get hot spare pool status"""
     pool = get_hot_spare_pool()
     status = await pool.get_pool_status(session)
@@ -1299,7 +1326,8 @@ async def get_pool_status(session: AsyncSession = Depends(get_async_session)):
 async def provision_spare(
     count: int = 1,
     os_type: str = "ubuntu",
-    session: AsyncSession = Depends(get_async_session)
+    session: AsyncSession = Depends(get_async_session),
+    current_user: User = Depends(require_architect)  # Architect+ can provision
 ):
     """
     Manually provision new spares.
@@ -1330,7 +1358,9 @@ async def provision_spare(
 
 
 @router.post("/pool/start")
-async def start_pool_manager():
+async def start_pool_manager(
+    current_user: User = Depends(require_architect)  # Architect+ can start pool
+):
     """Start the pool manager background task"""
     pool = get_hot_spare_pool()
     await pool.start()
@@ -1338,7 +1368,9 @@ async def start_pool_manager():
 
 
 @router.post("/pool/stop")
-async def stop_pool_manager():
+async def stop_pool_manager(
+    current_user: User = Depends(require_architect)  # Architect+ can stop pool
+):
     """Stop the pool manager background task"""
     pool = get_hot_spare_pool()
     await pool.stop()
@@ -1348,7 +1380,8 @@ async def stop_pool_manager():
 @router.delete("/pool/spare/{spare_id}")
 async def delete_spare(
     spare_id: int,
-    session: AsyncSession = Depends(get_async_session)
+    session: AsyncSession = Depends(get_async_session),
+    current_user: User = Depends(require_architect)  # Architect+ can delete
 ):
     """Delete a spare from the pool"""
     pool = get_hot_spare_pool()
@@ -1360,7 +1393,8 @@ async def delete_spare(
 async def acquire_spare(
     spare_id: int,
     mission_id: Optional[str] = None,
-    session: AsyncSession = Depends(get_async_session)
+    session: AsyncSession = Depends(get_async_session),
+    current_user: User = Depends(require_engineer)  # Engineer+ can acquire
 ):
     """Manually acquire a specific spare"""
     result = await session.execute(select(HotSpare).where(HotSpare.id == spare_id))
@@ -1394,7 +1428,8 @@ from datetime import timedelta
 @router.get("/missions/{mission_id}/logs")
 async def get_mission_logs(
     mission_id: str,
-    session: AsyncSession = Depends(get_async_session)
+    session: AsyncSession = Depends(get_async_session),
+    current_user: User = Depends(require_engineer)  # Engineer+ can view logs
 ):
     """Get all logs for a specific mission"""
     result = await session.execute(
@@ -1414,7 +1449,8 @@ async def get_mission_logs(
 @router.get("/missions/{mission_id}/validations")
 async def get_mission_validations(
     mission_id: str,
-    session: AsyncSession = Depends(get_async_session)
+    session: AsyncSession = Depends(get_async_session),
+    current_user: User = Depends(require_engineer)  # Engineer+ can view
 ):
     """Get all WhiteKnight validation results for a mission"""
     result = await session.execute(
@@ -1440,7 +1476,8 @@ async def get_mission_validations(
 async def get_mission_history(
     days: int = 14,
     limit: int = 100,
-    session: AsyncSession = Depends(get_async_session)
+    session: AsyncSession = Depends(get_async_session),
+    current_user: User = Depends(require_engineer)  # Engineer+ can view history
 ):
     """
     Get mission history with logs and validation summary
@@ -1491,7 +1528,8 @@ async def get_mission_history(
 async def destroy_mission_vm(
     mission_id: str,
     delete_mission: bool = False,
-    session: AsyncSession = Depends(get_async_session)
+    session: AsyncSession = Depends(get_async_session),
+    current_user: User = Depends(require_architect)  # Architect+ can destroy
 ):
     """
     Destroy the VM associated with a mission and optionally delete the mission record.
@@ -1595,7 +1633,8 @@ async def destroy_mission_vm(
 @router.delete("/history/cleanup")
 async def cleanup_old_missions(
     days: int = 14,
-    session: AsyncSession = Depends(get_async_session)
+    session: AsyncSession = Depends(get_async_session),
+    current_user: User = Depends(require_architect)  # Architect+ can cleanup
 ):
     """
     Delete missions older than specified days (default 14)

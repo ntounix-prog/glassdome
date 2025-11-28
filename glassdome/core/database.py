@@ -45,6 +45,7 @@ async def get_db() -> AsyncSession:
 async def init_db():
     """Initialize database tables"""
     # Import models to register them with Base
+    from glassdome.auth.models import User  # RBAC User model
     from glassdome.reaper.exploit_library import Exploit, ExploitMission, MissionLog, ValidationResult
     from glassdome.reaper.hot_spare import HotSpare
     from glassdome.networking.models import NetworkDefinition, PlatformNetworkMapping, VMInterface, DeployedVM
