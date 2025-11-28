@@ -1,6 +1,6 @@
 {
   "name": "glassdome",
-  "version": "0.3.1",
+  "version": "0.5.0",
   "private": true,
   "description": "Glassdome - Full Stack Application",
   "scripts": {
