@@ -315,22 +315,40 @@ DNS_SERVERS=192.168.3.1,8.8.8.8
 
 ---
 
-## TODO: Template from VM 115
+## TODO: Create Templates from Configured VMs
 
-**ACTION REQUIRED:** Convert Kali VM 115 (brettlab-kali-00) to a template.
+**ACTION REQUIRED:** Convert both lab VMs to templates - they're fully configured!
 
-This Kali is fully configured with:
-- xRDP + XFCE desktop environment
-- SSH password authentication enabled
-- DNS configured (8.8.8.8)
-- Ready for DHCP on any lab network
+### VM 115 → Kali Template (9002)
+### VM 116 → Ubuntu Template (9003)
+
+Both VMs are configured with:
+- ✅ xRDP + XFCE desktop environment
+- ✅ SSH password authentication enabled
+- ✅ DNS configured (8.8.8.8)
+- ✅ Ready for DHCP on any lab network
+- ✅ User: ubuntu / Password123!
 
 ```bash
-# On pve02
+# On pve02 - Create templates from the configured VMs
+ssh root@192.168.215.77
+
+# Shutdown VMs first
+qm shutdown 115
+qm shutdown 116
+
+# Option A: Convert in-place to templates
 qm template 115
-# Then create new template ID if needed
-qm clone 115 9002 --name kali-rdp-template --full
+qm template 116
+
+# Option B: Clone to new template IDs (preserves originals)
+qm clone 115 9002 --name kali-xrdp-template --full
+qm clone 116 9003 --name ubuntu-xrdp-template --full
+qm template 9002
+qm template 9003
 ```
+
+These replace the basic cloud-init templates (9000/9001) for labs needing RDP access.
 
 ---
 

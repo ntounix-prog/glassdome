@@ -144,12 +144,19 @@ Click CONNECT → /player/:labId/:vmName → Open Guacamole RDP
 - Fix: Configure Guacamole CORS headers or use nginx reverse proxy
 
 ### Template Creation Needed
-- **ACTION:** Convert VM 115 (brettlab-kali-00) to template
-- This Kali is fully configured with:
-  - xRDP + XFCE desktop
-  - SSH password auth enabled
-  - DNS configured (8.8.8.8)
-  - Network ready for DHCP
+**ACTION:** Convert BOTH lab VMs to templates:
+
+| VM | New Template ID | Name |
+|----|-----------------|------|
+| 115 | 9002 | kali-xrdp-template |
+| 116 | 9003 | ubuntu-xrdp-template |
+
+Both are fully configured with:
+- xRDP + XFCE desktop
+- SSH password auth enabled  
+- DNS configured (8.8.8.8)
+- Network ready for DHCP
+- User: ubuntu / Password123!
 
 ### Production Deployment
 - Player portal not yet on prod server (192.168.3.6)
