@@ -1,7 +1,7 @@
 # Glassdome Agent Context
 
 **Last Updated:** 2024-11-28
-**Version:** 0.6.0 (Player Portal MVP)
+**Version:** 0.6.1 (Attribution Update)
 
 This file provides context for AI assistants working on Glassdome. Read this first to understand the current state of the project.
 
