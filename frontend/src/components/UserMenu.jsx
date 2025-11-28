@@ -122,26 +122,49 @@ export default function UserMenu() {
           display: flex;
           align-items: center;
           gap: 0.5rem;
-          background: rgba(100, 200, 255, 0.15);
-          border: 1px solid rgba(100, 200, 255, 0.3);
+          background: transparent;
+          border: 1px solid rgba(100, 200, 255, 0.4);
           color: #64c8ff;
           padding: 0.5rem 1rem;
-          border-radius: 6px;
+          border-radius: 20px;
           cursor: pointer;
-          font-size: 0.9rem;
+          font-size: 0.85rem;
           font-weight: 500;
-          transition: all 0.2s;
+          letter-spacing: 0.5px;
           white-space: nowrap;
+          position: relative;
+          overflow: hidden;
+          animation: loginPulse 2s ease-in-out infinite;
+          box-shadow: 0 0 15px rgba(100, 200, 255, 0.2),
+                      inset 0 0 15px rgba(100, 200, 255, 0.05);
+          transition: all 0.3s ease;
+        }
+        
+        @keyframes loginPulse {
+          0%, 100% {
+            box-shadow: 0 0 15px rgba(100, 200, 255, 0.2),
+                        inset 0 0 15px rgba(100, 200, 255, 0.05);
+            border-color: rgba(100, 200, 255, 0.4);
+          }
+          50% {
+            box-shadow: 0 0 25px rgba(100, 200, 255, 0.4),
+                        inset 0 0 20px rgba(100, 200, 255, 0.1);
+            border-color: rgba(100, 200, 255, 0.7);
+          }
         }
         
         .user-login-btn:hover {
-          background: rgba(100, 200, 255, 0.25);
+          background: rgba(100, 200, 255, 0.1);
           border-color: #64c8ff;
-          transform: translateY(-1px);
+          transform: scale(1.05);
+          animation: none;
+          box-shadow: 0 0 30px rgba(100, 200, 255, 0.5),
+                      inset 0 0 20px rgba(100, 200, 255, 0.15);
         }
         
         .user-login-btn svg {
           flex-shrink: 0;
+          filter: drop-shadow(0 0 3px rgba(100, 200, 255, 0.8));
         }
         
         .user-menu {
