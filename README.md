@@ -25,7 +25,7 @@ Glassdome is an autonomous, AI-powered deployment system for cybersecurity lab e
 
 ```bash
 # Clone the repository
-git clone https://github.com/ntounix-prog/glassdome.git
+git clone https://github.com/ntounix/glassdome.git
 cd glassdome
 
 # Install as a Python package (editable mode)
@@ -299,9 +299,9 @@ MIT License - see LICENSE file
 
 ## 🔗 Links
 
-- **Repository:** https://github.com/ntounix-prog/glassdome
-- **Issues:** https://github.com/ntounix-prog/glassdome/issues
-- **Documentation:** https://github.com/ntounix-prog/glassdome/docs
+- **Repository:** https://github.com/ntounix/glassdome
+- **Issues:** https://github.com/ntounix/glassdome/issues
+- **Documentation:** https://github.com/ntounix/glassdome/docs
 
 ## 🎉 What's New
 

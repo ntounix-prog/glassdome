@@ -1,7 +1,7 @@
 """
 Celery worker for whitepawn_monitor
 
-Author: Brett Turner (ntounix-prog)
+Author: Brett Turner (ntounix)
 Created: November 2025
 Copyright (c) 2025 Brett Turner. All rights reserved.
 """

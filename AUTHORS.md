@@ -2,7 +2,7 @@
 
 ## Original Author
 
-**Brett Turner** (ntounix-prog)  
+**Brett Turner** (ntounix)  
 *Founder & Lead Developer*  
 *November 2025 - Present*
 

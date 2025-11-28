@@ -410,7 +410,7 @@ Time: Varies based on complexity
 ### Repository
 
 ```
-GitHub: https://github.com/ntounix-prog/glassdome
+GitHub: https://github.com/ntounix/glassdome
 Branch: main
 Status: All code committed and pushed
 ```

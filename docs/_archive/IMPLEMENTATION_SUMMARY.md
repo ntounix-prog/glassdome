@@ -4,7 +4,7 @@
 
 Your **Agentic Cyber Range Deployment Framework** is now fully implemented and pushed to GitHub!
 
-**Repository:** https://github.com/ntounix-prog/glassdome
+**Repository:** https://github.com/ntounix/glassdome
 
 ---
 
@@ -293,7 +293,7 @@ cp env.example .env
 
 ## 🔗 Key URLs
 
-- **Repository:** https://github.com/ntounix-prog/glassdome
+- **Repository:** https://github.com/ntounix/glassdome
 - **Local Frontend:** http://localhost:5173
 - **Local Backend:** http://localhost:8000
 - **API Docs:** http://localhost:8000/docs

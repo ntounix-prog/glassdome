@@ -3,7 +3,7 @@
 Add standard file headers to all Python and JavaScript files.
 Run this script to ensure all files have proper attribution.
 
-Author: Brett Turner (ntounix-prog)
+Author: Brett Turner (ntounix)
 Created: November 2025
 """
 
@@ -16,7 +16,7 @@ from datetime import datetime
 PYTHON_HEADER = '''"""
 {description}
 
-Author: Brett Turner (ntounix-prog)
+Author: Brett Turner (ntounix)
 Created: November 2025
 Copyright (c) 2025 Brett Turner. All rights reserved.
 """
@@ -27,7 +27,7 @@ Copyright (c) 2025 Brett Turner. All rights reserved.
 JS_HEADER = '''/**
  * {description}
  * 
- * @author Brett Turner (ntounix-prog)
+ * @author Brett Turner (ntounix)
  * @created November 2025
  * @copyright (c) 2025 Brett Turner. All rights reserved.
  */

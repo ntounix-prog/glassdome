@@ -121,7 +121,7 @@ for query in queries:
 - CLI commands: glassdome serve
 
 ## Git Workflows
-- Repository: github.com/ntounix-prog/glassdome
+- Repository: github.com/ntounix/glassdome
 - Branch strategy: [details]
 - Commit conventions: [details]
 

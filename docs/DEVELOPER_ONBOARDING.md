@@ -21,7 +21,7 @@ Glassdome is an **autonomous, AI-powered deployment system** for cybersecurity l
 ### 1. Clone and Install
 
 ```bash
-git clone https://github.com/ntounix-prog/glassdome.git
+git clone https://github.com/ntounix/glassdome.git
 cd glassdome
 
 # Create virtual environment

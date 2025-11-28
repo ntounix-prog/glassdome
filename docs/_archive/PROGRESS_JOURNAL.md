@@ -19,7 +19,7 @@
 ✅ **Git & GitHub Integration**
 - Initialized Git repository
 - Configured Git with credentials from existing project
-- Created GitHub repository: `ntounix-prog/glassdome`
+- Created GitHub repository: `ntounix/glassdome`
 - Successfully pushed initial codebase via SSH
 
 ✅ **Python Package Structure**
@@ -281,7 +281,7 @@ Will track issues here once testing begins.
 
 ### Code Repository
 
-**GitHub:** https://github.com/ntounix-prog/glassdome  
+**GitHub:** https://github.com/ntounix/glassdome  
 **Branch:** main  
 **Last Commit:** API key management feature specification  
 **Status:** ✅ All code committed and pushed
@@ -622,7 +622,7 @@ Templates: 0
 - Branch: main
 - All changes committed and pushed
 - Working tree clean
-- GitHub: https://github.com/ntounix-prog/glassdome
+- GitHub: https://github.com/ntounix/glassdome
 
 ---
 

@@ -23,7 +23,7 @@ SSH into your Proxmox server and run:
 
 ```bash
 # Download and run template creation script
-curl -o create-template.sh https://raw.githubusercontent.com/ntounix-prog/glassdome/main/scripts/create-template.sh
+curl -o create-template.sh https://raw.githubusercontent.com/ntounix/glassdome/main/scripts/create-template.sh
 chmod +x create-template.sh
 
 # Create Ubuntu 22.04 template (ID 9000)

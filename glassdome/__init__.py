@@ -1,13 +1,13 @@
 """
   Init   module
 
-Author: Brett Turner (ntounix-prog)
+Author: Brett Turner (ntounix)
 Created: November 2025
 Copyright (c) 2025 Brett Turner. All rights reserved.
 """
 
 __version__ = "0.1.0"
-__author__ = "ntounix-prog"
+__author__ = "ntounix"
 __email__ = "ntounix@gmail.com"
 
 # Core imports for easy access

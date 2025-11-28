@@ -29,7 +29,7 @@ pip install .
 ### Option 4: Install from GitHub
 
 ```bash
-pip install git+https://github.com/ntounix-prog/glassdome.git
+pip install git+https://github.com/ntounix/glassdome.git
 ```
 
 ## Using Glassdome as a Package

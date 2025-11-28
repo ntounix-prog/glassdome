@@ -453,7 +453,7 @@ Your agentic cyber range deployment framework is now a **professional Python pac
 
 ---
 
-**Repository:** https://github.com/ntounix-prog/glassdome  
+**Repository:** https://github.com/ntounix/glassdome  
 **Commits:** 5 total (all pushed)  
 **Status:** ✅ Complete and tested
 

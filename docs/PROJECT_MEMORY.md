@@ -96,7 +96,7 @@
 ## Git Operations
 
 ### Repository
-- **URL:** https://github.com/ntounix-prog/glassdome
+- **URL:** https://github.com/ntounix/glassdome
 - **Status:** Active, regularly updated
 - **Branch:** main
 - **Documentation:** `docs/GIT_SETUP.md`

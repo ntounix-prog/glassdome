@@ -16,7 +16,7 @@
 
 ```bash
 # Clone repository
-git clone https://github.com/ntounix-prog/glassdome.git
+git clone https://github.com/ntounix/glassdome.git
 cd glassdome
 
 # Create virtual environment
