@@ -850,7 +850,7 @@ Why This Matters:
       }
     ],
     
-    architecture: \`
+    architecture: `
 ┌─────────────────────────────────────────────────────────────────┐
 │                    PLAYER ACCESS FLOW                            │
 └─────────────────────────────────────────────────────────────────┘
@@ -899,7 +899,7 @@ Why "Updock"?
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 "Uplink Dock" - but also so someone might ask
 "What's Updock?" 🥕🐰
-    \`,
+    `,
     
     codeLocation: 'frontend/src/pages/player/',
     files: [
@@ -917,10 +917,10 @@ Why "Updock"?
     title: 'WhiteKnight Validation',
     subtitle: 'Automated security validation and compliance checking for labs',
     
-    description: \`WhiteKnight provides automated validation of lab deployments and vulnerability 
+    description: `WhiteKnight provides automated validation of lab deployments and vulnerability 
     configurations. After Reaper injects vulnerabilities, WhiteKnight verifies they are exploitable 
     as expected. It also performs compliance checks to ensure labs meet training requirements and 
-    security policies.\`,
+    security policies.`,
     
     implemented: [
       {
@@ -997,7 +997,7 @@ Why "Updock"?
       }
     ],
     
-    architecture: \`
+    architecture: `
 ┌─────────────────────────────────────────────────────────────────┐
 │                    WHITEKNIGHT VALIDATION FLOW                   │
 └─────────────────────────────────────────────────────────────────┘
@@ -1029,7 +1029,7 @@ Why "Updock"?
             │  All Passed  │        │  Some Failed │
             │  Lab Ready!  │        │  Alert Ops   │
             └──────────────┘        └──────────────┘
-    \`,
+    `,
     
     codeLocation: 'glassdome/workers/',
     files: [
@@ -1045,9 +1045,9 @@ Why "Updock"?
     title: 'WhitePawn Monitoring',
     subtitle: 'Continuous deployment monitoring with drift detection and alerting',
     
-    description: \`WhitePawn continuously monitors deployed labs for health, drift, and anomalies. 
+    description: `WhitePawn continuously monitors deployed labs for health, drift, and anomalies. 
     It detects when VMs go offline, configurations change unexpectedly, or resources exceed thresholds. 
-    Integrated with the Lab Registry, it provides real-time visibility and alerting for operations teams.\`,
+    Integrated with the Lab Registry, it provides real-time visibility and alerting for operations teams.`,
     
     implemented: [
       {
@@ -1125,7 +1125,7 @@ Why "Updock"?
       }
     ],
     
-    architecture: \`
+    architecture: `
 ┌─────────────────────────────────────────────────────────────────┐
 │                    WHITEPAWN MONITORING LOOP                     │
 └─────────────────────────────────────────────────────────────────┘
@@ -1158,7 +1158,7 @@ Why "Updock"?
          │  • Slack (planned)  │
          │  • Dashboard        │
          └─────────────────────┘
-    \`,
+    `,
     
     codeLocation: 'glassdome/whitepawn/',
     files: [
@@ -1173,10 +1173,10 @@ Why "Updock"?
     title: 'Overseer AI Assistant',
     subtitle: 'Intelligent operator chat with context-aware deployment assistance',
     
-    description: \`Overseer is Glassdome's AI-powered operator assistant. Built on Claude 3.5 Sonnet, 
+    description: `Overseer is Glassdome's AI-powered operator assistant. Built on Claude 3.5 Sonnet, 
     it provides natural language interaction for lab management, troubleshooting, and operational tasks. 
     With integrated tools for infrastructure control, email, and research, Overseer serves as an 
-    intelligent co-pilot for range operators.\`,
+    intelligent co-pilot for range operators.`,
     
     implemented: [
       {
@@ -1265,7 +1265,7 @@ Why "Updock"?
       }
     ],
     
-    architecture: \`
+    architecture: `
 ┌─────────────────────────────────────────────────────────────────┐
 │                    OVERSEER ARCHITECTURE                         │
 └─────────────────────────────────────────────────────────────────┘
@@ -1315,7 +1315,7 @@ Overseer: [Calls Infra Tool] "Deploying Kali VM to brettlab...
 User: "What's CVE-2024-1234?"
 Overseer: [GPT-4o Research] "CVE-2024-1234 is a critical RCE 
           vulnerability in... [detailed analysis]"
-    \`,
+    `,
     
     codeLocation: 'glassdome/chat/',
     files: [
