@@ -11,6 +11,11 @@ export default defineConfig({
         target: 'http://localhost:8011',
         changeOrigin: true,
         ws: true,  // Enable WebSocket proxy
+      },
+      '/guacamole': {
+        target: 'http://192.168.3.8:8080',
+        changeOrigin: true,
+        ws: true,
       }
     }
   },

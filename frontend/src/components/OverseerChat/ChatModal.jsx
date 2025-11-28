@@ -25,7 +25,7 @@ const STATIONS = {
   cliqhop: { name: 'cliqhop', stream: 'https://ice1.somafm.com/cliqhop-128-mp3', icon: '🎹', color: '#ec4899' },
 }
 
-export default function ChatModal({ isOpen, onClose, audioRef, radioState, setRadioState }) {
+export default function ChatModal({ isOpen, onClose, audioRef, radioState, setRadioState, onMusicStateChange }) {
   const [messages, setMessages] = useState([])
   const [conversationId, setConversationId] = useState(null)
   const [isConnected, setIsConnected] = useState(false)
@@ -34,21 +34,41 @@ export default function ChatModal({ isOpen, onClose, audioRef, radioState, setRa
   const [streamingContent, setStreamingContent] = useState('')
   const [radioExpanded, setRadioExpanded] = useState(true)
   
+  // Internal audio state if not provided externally
+  const internalAudioRef = useRef(null)
+  const [internalRadioState, setInternalRadioState] = useState({
+    isPlaying: false,
+    volume: 0.7,
+    currentStation: 'defcon'
+  })
+  
+  // Use external or internal state
+  const effectiveAudioRef = audioRef || internalAudioRef
+  const effectiveRadioState = radioState || internalRadioState
+  const effectiveSetRadioState = setRadioState || setInternalRadioState
+  
   const wsRef = useRef(null)
   const reconnectTimeoutRef = useRef(null)
   
   // Radio controls
-  const station = STATIONS[radioState.currentStation]
+  const station = STATIONS[effectiveRadioState.currentStation]
+  
+  // Notify parent of music state changes
+  useEffect(() => {
+    if (onMusicStateChange) {
+      onMusicStateChange(effectiveRadioState.isPlaying)
+    }
+  }, [effectiveRadioState.isPlaying, onMusicStateChange])
   
   const toggleRadioPlay = async () => {
-    if (!audioRef.current) return
-    if (radioState.isPlaying) {
-      audioRef.current.pause()
-      setRadioState(prev => ({ ...prev, isPlaying: false }))
+    if (!effectiveAudioRef.current) return
+    if (effectiveRadioState.isPlaying) {
+      effectiveAudioRef.current.pause()
+      effectiveSetRadioState(prev => ({ ...prev, isPlaying: false }))
     } else {
       try {
-        await audioRef.current.play()
-        setRadioState(prev => ({ ...prev, isPlaying: true }))
+        await effectiveAudioRef.current.play()
+        effectiveSetRadioState(prev => ({ ...prev, isPlaying: true }))
       } catch (err) {
         console.error('Playback failed:', err)
       }
@@ -56,16 +76,16 @@ export default function ChatModal({ isOpen, onClose, audioRef, radioState, setRa
   }
   
   const changeStation = (stationId) => {
-    const wasPlaying = radioState.isPlaying
-    if (audioRef.current) audioRef.current.pause()
-    setRadioState(prev => ({ ...prev, currentStation: stationId, isPlaying: false }))
+    const wasPlaying = effectiveRadioState.isPlaying
+    if (effectiveAudioRef.current) effectiveAudioRef.current.pause()
+    effectiveSetRadioState(prev => ({ ...prev, currentStation: stationId, isPlaying: false }))
     
     if (wasPlaying) {
       setTimeout(() => {
-        if (audioRef.current) {
-          audioRef.current.src = STATIONS[stationId].stream
-          audioRef.current.play()
-            .then(() => setRadioState(prev => ({ ...prev, isPlaying: true })))
+        if (effectiveAudioRef.current) {
+          effectiveAudioRef.current.src = STATIONS[stationId].stream
+          effectiveAudioRef.current.play()
+            .then(() => effectiveSetRadioState(prev => ({ ...prev, isPlaying: true })))
             .catch(console.error)
         }
       }, 100)
@@ -73,8 +93,8 @@ export default function ChatModal({ isOpen, onClose, audioRef, radioState, setRa
   }
   
   const setVolume = (vol) => {
-    setRadioState(prev => ({ ...prev, volume: vol }))
-    if (audioRef.current) audioRef.current.volume = vol
+    effectiveSetRadioState(prev => ({ ...prev, volume: vol }))
+    if (effectiveAudioRef.current) effectiveAudioRef.current.volume = vol
   }
 
   // Initialize conversation and WebSocket on open
@@ -368,7 +388,7 @@ export default function ChatModal({ isOpen, onClose, audioRef, radioState, setRa
                 {station.icon}
               </span>
               <span className="radio-station-name">{station.name}</span>
-              {radioState.isPlaying && (
+              {effectiveRadioState.isPlaying && (
                 <span className="radio-playing-badge" style={{ background: station.color }}>▶</span>
               )}
             </div>
@@ -381,27 +401,27 @@ export default function ChatModal({ isOpen, onClose, audioRef, radioState, setRa
             <div className="radio-section-body">
               <div className="radio-player-row">
                 <button 
-                  className={`radio-play-btn ${radioState.isPlaying ? 'playing' : ''}`}
+                  className={`radio-play-btn ${effectiveRadioState.isPlaying ? 'playing' : ''}`}
                   onClick={toggleRadioPlay}
                   style={{ '--accent': station.color }}
                 >
-                  {radioState.isPlaying ? '❚❚' : '▶'}
+                  {effectiveRadioState.isPlaying ? '❚❚' : '▶'}
                 </button>
                 
                 <div className="radio-volume">
-                  <span>{radioState.volume === 0 ? '🔇' : radioState.volume < 0.5 ? '🔉' : '🔊'}</span>
+                  <span>{effectiveRadioState.volume === 0 ? '🔇' : effectiveRadioState.volume < 0.5 ? '🔉' : '🔊'}</span>
                   <input
                     type="range"
                     min="0"
                     max="1"
                     step="0.01"
-                    value={radioState.volume}
+                    value={effectiveRadioState.volume}
                     onChange={(e) => setVolume(parseFloat(e.target.value))}
                     style={{ '--accent': station.color }}
                   />
                 </div>
                 
-                {radioState.isPlaying && (
+                {effectiveRadioState.isPlaying && (
                   <div className="radio-visualizer-mini">
                     {[...Array(5)].map((_, i) => (
                       <div key={i} className="bar" style={{ '--accent': station.color, animationDelay: `${i * 0.1}s` }} />
@@ -414,7 +434,7 @@ export default function ChatModal({ isOpen, onClose, audioRef, radioState, setRa
                 {Object.entries(STATIONS).map(([id, s]) => (
                   <button
                     key={id}
-                    className={`radio-station-btn ${radioState.currentStation === id ? 'active' : ''}`}
+                    className={`radio-station-btn ${effectiveRadioState.currentStation === id ? 'active' : ''}`}
                     onClick={() => changeStation(id)}
                     title={s.name}
                     style={{ '--color': s.color }}
@@ -430,6 +450,15 @@ export default function ChatModal({ isOpen, onClose, audioRef, radioState, setRa
           )}
         </div>
       </div>
+      
+      {/* Internal audio element when no external ref provided */}
+      {!audioRef && (
+        <audio 
+          ref={internalAudioRef}
+          src={STATIONS[effectiveRadioState.currentStation].stream}
+          preload="none"
+        />
+      )}
     </div>
   )
 }

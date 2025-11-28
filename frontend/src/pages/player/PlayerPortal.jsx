@@ -99,19 +99,14 @@ export default function PlayerPortal() {
     setError('');
     
     try {
-      // Check if lab exists
+      // Check if lab exists - but navigate anyway for demo
       const response = await fetch(`/api/deployments/${labCode.trim()}`);
       
-      if (response.ok) {
-        navigate(`/player/${labCode.trim()}`);
-      } else if (response.status === 404) {
-        setError('Lab not found. Check your code and try again.');
-      } else {
-        setError('Unable to connect to lab. Please try again.');
-      }
+      // Always navigate - lobby has mock data fallback
+      navigate(`/player/${labCode.trim().toLowerCase()}`);
     } catch (err) {
-      // For now, just navigate - we'll validate later
-      navigate(`/player/${labCode.trim()}`);
+      // Navigate anyway - we'll validate later
+      navigate(`/player/${labCode.trim().toLowerCase()}`);
     } finally {
       setLoading(false);
     }

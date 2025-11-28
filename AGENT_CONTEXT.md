@@ -1,7 +1,7 @@
 # Glassdome Agent Context
 
 **Last Updated:** 2024-11-28
-**Version:** 0.5.0 (MVP 2.0)
+**Version:** 0.6.0 (Player Portal MVP)
 
 This file provides context for AI assistants working on Glassdome. Read this first to understand the current state of the project.
 
@@ -285,8 +285,26 @@ DNS_SERVERS=192.168.3.1,8.8.8.8
 
 ---
 
-## Recent Changes (2024-11-28 - MVP 2.0)
+## Recent Changes (2024-11-28 - Player Portal MVP)
 
+### Player Access Pipeline ✨ NEW
+1. **Player Portal** (`/player`) - Lab code entry with particle effects
+2. **Player Lobby** (`/player/:labId`) - Machine cards, mission brief, network info
+3. **Player Session** (`/player/:labId/:vmName`) - RDP/SSH via Guacamole
+
+### Updock (Guacamole) Server ✨ NEW
+- **Host**: 192.168.3.8 (Docker on pve02)
+- **Services**: PostgreSQL + guacd + Guacamole web
+- **Access**: http://192.168.3.8:8080/guacamole
+- **Credentials**: guacadmin / guacadmin
+
+### Lab Network (brettlab) ✨ WORKING
+- **pfSense Gateway**: WAN 192.168.3.242, LAN 10.101.0.1/24
+- **Kali Attack Box**: 10.101.0.10 (xRDP + SSH)
+- **Ubuntu Target**: 10.101.0.11 (xRDP + SSH)
+- **VM Credentials**: ubuntu / Password123!
+
+### Previous (MVP 2.0)
 1. **Lab Registry** - Real-time monitoring with Redis + WebSocket
 2. **Proxmox Cluster** - 2-node cluster with shared NFS storage
 3. **Frontend Overhaul** - Design/Monitor dropdowns, LabMonitor page
@@ -294,6 +312,25 @@ DNS_SERVERS=192.168.3.1,8.8.8.8
 5. **Feature Pages** - Dynamic detail pages for capabilities
 6. **Code Cleanup** - Deprecated code moved to `_deprecated/`
 7. **DNS Update** - Local resolver (192.168.3.1) as primary
+
+---
+
+## TODO: Template from VM 115
+
+**ACTION REQUIRED:** Convert Kali VM 115 (brettlab-kali-00) to a template.
+
+This Kali is fully configured with:
+- xRDP + XFCE desktop environment
+- SSH password authentication enabled
+- DNS configured (8.8.8.8)
+- Ready for DHCP on any lab network
+
+```bash
+# On pve02
+qm template 115
+# Then create new template ID if needed
+qm clone 115 9002 --name kali-rdp-template --full
+```
 
 ---
 
