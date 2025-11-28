@@ -480,7 +480,6 @@ async def deploy_lab_vm(
     lab_id: str,
     lab_short: str,
     network_config: Dict[str, Any],
-    session: AsyncSession,
     vm_index: int = 0
 ) -> Dict[str, Any]:
     """
@@ -488,6 +487,8 @@ async def deploy_lab_vm(
     
     Single NIC on lab network - gets IP from pfSense DHCP.
     No management access - connect via pfSense or Proxmox console.
+    
+    Note: DB registration is deferred to avoid session conflicts in parallel tasks.
     """
     element_id = node.elementId
     template_id = TEMPLATE_MAPPING.get(element_id, 9001)
@@ -503,7 +504,7 @@ async def deploy_lab_vm(
         logger.info(f"[Lab VM {vm_index}] Acquired semaphore, proceeding with deployment")
         return await _deploy_lab_vm_internal(
             node, lab_id, lab_short, vm_name, element_id, template_id, specs, 
-            network_config, session, vm_index
+            network_config, vm_index
         )
 
 
@@ -516,39 +517,19 @@ async def _deploy_lab_vm_internal(
     template_id: int,
     specs: Dict[str, Any],
     network_config: Dict[str, Any],
-    session: AsyncSession,
     vm_index: int
 ) -> Dict[str, Any]:
-    """Internal implementation of lab VM deployment (called within semaphore)."""
+    """Internal implementation of lab VM deployment (called within semaphore).
+    
+    Note: Hot spares are skipped for parallel deployment to avoid session conflicts.
+    VMs are cloned directly from templates instead.
+    """
     node_name = "pve02"
     
     try:
-        # Try hot spare pool first
-        pool = get_hot_spare_pool()
-        os_type = element_id if element_id in ["ubuntu", "windows"] else "ubuntu"
-        acquired_spare = await pool.acquire_spare(session, os_type=os_type, mission_id=lab_id)
-        
-        if acquired_spare:
-            logger.info(f"[Lab VM] ⚡ Hot spare acquired: {acquired_spare.name} (VMID {acquired_spare.vmid})")
-            vmid = acquired_spare.vmid
-            node_name = acquired_spare.node
-            
-            # Get client for this node
-            pve_config = settings.get_proxmox_config(acquired_spare.platform_instance)
-            client = ProxmoxClient(
-                host=pve_config["host"],
-                user=pve_config["user"],
-                password=pve_config.get("password"),
-                token_name=pve_config.get("token_name"),
-                token_value=pve_config.get("token_value"),
-                verify_ssl=pve_config.get("verify_ssl", False),
-                default_node=node_name
-            )
-            
-            # Rename spare
-            await client.configure_vm(node_name, vmid, {"name": vm_name})
-            
-        else:
+        # NOTE: Hot spares disabled for parallel deployment (session conflicts)
+        # Direct clone from template instead
+        if True:  # Skip hot spare check
             # Fall back to clone
             logger.info(f"[Lab VM] No hot spares, cloning from template {template_id}")
             
@@ -597,22 +578,8 @@ async def _deploy_lab_vm_internal(
         # VM will get IP from pfSense DHCP
         # We can query it later via guest agent or ARP
         
-        # Register in database
-        orchestrator = get_network_orchestrator()
-        await orchestrator.register_deployed_vm(
-            session=session,
-            lab_id=lab_id,
-            name=vm_name,
-            vm_id=str(vmid),
-            platform="proxmox",
-            platform_instance="02",
-            os_type=element_id,
-            template_id=str(template_id),
-            cpu_cores=specs["cores"],
-            memory_mb=specs["memory"],
-            disk_gb=specs["disk"],
-            ip_address=None  # Will be assigned by pfSense DHCP
-        )
+        # NOTE: DB registration is deferred to after parallel deployment completes
+        # This avoids SQLAlchemy session conflicts in parallel tasks
         
         return {
             "success": True,
@@ -622,7 +589,16 @@ async def _deploy_lab_vm_internal(
             "ip_address": None,  # DHCP from pfSense
             "lab_ip": "DHCP",
             "role": "client",
-            "status": "running"
+            "status": "running",
+            # Include data needed for deferred DB registration
+            "_db_data": {
+                "lab_id": lab_id,
+                "name": vm_name,
+                "vm_id": str(vmid),
+                "element_id": element_id,
+                "template_id": str(template_id),
+                "specs": specs
+            }
         }
         
     except Exception as e:
@@ -672,8 +648,18 @@ async def deploy_canvas_lab(
     lab_id = raw_lab_id
     if lab_id.startswith("lab-"):
         lab_id = lab_id[4:]  # Remove "lab-" prefix
-    # Take just the timestamp/unique part (first 12 chars after cleanup)
-    lab_short = lab_id[:12] if len(lab_id) > 12 else lab_id
+    
+    # Create DNS-safe lab_short for VM naming
+    # Proxmox requires valid DNS names: alphanumeric + hyphens, max ~63 chars
+    # Keep it short (8 chars) for readability: e.g., "lab-abc12345-gateway"
+    import re
+    # Extract just alphanumeric parts
+    clean_id = re.sub(r'[^a-zA-Z0-9]', '', lab_id)
+    # Take first 8 chars, ensure it starts with a letter
+    if clean_id and clean_id[0].isdigit():
+        lab_short = f"lab{clean_id[:6]}"  # e.g., "lab176421"
+    else:
+        lab_short = clean_id[:8] if clean_id else "lab"
     
     logger.info(f"  Cleaned lab_id: {lab_id}")
     logger.info(f"  lab_short (for naming): {lab_short}")
@@ -784,8 +770,9 @@ async def deploy_canvas_lab(
         logger.info(f"[Lab VMs] Deploying {len(other_nodes)} VMs in PARALLEL...")
         
         # Create deployment tasks for all lab VMs
+        # Note: session not passed - DB registration is deferred to avoid conflicts
         deployment_tasks = [
-            deploy_lab_vm(vm_node, lab_id, lab_short, network_config, session, idx)
+            deploy_lab_vm(vm_node, lab_id, lab_short, network_config, idx)
             for idx, vm_node in enumerate(other_nodes)
         ]
         
@@ -800,7 +787,8 @@ async def deploy_canvas_lab(
             results = []
             errors.append("Deployment timed out after 3 minutes")
         
-        # Process results
+        # Process results and collect DB data for deferred registration
+        db_registrations = []
         for i, result in enumerate(results):
             if isinstance(result, Exception):
                 errors.append(f"{other_nodes[i].elementId}: {str(result)}")
@@ -817,9 +805,35 @@ async def deploy_canvas_lab(
                         status=result.get("status", "running")
                     ))
                     logger.info(f"[Lab VM] ✓ {result['name']} deployed (VMID {result['vm_id']})")
+                    # Collect DB data for deferred registration
+                    if "_db_data" in result:
+                        db_registrations.append(result["_db_data"])
                 else:
                     errors.append(f"{other_nodes[i].elementId}: {result.get('error')}")
                     logger.error(f"[Lab VM] ✗ {other_nodes[i].elementId} failed: {result.get('error')}")
+        
+        # Deferred DB registration (sequential to avoid session conflicts)
+        if db_registrations:
+            logger.info(f"[DB] Registering {len(db_registrations)} VMs in database...")
+            orchestrator = get_network_orchestrator()
+            for db_data in db_registrations:
+                try:
+                    await orchestrator.register_deployed_vm(
+                        session=session,
+                        lab_id=db_data["lab_id"],
+                        name=db_data["name"],
+                        vm_id=db_data["vm_id"],
+                        platform="proxmox",
+                        platform_instance="02",
+                        os_type=db_data["element_id"],
+                        template_id=db_data["template_id"],
+                        cpu_cores=db_data["specs"]["cores"],
+                        memory_mb=db_data["specs"]["memory"],
+                        disk_gb=db_data["specs"]["disk"],
+                        ip_address=None
+                    )
+                except Exception as e:
+                    logger.error(f"[DB] Failed to register {db_data['name']}: {e}")
     
     # ========================================================================
     # Step 4: Register VMs with Lab Registry (source of truth)
@@ -828,8 +842,8 @@ async def deploy_canvas_lab(
         try:
             registry = get_registry()
             for vm_info in deployed_vms:
-                # Build the expected name for drift detection
-                expected_name = f"lab-{lab_id[:8]}-{vm_info.name}"
+                # The vm_info.name is already the correct name (e.g., "brettlab-gateway")
+                expected_name = vm_info.name
                 
                 resource = Resource(
                     id=Resource.make_id("proxmox", "lab_vm", vm_info.vm_id, "02"),
