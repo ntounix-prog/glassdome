@@ -41,13 +41,14 @@ export default function UserMenu() {
 
   if (!isAuthenticated) {
     return (
-      <button 
-        className="user-login-btn"
-        onClick={() => navigate('/login')}
-      >
-        <span className="login-icon">⚡</span>
-        Sign In
-      </button>
+      <div className="user-login-wrapper">
+        <button 
+          className="user-login-btn"
+          onClick={() => navigate('/login')}
+        >
+          Sign In
+        </button>
+      </div>
     )
   }
 
@@ -114,68 +115,41 @@ export default function UserMenu() {
       )}
 
       <style>{`
-        .user-login-btn {
+        .user-login-wrapper {
           display: flex;
           align-items: center;
-          gap: 0.5rem;
-          background: transparent;
-          border: 1px solid rgba(100, 200, 255, 0.4);
+        }
+        
+        .user-login-btn {
+          background: none;
+          border: 1px solid #64c8ff;
           color: #64c8ff;
-          padding: 0.5rem 1rem;
+          padding: 8px 16px;
           border-radius: 20px;
           cursor: pointer;
-          font-size: 0.85rem;
+          font-size: 14px;
           font-weight: 500;
+          font-family: inherit;
           letter-spacing: 0.5px;
           white-space: nowrap;
-          position: relative;
-          overflow: hidden;
           animation: loginPulse 2s ease-in-out infinite;
-          box-shadow: 0 0 15px rgba(100, 200, 255, 0.2),
-                      inset 0 0 15px rgba(100, 200, 255, 0.05);
-          transition: all 0.3s ease;
         }
         
         @keyframes loginPulse {
           0%, 100% {
-            box-shadow: 0 0 15px rgba(100, 200, 255, 0.2),
-                        inset 0 0 15px rgba(100, 200, 255, 0.05);
-            border-color: rgba(100, 200, 255, 0.4);
+            box-shadow: 0 0 10px rgba(100, 200, 255, 0.3);
+            border-color: rgba(100, 200, 255, 0.5);
           }
           50% {
-            box-shadow: 0 0 25px rgba(100, 200, 255, 0.4),
-                        inset 0 0 20px rgba(100, 200, 255, 0.1);
-            border-color: rgba(100, 200, 255, 0.7);
+            box-shadow: 0 0 20px rgba(100, 200, 255, 0.6);
+            border-color: #64c8ff;
           }
         }
         
         .user-login-btn:hover {
-          background: rgba(100, 200, 255, 0.1);
-          border-color: #64c8ff;
+          background: rgba(100, 200, 255, 0.15);
+          box-shadow: 0 0 25px rgba(100, 200, 255, 0.7);
           transform: scale(1.05);
-          animation: none;
-          box-shadow: 0 0 30px rgba(100, 200, 255, 0.5),
-                      inset 0 0 20px rgba(100, 200, 255, 0.15);
-        }
-        
-        .login-icon {
-          font-size: 1rem;
-          filter: drop-shadow(0 0 4px rgba(100, 200, 255, 0.9));
-          animation: iconGlow 2s ease-in-out infinite;
-        }
-        
-        @keyframes iconGlow {
-          0%, 100% {
-            filter: drop-shadow(0 0 4px rgba(100, 200, 255, 0.6));
-          }
-          50% {
-            filter: drop-shadow(0 0 8px rgba(100, 200, 255, 1));
-          }
-        }
-        
-        .user-login-btn:hover .login-icon {
-          animation: none;
-          filter: drop-shadow(0 0 10px rgba(100, 200, 255, 1));
         }
         
         .user-menu {
