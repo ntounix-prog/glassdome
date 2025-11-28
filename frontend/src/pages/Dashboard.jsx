@@ -142,6 +142,34 @@ function Dashboard({ healthStatus }) {
           <p>Configure in place - deploy anywhere, same lab state every time</p>
           <span className="feature-link">Learn more →</span>
         </div>
+
+        <div className="feature-card clickable updock-card" onClick={() => navigate('/features/updock')}>
+          <div className="feature-icon">🚀</div>
+          <h3>Updock Player Access</h3>
+          <p>Browser-based RDP/SSH access to lab VMs via Guacamole gateway</p>
+          <span className="feature-link">Learn more →</span>
+        </div>
+
+        <div className="feature-card clickable whiteknight-card" onClick={() => navigate('/features/whiteknight')}>
+          <div className="feature-icon">🛡️</div>
+          <h3>WhiteKnight Validation</h3>
+          <p>Automated security validation and compliance checking for labs</p>
+          <span className="feature-link">Learn more →</span>
+        </div>
+
+        <div className="feature-card clickable whitepawn-card" onClick={() => navigate('/features/whitepawn')}>
+          <div className="feature-icon">♟️</div>
+          <h3>WhitePawn Monitoring</h3>
+          <p>Continuous deployment monitoring with drift detection and alerting</p>
+          <span className="feature-link">Learn more →</span>
+        </div>
+
+        <div className="feature-card clickable overseer-card" onClick={() => navigate('/features/overseer')}>
+          <div className="feature-icon">🧠</div>
+          <h3>Overseer AI</h3>
+          <p>Intelligent operator chat with context-aware deployment assistance</p>
+          <span className="feature-link">Learn more →</span>
+        </div>
       </div>
     </div>
   )

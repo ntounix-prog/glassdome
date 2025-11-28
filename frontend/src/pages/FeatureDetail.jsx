@@ -750,6 +750,581 @@ Why This Matters:
       'agents/windows_agent.py',
       'models.py'
     ]
+  },
+
+  updock: {
+    icon: '🚀',
+    title: 'Updock Player Access',
+    subtitle: 'Browser-based RDP/SSH access to lab VMs via Guacamole gateway',
+    
+    description: `Updock provides seamless player access to lab environments through a customized 
+    Apache Guacamole deployment. Players access their assigned machines via browser-based RDP or SSH 
+    sessions without needing local clients. The system integrates with lab deployments to automatically 
+    configure connections when labs are provisioned.`,
+    
+    implemented: [
+      {
+        name: 'Guacamole Gateway',
+        status: 'working',
+        description: 'Docker-deployed Apache Guacamole with PostgreSQL backend',
+        details: [
+          'guacd daemon for protocol translation',
+          'Web UI at http://192.168.3.8:8080',
+          'PostgreSQL for connection/user storage',
+          'Docker Compose deployment'
+        ]
+      },
+      {
+        name: 'RDP Connections',
+        status: 'working',
+        description: 'Full graphical desktop access via xRDP',
+        details: [
+          'xRDP + XFCE on lab VMs',
+          '1920x1080 resolution support',
+          'Clipboard sync (planned)',
+          'File transfer (planned)'
+        ]
+      },
+      {
+        name: 'SSH Connections',
+        status: 'working',
+        description: 'Terminal access for command-line operations',
+        details: [
+          'Password authentication enabled',
+          'Color terminal support',
+          'Session recording (planned)'
+        ]
+      },
+      {
+        name: 'Player Portal',
+        status: 'working',
+        description: 'Custom React frontend for player lab access',
+        details: [
+          '/player - Lab code entry',
+          '/player/:labId - Machine selection lobby',
+          '/player/:labId/:vmName - Desktop session',
+          'Mission brief with hints',
+          'Lab timer countdown'
+        ]
+      },
+      {
+        name: 'Network Routing',
+        status: 'working',
+        description: 'Updock routes to isolated lab networks via pfSense',
+        details: [
+          'Static route to 10.x.0.0/24 via pfSense WAN',
+          'No direct player access to management network',
+          'pfSense NAT for lab internet access'
+        ]
+      }
+    ],
+    
+    roadmap: [
+      {
+        name: 'Embedded Guacamole Client',
+        priority: 'high',
+        description: 'Native guacamole-common-js integration in player frontend',
+        timeline: 'Q1 2026',
+        details: ['No popup/redirect needed', 'Seamless in-browser desktop', 'Custom toolbar controls']
+      },
+      {
+        name: 'Auto-Connection Provisioning',
+        priority: 'high',
+        description: 'Automatically create Guacamole connections when labs deploy',
+        timeline: 'Q1 2026',
+        details: ['API integration with lab deployment', 'Dynamic connection creation', 'Auto-cleanup on lab destroy']
+      },
+      {
+        name: 'Session Recording',
+        priority: 'medium',
+        description: 'Record player sessions for review and training',
+        timeline: 'Q2 2026',
+        details: ['Guacamole recording to file', 'Playback in UI', 'Instructor review tools']
+      },
+      {
+        name: 'Multi-Monitor Support',
+        priority: 'low',
+        description: 'Support for multiple displays in RDP sessions',
+        timeline: 'Q2 2026',
+        details: ['Extended desktop', 'Monitor selection', 'Resolution per-monitor']
+      }
+    ],
+    
+    architecture: \`
+┌─────────────────────────────────────────────────────────────────┐
+│                    PLAYER ACCESS FLOW                            │
+└─────────────────────────────────────────────────────────────────┘
+
+┌─────────────────┐
+│  Player Browser │     React frontend at /player
+│  192.168.2.x    │     Enter lab code, select machine
+└────────┬────────┘
+         │ HTTPS
+         ▼
+┌─────────────────┐
+│  Updock Server  │     Apache Guacamole
+│  192.168.3.8    │     - guacd (protocol translation)
+│                 │     - Web UI (connection management)
+│  ┌───────────┐  │     - PostgreSQL (users/connections)
+│  │  guacd    │  │
+│  │  :4822    │  │
+│  └─────┬─────┘  │
+│        │        │
+│  ┌─────┴─────┐  │
+│  │  Web UI   │  │
+│  │  :8080    │  │
+│  └───────────┘  │
+└────────┬────────┘
+         │ RDP/SSH (via route)
+         ▼
+┌─────────────────┐
+│  pfSense GW     │     Lab gateway
+│  192.168.3.x    │     Routes to isolated lab network
+│  (WAN)          │
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────────────────────────┐
+│       Isolated Lab Network           │
+│       10.x.0.0/24 (VLAN 100+)       │
+│                                      │
+│  ┌─────────┐  ┌─────────┐           │
+│  │  Kali   │  │ Ubuntu  │  Target   │
+│  │ Attack  │  │ Target  │  machines │
+│  │:3389/:22│  │:3389/:22│           │
+│  └─────────┘  └─────────┘           │
+└─────────────────────────────────────┘
+
+Why "Updock"?
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+"Uplink Dock" - but also so someone might ask
+"What's Updock?" 🥕🐰
+    \`,
+    
+    codeLocation: 'frontend/src/pages/player/',
+    files: [
+      'PlayerPortal.jsx',
+      'PlayerLobby.jsx', 
+      'PlayerSession.jsx',
+      'components/MachineCard.jsx',
+      'components/MissionBrief.jsx',
+      'updock/docker-compose.yml'
+    ]
+  },
+
+  whiteknight: {
+    icon: '🛡️',
+    title: 'WhiteKnight Validation',
+    subtitle: 'Automated security validation and compliance checking for labs',
+    
+    description: \`WhiteKnight provides automated validation of lab deployments and vulnerability 
+    configurations. After Reaper injects vulnerabilities, WhiteKnight verifies they are exploitable 
+    as expected. It also performs compliance checks to ensure labs meet training requirements and 
+    security policies.\`,
+    
+    implemented: [
+      {
+        name: 'Vulnerability Verification',
+        status: 'working',
+        description: 'Confirms injected vulnerabilities are actually exploitable',
+        details: [
+          'SSH credential testing',
+          'Port scanning verification',
+          'Service availability checks',
+          'Expected vs actual state comparison'
+        ]
+      },
+      {
+        name: 'Celery Worker Integration',
+        status: 'working',
+        description: 'Async validation tasks via Redis-backed queue',
+        details: [
+          'Parallel validation across VMs',
+          'Progress tracking',
+          'Result aggregation'
+        ]
+      },
+      {
+        name: 'API Endpoints',
+        status: 'working',
+        description: 'REST API for triggering and monitoring validations',
+        details: [
+          'POST /api/whiteknight/validate',
+          'GET /api/whiteknight/status/:id',
+          'GET /api/whiteknight/results/:id'
+        ]
+      },
+      {
+        name: 'Docker Container',
+        status: 'working',
+        description: 'Isolated validation environment with security tools',
+        details: [
+          'Nmap, Nikto, SSLyze bundled',
+          'Network isolated execution',
+          'Disposable per-validation'
+        ]
+      }
+    ],
+    
+    roadmap: [
+      {
+        name: 'Nessus Integration',
+        priority: 'high',
+        description: 'Professional vulnerability scanning integration',
+        timeline: 'Q1 2026',
+        details: ['Tenable.io API', 'Scheduled scans', 'CVE correlation']
+      },
+      {
+        name: 'Compliance Templates',
+        priority: 'medium',
+        description: 'Pre-built validation profiles for training scenarios',
+        timeline: 'Q1 2026',
+        details: ['NIST CSF checks', 'CIS benchmarks', 'Custom rule sets']
+      },
+      {
+        name: 'Auto-Remediation',
+        priority: 'medium',
+        description: 'Automatically fix failed validations when possible',
+        timeline: 'Q2 2026',
+        details: ['Re-run Reaper playbooks', 'Service restarts', 'Configuration corrections']
+      },
+      {
+        name: 'Training Readiness Score',
+        priority: 'high',
+        description: 'Composite score indicating lab is ready for trainees',
+        timeline: 'Q1 2026',
+        details: ['All vulnerabilities exploitable', 'Services accessible', 'Network connectivity verified']
+      }
+    ],
+    
+    architecture: \`
+┌─────────────────────────────────────────────────────────────────┐
+│                    WHITEKNIGHT VALIDATION FLOW                   │
+└─────────────────────────────────────────────────────────────────┘
+
+┌─────────────────┐     ┌─────────────────┐
+│  Reaper Engine  │────▶│  WhiteKnight    │
+│ (Injects vulns) │     │  (Verifies)     │
+└─────────────────┘     └────────┬────────┘
+                                 │
+                    ┌────────────┼────────────┐
+                    ▼            ▼            ▼
+              ┌──────────┐ ┌──────────┐ ┌──────────┐
+              │ SSH Test │ │Port Scan │ │ Service  │
+              │ Weak     │ │ Nmap     │ │ Check    │
+              │ Creds    │ │          │ │          │
+              └────┬─────┘ └────┬─────┘ └────┬─────┘
+                   │            │            │
+                   └────────────┼────────────┘
+                                ▼
+                    ┌─────────────────────┐
+                    │  Validation Report  │
+                    │  ✓ Pass / ✗ Fail    │
+                    │  per vulnerability  │
+                    └─────────────────────┘
+                                │
+                    ┌───────────┴───────────┐
+                    ▼                       ▼
+            ┌──────────────┐        ┌──────────────┐
+            │  All Passed  │        │  Some Failed │
+            │  Lab Ready!  │        │  Alert Ops   │
+            └──────────────┘        └──────────────┘
+    \`,
+    
+    codeLocation: 'glassdome/workers/',
+    files: [
+      'whiteknight.py',
+      'api/whiteknight.py',
+      'whiteknight/Dockerfile',
+      'whiteknight/validators/'
+    ]
+  },
+
+  whitepawn: {
+    icon: '♟️',
+    title: 'WhitePawn Monitoring',
+    subtitle: 'Continuous deployment monitoring with drift detection and alerting',
+    
+    description: \`WhitePawn continuously monitors deployed labs for health, drift, and anomalies. 
+    It detects when VMs go offline, configurations change unexpectedly, or resources exceed thresholds. 
+    Integrated with the Lab Registry, it provides real-time visibility and alerting for operations teams.\`,
+    
+    implemented: [
+      {
+        name: 'Deployment Monitoring',
+        status: 'working',
+        description: 'Tracks all deployed VMs and their states',
+        details: [
+          'VM power state (running/stopped)',
+          'IP address tracking',
+          'Resource utilization',
+          'Uptime monitoring'
+        ]
+      },
+      {
+        name: 'Alert System',
+        status: 'working',
+        description: 'Configurable alerts for deployment issues',
+        details: [
+          'VM offline alerts',
+          'High CPU/memory warnings',
+          'Network connectivity issues',
+          'Storage threshold alerts'
+        ]
+      },
+      {
+        name: 'Celery Worker',
+        status: 'working',
+        description: 'Background monitoring via task queue',
+        details: [
+          'Periodic health checks',
+          'Async alert processing',
+          'Distributed monitoring'
+        ]
+      },
+      {
+        name: 'UI Dashboard',
+        status: 'working',
+        description: 'WhitePawn Monitor page with real-time status',
+        details: [
+          'Deployment overview',
+          'Alert history',
+          'Quick actions (restart, destroy)'
+        ]
+      }
+    ],
+    
+    roadmap: [
+      {
+        name: 'Drift Detection',
+        priority: 'high',
+        description: 'Detect when actual state differs from desired state',
+        timeline: 'Q1 2026',
+        details: ['Configuration drift', 'Unexpected changes', 'Automatic reconciliation option']
+      },
+      {
+        name: 'Self-Healing',
+        priority: 'high',
+        description: 'Automatically remediate common issues',
+        timeline: 'Q1 2026',
+        details: ['Auto-restart crashed VMs', 'Re-run failed configurations', 'Network repair']
+      },
+      {
+        name: 'Slack/Teams Integration',
+        priority: 'medium',
+        description: 'Send alerts to chat platforms',
+        timeline: 'Q1 2026',
+        details: ['Webhook integration', 'Customizable messages', 'Acknowledgment tracking']
+      },
+      {
+        name: 'Historical Analytics',
+        priority: 'low',
+        description: 'Long-term trends and performance analysis',
+        timeline: 'Q2 2026',
+        details: ['Time-series metrics', 'Capacity planning', 'Cost optimization']
+      }
+    ],
+    
+    architecture: \`
+┌─────────────────────────────────────────────────────────────────┐
+│                    WHITEPAWN MONITORING LOOP                     │
+└─────────────────────────────────────────────────────────────────┘
+
+         ┌─────────────────────────────────────┐
+         │         Lab Registry (Redis)        │
+         │  Real-time state of all resources   │
+         └──────────────────┬──────────────────┘
+                            │
+              ┌─────────────┴─────────────┐
+              ▼                           ▼
+    ┌──────────────────┐        ┌──────────────────┐
+    │  WhitePawn       │        │  Platform        │
+    │  Orchestrator    │◀──────▶│  Agents          │
+    │  (Monitor Loop)  │        │  (Poll infra)    │
+    └────────┬─────────┘        └──────────────────┘
+             │
+    ┌────────┴────────┬────────────┐
+    ▼                 ▼            ▼
+┌────────┐      ┌──────────┐  ┌──────────┐
+│ Health │      │  Drift   │  │ Resource │
+│ Checks │      │Detection │  │ Alerts   │
+└───┬────┘      └────┬─────┘  └────┬─────┘
+    │                │             │
+    └────────────────┼─────────────┘
+                     ▼
+         ┌─────────────────────┐
+         │    Alert Manager    │
+         │  • Email            │
+         │  • Slack (planned)  │
+         │  • Dashboard        │
+         └─────────────────────┘
+    \`,
+    
+    codeLocation: 'glassdome/whitepawn/',
+    files: [
+      'orchestrator.py',
+      'workers/whitepawn_monitor.py',
+      'api/whitepawn.py'
+    ]
+  },
+
+  overseer: {
+    icon: '🧠',
+    title: 'Overseer AI Assistant',
+    subtitle: 'Intelligent operator chat with context-aware deployment assistance',
+    
+    description: \`Overseer is Glassdome's AI-powered operator assistant. Built on Claude 3.5 Sonnet, 
+    it provides natural language interaction for lab management, troubleshooting, and operational tasks. 
+    With integrated tools for infrastructure control, email, and research, Overseer serves as an 
+    intelligent co-pilot for range operators.\`,
+    
+    implemented: [
+      {
+        name: 'Claude 3.5 Sonnet Integration',
+        status: 'working',
+        description: 'State-of-the-art LLM for natural language understanding',
+        details: [
+          'Anthropic Claude API',
+          'Context-aware responses',
+          'Tool calling support',
+          'Streaming responses'
+        ]
+      },
+      {
+        name: 'Infrastructure Tools',
+        status: 'working',
+        description: 'Direct control of Glassdome infrastructure via chat',
+        details: [
+          'List/create/destroy VMs',
+          'Check deployment status',
+          'Query Lab Registry',
+          'Trigger Reaper missions'
+        ]
+      },
+      {
+        name: 'Mailcow Integration',
+        status: 'working',
+        description: 'Email capabilities for notifications and reporting',
+        details: [
+          'Send deployment reports',
+          'Alert notifications',
+          'Inbox management'
+        ]
+      },
+      {
+        name: 'Chat UI',
+        status: 'working',
+        description: 'Floating chat modal with rich features',
+        details: [
+          'Draggable modal',
+          'Message history',
+          'Code syntax highlighting',
+          'Integrated SomaFM radio'
+        ]
+      },
+      {
+        name: 'GPT-4o Research Mode',
+        status: 'partial',
+        description: 'OpenAI integration for CVE research and analysis',
+        details: [
+          'CVE lookup and explanation',
+          'Exploit research',
+          'Multi-LLM capability'
+        ]
+      }
+    ],
+    
+    roadmap: [
+      {
+        name: 'Voice Interface',
+        priority: 'medium',
+        description: 'Voice commands for hands-free operation',
+        timeline: 'Q2 2026',
+        details: ['Speech-to-text input', 'Text-to-speech responses', 'Wake word activation']
+      },
+      {
+        name: 'Proactive Monitoring',
+        priority: 'high',
+        description: 'Overseer alerts operators before problems occur',
+        timeline: 'Q1 2026',
+        details: ['Anomaly detection', 'Resource prediction', 'Suggested actions']
+      },
+      {
+        name: 'Lab Design Assistant',
+        priority: 'high',
+        description: 'Natural language lab creation',
+        timeline: 'Q1 2026',
+        details: ['"Create a Windows AD lab with 3 clients"', 'Auto-generates canvas design', 'Suggests vulnerabilities']
+      },
+      {
+        name: 'Training Tutor',
+        priority: 'medium',
+        description: 'Hints and guidance for trainees in labs',
+        timeline: 'Q2 2026',
+        details: ['Contextual hints', 'Progress tracking', 'Difficulty adjustment']
+      }
+    ],
+    
+    architecture: \`
+┌─────────────────────────────────────────────────────────────────┐
+│                    OVERSEER ARCHITECTURE                         │
+└─────────────────────────────────────────────────────────────────┘
+
+┌─────────────────┐
+│  Operator Chat  │     React ChatModal component
+│  (Frontend)     │     Floating, draggable, persistent
+└────────┬────────┘
+         │ WebSocket / REST
+         ▼
+┌─────────────────┐
+│  Chat API       │     FastAPI /api/chat endpoints
+│  (Backend)      │     Message handling, history
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐     ┌─────────────────┐
+│  Overseer Agent │────▶│  Claude 3.5     │
+│  (Orchestrator) │     │  Sonnet API     │
+└────────┬────────┘     └─────────────────┘
+         │
+    ┌────┴────┬────────────┬────────────┐
+    ▼         ▼            ▼            ▼
+┌───────┐ ┌───────┐  ┌──────────┐ ┌──────────┐
+│Infra  │ │Mailcow│  │ Registry │ │ Research │
+│Tools  │ │ Email │  │  Query   │ │ (GPT-4o) │
+└───────┘ └───────┘  └──────────┘ └──────────┘
+    │         │            │            │
+    └─────────┴────────────┴────────────┘
+                    │
+                    ▼
+        ┌─────────────────────┐
+        │  Tool Execution     │
+        │  Results → Response │
+        └─────────────────────┘
+
+Example Interactions:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+User: "What labs are running on Proxmox?"
+Overseer: [Queries Registry] "3 labs active: brettlab (2 VMs), 
+          training-01 (5 VMs), demo-lab (1 VM)"
+
+User: "Deploy a new Kali box in brettlab"
+Overseer: [Calls Infra Tool] "Deploying Kali VM to brettlab... 
+          VM 118 created, IP: 10.101.0.15"
+
+User: "What's CVE-2024-1234?"
+Overseer: [GPT-4o Research] "CVE-2024-1234 is a critical RCE 
+          vulnerability in... [detailed analysis]"
+    \`,
+    
+    codeLocation: 'glassdome/chat/',
+    files: [
+      'agent.py',
+      'tools.py',
+      'llm_service.py',
+      'workflow_engine.py',
+      'frontend/src/components/OverseerChat/'
+    ]
   }
 }
 
