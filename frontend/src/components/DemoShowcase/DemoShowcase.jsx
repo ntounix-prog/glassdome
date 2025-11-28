@@ -141,27 +141,24 @@ class SynthwaveGenerator {
   }
 }
 
-// Extended phases with longer durations for readability
+// Phase definitions
 const PHASES = [
-  { id: 'intro', duration: 5000 },
-  { id: 'problem', duration: 7000 },
-  { id: 'platforms', duration: 7000 },
-  { id: 'designer', duration: 7000 },
-  { id: 'overseer', duration: 8000 },
-  { id: 'deploy', duration: 7000 },
-  { id: 'reaper', duration: 7000 },
-  { id: 'updock', duration: 7000 },
-  { id: 'validation', duration: 7000 },
-  { id: 'monitoring', duration: 7000 },
-  { id: 'stats', duration: 7000 },
-  { id: 'finale', duration: 5000 },
+  { id: 'intro', title: 'Introduction' },
+  { id: 'problem', title: 'The Problem' },
+  { id: 'platforms', title: 'Multi-Platform' },
+  { id: 'designer', title: 'Lab Designer' },
+  { id: 'overseer', title: 'Overseer AI' },
+  { id: 'deploy', title: 'Deployment' },
+  { id: 'reaper', title: 'Reaper Engine' },
+  { id: 'updock', title: 'Player Access' },
+  { id: 'validation', title: 'WhiteKnight' },
+  { id: 'monitoring', title: 'WhitePawn' },
+  { id: 'stats', title: 'By The Numbers' },
+  { id: 'finale', title: 'Finale' },
 ]
-
-const TOTAL_DURATION = PHASES.reduce((sum, p) => sum + p.duration, 0)
 
 export default function DemoShowcase({ isOpen, onClose }) {
   const [currentPhase, setCurrentPhase] = useState(0)
-  const [progress, setProgress] = useState(0)
   const [isPlaying, setIsPlaying] = useState(false)
   const [audioStatus, setAudioStatus] = useState('🎵 Click for Music')
   const [customAudio, setCustomAudio] = useState(null)
@@ -170,10 +167,38 @@ export default function DemoShowcase({ isOpen, onClose }) {
   const audioRef = useRef(null)
   const fileInputRef = useRef(null)
 
+  // Keyboard controls: Space/Right = next, Left = prev, Escape = close
+  useEffect(() => {
+    if (!isOpen) return
+
+    const handleKeyDown = (e) => {
+      if (e.code === 'Space' || e.code === 'ArrowRight') {
+        e.preventDefault()
+        setCurrentPhase(prev => {
+          if (prev >= PHASES.length - 1) {
+            onClose()
+            return prev
+          }
+          return prev + 1
+        })
+      } else if (e.code === 'ArrowLeft') {
+        e.preventDefault()
+        setCurrentPhase(prev => Math.max(0, prev - 1))
+      } else if (e.code === 'Escape') {
+        e.preventDefault()
+        onClose()
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [isOpen, onClose])
+
   // Cleanup when demo closes
   useEffect(() => {
     if (!isOpen) {
       stopAllAudio()
+      setCurrentPhase(0)
     }
     return () => {
       stopAllAudio()
@@ -236,39 +261,22 @@ export default function DemoShowcase({ isOpen, onClose }) {
     fileInputRef.current?.click()
   }
 
-  useEffect(() => {
-    if (!isOpen) {
-      setCurrentPhase(0)
-      setProgress(0)
-      return
+  const goToNext = () => {
+    if (currentPhase >= PHASES.length - 1) {
+      onClose()
+    } else {
+      setCurrentPhase(prev => prev + 1)
     }
+  }
 
-    let elapsed = 0
-    const interval = setInterval(() => {
-      elapsed += 50
-      setProgress((elapsed / TOTAL_DURATION) * 100)
-
-      let phaseTime = 0
-      for (let i = 0; i < PHASES.length; i++) {
-        phaseTime += PHASES[i].duration
-        if (elapsed < phaseTime) {
-          setCurrentPhase(i)
-          break
-        }
-      }
-
-      if (elapsed >= TOTAL_DURATION) {
-        clearInterval(interval)
-        setTimeout(() => onClose(), 500)
-      }
-    }, 50)
-
-    return () => clearInterval(interval)
-  }, [isOpen, onClose])
+  const goToPrev = () => {
+    setCurrentPhase(prev => Math.max(0, prev - 1))
+  }
 
   if (!isOpen) return null
 
   const phase = PHASES[currentPhase]?.id
+  const progress = ((currentPhase + 1) / PHASES.length) * 100
 
   return (
     <motion.div 
@@ -282,9 +290,15 @@ export default function DemoShowcase({ isOpen, onClose }) {
         <div className="demo-progress-bar" style={{ width: `${progress}%` }} />
       </div>
 
-      {/* Time remaining */}
-      <div className="demo-time">
-        {Math.ceil((TOTAL_DURATION - (progress / 100 * TOTAL_DURATION)) / 1000)}s
+      {/* Slide counter and title */}
+      <div className="demo-slide-info">
+        <span className="slide-counter">{currentPhase + 1} / {PHASES.length}</span>
+        <span className="slide-title">{PHASES[currentPhase]?.title}</span>
+      </div>
+
+      {/* Keyboard hint */}
+      <div className="demo-keyboard-hint">
+        <span>SPACE</span> or <span>→</span> Next &nbsp;|&nbsp; <span>←</span> Back &nbsp;|&nbsp; <span>ESC</span> Exit
       </div>
 
       {/* Controls */}
@@ -297,21 +311,36 @@ export default function DemoShowcase({ isOpen, onClose }) {
           style={{ display: 'none' }}
         />
         <button 
+          className="demo-nav-btn"
+          onClick={goToPrev}
+          disabled={currentPhase === 0}
+          title="Previous slide (←)"
+        >
+          ← Prev
+        </button>
+        <button 
           className="demo-upload"
           onClick={openFilePicker}
           title="Upload your own music"
         >
-          📁 {customFileName ? 'Change' : 'Upload Music'}
+          📁 {customFileName ? 'Change' : 'Music'}
         </button>
         <button 
           className={`demo-sound ${isPlaying ? 'playing' : ''}`} 
           onClick={toggleSound}
           title={audioStatus}
         >
-          {audioStatus}
+          {isPlaying ? '🔊' : '🎵'}
+        </button>
+        <button 
+          className="demo-nav-btn primary"
+          onClick={goToNext}
+          title="Next slide (SPACE or →)"
+        >
+          {currentPhase >= PHASES.length - 1 ? 'Finish ✓' : 'Next →'}
         </button>
         <button className="demo-skip" onClick={onClose}>
-          Skip Demo →
+          ✕
         </button>
       </div>
 
