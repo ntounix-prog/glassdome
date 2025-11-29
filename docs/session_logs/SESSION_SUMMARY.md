@@ -1,8 +1,43 @@
-# Session Summary: November 19-20, 2025
+# Session Summary: Glassdome Development Progress
+
+## Latest Session: November 29, 2024
+
+**Focus:** HashiCorp Vault Integration & Centralized Secrets Management
+
+**Key Accomplishments:**
+- ✅ Installed HashiCorp Vault on glassdome-prod-db (192.168.3.7)
+- ✅ Migrated 60+ secrets from .env to Vault
+- ✅ Consolidated database to single production server
+- ✅ Fixed WireGuard tunnel affecting email delivery
+- ✅ Configured SMTP email sending with authentication
+- ✅ Created overseer@xisx.org mailbox
+- ✅ Set up WireGuard health checks on mxwest/mxeast
+- ✅ RBAC admin account verified (brett - level 100)
+
+**See:** `SESSION_LOG_2024-11-29_VAULT_INTEGRATION.md` for full details.
+
+---
+
+## Recent Sessions
+
+| Date | Focus | Status |
+|------|-------|--------|
+| 2024-11-29 | Vault Integration | ✅ Complete |
+| 2024-11-28 | Player Portal, MVP2 | ✅ Complete |
+| 2024-11-27 | Canvas Deploy | ✅ Complete |
+| 2024-11-25 | Secrets Management | ✅ Complete |
+| 2024-11-24 | Session Auth | ✅ Complete |
+| 2024-11-22 | Mailcow Integration | ✅ Complete |
+| 2024-11-21 | Redis, RAG Index | ✅ Complete |
+| 2024-11-20 | First VM Deploy | ✅ Complete |
+
+---
+
+# Historical: Session Summary November 19-20, 2024
 
 ## 🎉 MAJOR ACCOMPLISHMENTS
 
-###From Zero to Fully Functional Agentic Cyber Range Framework
+### From Zero to Fully Functional Agentic Cyber Range Framework
 
 ---
 

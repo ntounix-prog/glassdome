@@ -66,6 +66,12 @@ export default function Login() {
     e.preventDefault()
     setError('')
 
+    // Validate fields aren't empty
+    if (!formData.username || !formData.password) {
+      setError('Please enter both username and password')
+      return
+    }
+
     if (mode === 'register') {
       // Validate registration
       if (formData.password !== formData.confirmPassword) {

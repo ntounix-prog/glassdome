@@ -51,8 +51,9 @@ class UnifiAgent(BaseAgent):
         """
         super().__init__(name="unifi", tier=tier, poll_interval=poll_interval, registry=registry)
         
-        self.host = host or os.getenv("UBIQUITI_GATEWAY_HOST", "192.168.2.1")
-        self.api_key = api_key or os.getenv("UBIQUITI_API_KEY", "")
+        from glassdome.core.config import settings
+        self.host = host or settings.ubiquiti_gateway_host or os.getenv("UBIQUITI_GATEWAY_HOST", "192.168.2.1")
+        self.api_key = api_key or settings.ubiquiti_api_key or os.getenv("UBIQUITI_API_KEY", "")
         self._clients: Dict[str, Dict[str, Any]] = {}  # MAC -> client data
     
     async def poll(self) -> List[Resource]:

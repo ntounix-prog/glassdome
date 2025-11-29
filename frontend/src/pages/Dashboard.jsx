@@ -170,6 +170,22 @@ function Dashboard({ healthStatus }) {
           <p>Intelligent operator chat with context-aware deployment assistance</p>
           <span className="feature-link">Learn more →</span>
         </div>
+
+        <div className="feature-card clickable rbac-card active-feature" onClick={() => navigate('/features/rbac')}>
+          <div className="feature-icon">🔐</div>
+          <h3>Role-Based Access Control</h3>
+          <p>Granular permissions with Admin, Architect, Engineer, and Observer roles</p>
+          <span className="feature-status active">✓ Active</span>
+          <span className="feature-link">Learn more →</span>
+        </div>
+
+        <div className="feature-card clickable vault-card active-feature" onClick={() => navigate('/features/vault')}>
+          <div className="feature-icon">🔒</div>
+          <h3>HashiCorp Vault</h3>
+          <p>Centralized secrets management for credentials, API keys, and tokens</p>
+          <span className="feature-status active">✓ Active</span>
+          <span className="feature-link">Learn more →</span>
+        </div>
       </div>
     </div>
   )

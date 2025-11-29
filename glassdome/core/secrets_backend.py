@@ -145,11 +145,18 @@ class VaultSecretsBackend(SecretsBackend):
                  addr: str = None,
                  role_id: str = None,
                  secret_id: str = None,
-                 mount_point: str = "glassdome"):
+                 mount_point: str = "glassdome",
+                 verify: bool = None):
         self.addr = addr or os.environ.get("VAULT_ADDR")
         self.role_id = role_id or os.environ.get("VAULT_ROLE_ID")
         self.secret_id = secret_id or os.environ.get("VAULT_SECRET_ID")
         self.mount_point = mount_point or os.environ.get("VAULT_MOUNT_POINT", "glassdome")
+        # Check VAULT_SKIP_VERIFY env var (default to verifying)
+        if verify is None:
+            skip_verify = os.environ.get("VAULT_SKIP_VERIFY", "false").lower() in ("true", "1", "yes")
+            self.verify = not skip_verify
+        else:
+            self.verify = verify
         self._client = None
     
     def _get_client(self):
@@ -159,7 +166,7 @@ class VaultSecretsBackend(SecretsBackend):
             except ImportError:
                 raise ImportError("hvac package required for Vault backend: pip install hvac")
             
-            self._client = hvac.Client(url=self.addr)
+            self._client = hvac.Client(url=self.addr, verify=self.verify)
             
             # Authenticate with AppRole
             if self.role_id and self.secret_id:

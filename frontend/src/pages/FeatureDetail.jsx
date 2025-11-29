@@ -1325,6 +1325,339 @@ Overseer: [GPT-4o Research] "CVE-2024-1234 is a critical RCE
       'workflow_engine.py',
       'frontend/src/components/OverseerChat/'
     ]
+  },
+
+  rbac: {
+    icon: '🔐',
+    title: 'Role-Based Access Control',
+    subtitle: 'Granular permissions with Admin, Architect, Engineer, and Observer roles',
+    
+    description: `Glassdome implements a hybrid RBAC model combining discrete roles with numerical 
+    permission levels. Users are assigned a role (Admin, Architect, Engineer, Observer) and a level 
+    (1-100) that determines their access to features, APIs, and UI elements. JWT-based authentication 
+    with secure bcrypt password hashing protects all endpoints.`,
+    
+    implemented: [
+      {
+        name: 'Role Hierarchy',
+        status: 'working',
+        description: 'Four-tier role system with inheritance',
+        details: [
+          'Admin (Level 100) - Full system access, user management',
+          'Architect (Level 75) - Lab design, deployment, configuration',
+          'Engineer (Level 50) - Operate labs, run missions, monitoring',
+          'Observer (Level 25) - Read-only access, view dashboards'
+        ]
+      },
+      {
+        name: 'JWT Authentication',
+        status: 'working',
+        description: 'Secure token-based authentication with configurable expiration',
+        details: [
+          'RS256/HS256 signing via Vault-managed secret key',
+          '30-minute token expiration (configurable)',
+          'Refresh token rotation',
+          'Secure cookie storage option'
+        ]
+      },
+      {
+        name: 'Password Security',
+        status: 'working',
+        description: 'Industry-standard password hashing and validation',
+        details: [
+          'bcrypt hashing with salt',
+          'Minimum password complexity requirements',
+          'Password change enforcement',
+          'Account lockout after failed attempts'
+        ]
+      },
+      {
+        name: 'API Protection',
+        status: 'working',
+        description: 'All API endpoints protected with role/level requirements',
+        details: [
+          'FastAPI dependencies for auth validation',
+          'require_permission() decorator',
+          'require_level() decorator',
+          'Per-endpoint authorization'
+        ]
+      },
+      {
+        name: 'User Management API',
+        status: 'working',
+        description: 'Admin endpoints for user administration',
+        details: [
+          'POST /api/auth/register - Create users',
+          'GET /api/auth/users - List all users (admin only)',
+          'PUT /api/auth/users/{id} - Update user role/level',
+          'DELETE /api/auth/users/{id} - Deactivate users'
+        ]
+      },
+      {
+        name: 'Frontend Auth Context',
+        status: 'working',
+        description: 'React context for global authentication state',
+        details: [
+          'AuthContext provider wrapping app',
+          'Protected route components',
+          'Conditional UI rendering by role',
+          'Auto-redirect on token expiration'
+        ]
+      }
+    ],
+    
+    roadmap: [
+      {
+        name: 'OAuth/OIDC Integration',
+        priority: 'medium',
+        description: 'Single sign-on with external identity providers',
+        timeline: 'Q2 2025',
+        details: ['Google Workspace', 'Azure AD', 'Okta', 'Keycloak']
+      },
+      {
+        name: 'Fine-Grained Permissions',
+        priority: 'medium',
+        description: 'Per-resource and per-action permission grants',
+        timeline: 'Q2 2025',
+        details: ['Lab-specific access', 'Feature toggles', 'Custom permission sets']
+      },
+      {
+        name: 'Audit Logging',
+        priority: 'high',
+        description: 'Comprehensive activity logging for compliance',
+        timeline: 'Q1 2025',
+        details: ['Login/logout events', 'Permission changes', 'Resource access', 'API calls']
+      }
+    ],
+    
+    architecture: `
+┌─────────────────────────────────────────────────────────────────┐
+│                    RBAC ARCHITECTURE                             │
+└─────────────────────────────────────────────────────────────────┘
+
+┌─────────────────┐     ┌─────────────────┐
+│  React Frontend │────▶│  FastAPI Backend │
+│  AuthContext    │     │  JWT Validation  │
+└────────┬────────┘     └────────┬─────────┘
+         │                       │
+         │ JWT Token             │ Decode & Verify
+         ▼                       ▼
+┌─────────────────┐     ┌─────────────────┐
+│  Login Form     │     │  Auth Service   │
+│  /login         │     │  - decode_token │
+└─────────────────┘     │  - get_user     │
+                        │  - check_perm   │
+                        └────────┬────────┘
+                                 │
+                    ┌────────────┼────────────┐
+                    ▼            ▼            ▼
+              ┌──────────┐ ┌──────────┐ ┌──────────┐
+              │ require_ │ │ require_ │ │ get_     │
+              │ level()  │ │ role()   │ │ current_ │
+              │          │ │          │ │ user()   │
+              └──────────┘ └──────────┘ └──────────┘
+                    │            │            │
+                    └────────────┼────────────┘
+                                 ▼
+                    ┌─────────────────────┐
+                    │  PostgreSQL Users   │
+                    │  - id, email, role  │
+                    │  - level, hash      │
+                    │  - is_active        │
+                    └─────────────────────┘
+
+Role → Level Mapping:
+━━━━━━━━━━━━━━━━━━━━━
+Admin     = 100  (full access)
+Architect =  75  (design/deploy)
+Engineer  =  50  (operate)
+Observer  =  25  (read-only)
+    `,
+    
+    codeLocation: 'glassdome/auth/',
+    files: [
+      'models.py',
+      'schemas.py',
+      'service.py',
+      'dependencies.py',
+      'vault_integration.py',
+      'frontend/src/contexts/AuthContext.jsx'
+    ]
+  },
+
+  vault: {
+    icon: '🔒',
+    title: 'HashiCorp Vault Integration',
+    subtitle: 'Centralized secrets management for credentials, API keys, and tokens',
+    
+    description: `Glassdome integrates with HashiCorp Vault for enterprise-grade secrets management. 
+    All sensitive credentials - database passwords, API keys, service accounts, and tokens - are stored 
+    centrally in Vault with AppRole authentication. This eliminates secrets sprawl in .env files and 
+    provides audit trails, dynamic secrets, and secure access control.`,
+    
+    implemented: [
+      {
+        name: 'Vault Server',
+        status: 'working',
+        description: 'HashiCorp Vault deployed on glassdome-prod-db',
+        details: [
+          'File storage backend at /opt/vault/data',
+          'TLS-enabled HTTPS on port 8200',
+          'Shamir seal (5 keys, threshold 3)',
+          'UI available at https://192.168.3.7:8200'
+        ]
+      },
+      {
+        name: 'AppRole Authentication',
+        status: 'working',
+        description: 'Secure machine-to-machine authentication',
+        details: [
+          'Role ID and Secret ID for Glassdome app',
+          'Automatic token renewal',
+          'Scoped policy for glassdome/* paths',
+          'No human credentials in code'
+        ]
+      },
+      {
+        name: 'KV Secrets Engine',
+        status: 'working',
+        description: 'Key-value store for all application secrets',
+        details: [
+          'KV v2 at glassdome/ mount point',
+          'Versioned secrets with history',
+          '60+ secrets migrated from .env',
+          'Organized by category (proxmox/, aws/, etc.)'
+        ]
+      },
+      {
+        name: 'VaultSecretsBackend',
+        status: 'working',
+        description: 'Python integration for transparent secret loading',
+        details: [
+          'SecretsBackend abstract interface',
+          'VaultSecretsBackend with hvac client',
+          'ChainedSecretsBackend for fallback',
+          'VAULT_SKIP_VERIFY for self-signed certs'
+        ]
+      },
+      {
+        name: 'Settings Integration',
+        status: 'working',
+        description: 'Pydantic Settings automatically loads from Vault',
+        details: [
+          '@model_validator loads secrets on init',
+          'secret_mappings defines field → key mapping',
+          'Transparent to application code',
+          'Fallback to .env if Vault unavailable'
+        ]
+      },
+      {
+        name: 'JWT Key Management',
+        status: 'working',
+        description: 'JWT signing key stored securely in Vault',
+        details: [
+          'secret_key loaded from Vault',
+          'Centralized key rotation',
+          'No hardcoded secrets',
+          'Consistent across deployments'
+        ]
+      }
+    ],
+    
+    roadmap: [
+      {
+        name: 'Dynamic Database Credentials',
+        priority: 'high',
+        description: 'Auto-rotating PostgreSQL credentials via Vault',
+        timeline: 'Q1 2025',
+        details: ['Database secrets engine', 'Time-limited credentials', 'Automatic rotation']
+      },
+      {
+        name: 'Auto-Unseal',
+        priority: 'medium',
+        description: 'Automatic Vault unsealing without manual intervention',
+        timeline: 'Q1 2025',
+        details: ['AWS KMS integration', 'Transit auto-unseal', 'HA configuration']
+      },
+      {
+        name: 'Secrets Rotation',
+        priority: 'medium',
+        description: 'Automated rotation of API keys and passwords',
+        timeline: 'Q2 2025',
+        details: ['Rotation policies', 'Notification on rotation', 'Grace periods']
+      },
+      {
+        name: 'PKI Certificates',
+        priority: 'low',
+        description: 'Vault-managed TLS certificates for services',
+        timeline: 'Q3 2025',
+        details: ['Internal CA', 'Auto-renewal', 'Service mesh integration']
+      }
+    ],
+    
+    architecture: `
+┌─────────────────────────────────────────────────────────────────┐
+│                    VAULT ARCHITECTURE                            │
+└─────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────┐
+│  glassdome-prod-db (192.168.3.7)                                │
+│                                                                 │
+│  ┌─────────────────────────────────────────────────────────┐   │
+│  │  HashiCorp Vault                                         │   │
+│  │  ├─ Storage: /opt/vault/data (file)                     │   │
+│  │  ├─ Listener: https://0.0.0.0:8200 (TLS)                │   │
+│  │  ├─ Auth: AppRole (glassdome role)                       │   │
+│  │  └─ Secrets: glassdome/ (KV v2)                         │   │
+│  └─────────────────────────────────────────────────────────┘   │
+│                                                                 │
+│  ┌─────────────────────────────────────────────────────────┐   │
+│  │  PostgreSQL 14                                           │   │
+│  │  └─ Database: glassdome                                  │   │
+│  └─────────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              │ AppRole Auth
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  Glassdome Application                                          │
+│                                                                 │
+│  ┌─────────────────┐     ┌─────────────────┐                   │
+│  │ VaultSecrets    │────▶│  hvac Client    │                   │
+│  │ Backend         │     │  (Python)       │                   │
+│  └────────┬────────┘     └─────────────────┘                   │
+│           │                                                     │
+│           ▼                                                     │
+│  ┌─────────────────┐                                           │
+│  │  Settings       │     Secrets loaded transparently          │
+│  │  (Pydantic)     │     on application startup                │
+│  │  - proxmox_pass │                                           │
+│  │  - openai_key   │                                           │
+│  │  - jwt_secret   │                                           │
+│  └─────────────────┘                                           │
+└─────────────────────────────────────────────────────────────────┘
+
+Secrets Categories:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+• Proxmox (12): passwords, tokens, hosts
+• ESXi (3): host, user, password
+• Network (9): Cisco, Nexus, Ubiquiti
+• Updock (9): Guacamole credentials
+• AI APIs (4): OpenAI, Anthropic, XAI
+• Cloud (3): AWS, Azure
+• Email (8): Mailcow, SMTP
+• Security (1): JWT signing key
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Total: 60+ secrets centrally managed
+    `,
+    
+    codeLocation: 'glassdome/core/',
+    files: [
+      'secrets_backend.py',
+      'security.py',
+      'config.py',
+      'auth/vault_integration.py'
+    ]
   }
 }
 

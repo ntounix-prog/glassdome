@@ -265,3 +265,96 @@
 .feature-card.overseer-card .feature-link {
   color: #34d399;
 }
+
+/* RBAC Card - Security/Lock Theme */
+.feature-card.rbac-card {
+  border-color: rgba(59, 130, 246, 0.3);
+  background: linear-gradient(
+    135deg,
+    rgba(59, 130, 246, 0.08) 0%,
+    rgba(37, 99, 235, 0.05) 50%,
+    rgba(0, 0, 0, 0.2) 100%
+  );
+}
+
+.feature-card.rbac-card:hover {
+  border-color: rgba(59, 130, 246, 0.6);
+  box-shadow: 0 8px 30px rgba(59, 130, 246, 0.25);
+}
+
+.feature-card.rbac-card .feature-icon {
+  filter: drop-shadow(0 0 10px rgba(59, 130, 246, 0.5));
+}
+
+.feature-card.rbac-card .feature-link {
+  color: #3b82f6;
+}
+
+/* Vault Card - Secure/Vault Theme */
+.feature-card.vault-card {
+  border-color: rgba(16, 185, 129, 0.3);
+  background: linear-gradient(
+    135deg,
+    rgba(16, 185, 129, 0.08) 0%,
+    rgba(5, 150, 105, 0.05) 50%,
+    rgba(0, 0, 0, 0.2) 100%
+  );
+}
+
+.feature-card.vault-card:hover {
+  border-color: rgba(16, 185, 129, 0.6);
+  box-shadow: 0 8px 30px rgba(16, 185, 129, 0.25);
+}
+
+.feature-card.vault-card .feature-icon {
+  filter: drop-shadow(0 0 10px rgba(16, 185, 129, 0.5));
+}
+
+.feature-card.vault-card .feature-link {
+  color: #10b981;
+}
+
+/* Active Feature Badge */
+.feature-card.active-feature {
+  position: relative;
+}
+
+.feature-status {
+  display: inline-block;
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 0.2rem 0.5rem;
+  border-radius: 10px;
+  margin-bottom: 0.5rem;
+}
+
+.feature-status.active {
+  background: rgba(16, 185, 129, 0.2);
+  color: #10b981;
+  border: 1px solid rgba(16, 185, 129, 0.4);
+}
+
+.feature-card.active-feature::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 10px;
+  height: 10px;
+  background: #10b981;
+  border-radius: 50%;
+  margin: 0.75rem;
+  box-shadow: 0 0 10px rgba(16, 185, 129, 0.8);
+  animation: pulse-active 2s infinite;
+}
+
+@keyframes pulse-active {
+  0%, 100% {
+    opacity: 1;
+    box-shadow: 0 0 10px rgba(16, 185, 129, 0.8);
+  }
+  50% {
+    opacity: 0.6;
+    box-shadow: 0 0 20px rgba(16, 185, 129, 0.6);
+  }
+}

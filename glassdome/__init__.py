@@ -6,7 +6,7 @@ Created: November 2025
 Copyright (c) 2025 Brett Turner. All rights reserved.
 """
 
-__version__ = "0.5.1"
+__version__ = "0.6.0"
 __author__ = "ntounix"
 __email__ = "ntounix@gmail.com"
 

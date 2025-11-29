@@ -58,7 +58,9 @@ def decode_access_token(token: str) -> Optional[TokenData]:
     config = _get_jwt_config()
     try:
         payload = jwt.decode(token, config["jwt_secret"], algorithms=[config["algorithm"]])
-        user_id: int = payload.get("sub")
+        # JWT sub must be a string, convert back to int
+        sub = payload.get("sub")
+        user_id = int(sub) if sub else None
         username: str = payload.get("username")
         email: str = payload.get("email")
         role: str = payload.get("role")

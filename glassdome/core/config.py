@@ -79,12 +79,17 @@ class Settings(BaseSettings):
             # Core security
             'secret_key': 'secret_key',
             
-            # Proxmox
+            # Database
+            'database_password': 'database_password',
+            
+            # Proxmox (passwords and users)
+            'proxmox_user': 'proxmox_01_user',
             'proxmox_password': 'proxmox_password',
             'proxmox_token_value': 'proxmox_token_value',
             'proxmox_root_password': 'proxmox_root_password',
             
             # ESXi
+            'esxi_user': 'esxi_user',
             'esxi_password': 'esxi_password',
             
             # Cloud providers
@@ -101,16 +106,33 @@ class Settings(BaseSettings):
             'google_search_api_key': 'google_search_api_key',
             'google_engine_id': 'google_engine_id',
             
-            # Mailcow
+            # Mailcow / Email
             'mail_api': 'mail_api',
+            'glassdome_ai_password': 'glassdome_ai_password',
+            'overseer_password': 'overseer_password',
             
             # Network devices - Cisco
+            'nexus_3064_user': 'nexus_3064_user',
             'nexus_3064_password': 'nexus_3064_password',
+            'cisco_3850_user': 'cisco_3850_user',
             'cisco_3850_password': 'cisco_3850_password',
             
             # Network devices - Ubiquiti
+            'ubiquiti_gateway_user': 'ubiquiti_gateway_user',
             'ubiquiti_gateway_password': 'ubiquiti_gateway_password',
             'ubiquiti_api_key': 'ubiquiti_api_key',
+            
+            # Updock / Guacamole
+            'updock_user': 'updock_user',
+            'updock_password': 'updock_password',
+            'updock_guac_db_user': 'updock_guac_db_user',
+            'updock_guac_db_password': 'updock_guac_db_password',
+            'updock_guac_admin_user': 'updock_guac_admin_user',
+            'updock_guac_admin_password': 'updock_guac_admin_password',
+            
+            # TrueNAS
+            'truenas_api_user': 'truenas_api_user',
+            'truenas_api_key': 'truenas_api_key',
             
             # Default machine credentials
             'windows_default_password': 'windows_default_password',
@@ -326,6 +348,32 @@ class Settings(BaseSettings):
     mailcow_smtp_host: Optional[str] = None  # Defaults to mail.{domain}
     mailcow_smtp_port: int = 587
     mailcow_verify_ssl: bool = False  # Disable SSL verification for self-signed certs
+    glassdome_ai_password: Optional[str] = None  # Password for glassdome-ai@xisx.org
+    overseer_password: Optional[str] = None  # Password for overseer@xisx.org
+    
+    # ===================================================
+    # Updock / Guacamole Configuration
+    # ===================================================
+    updock_host: Optional[str] = None
+    updock_user: Optional[str] = None
+    updock_password: Optional[str] = None
+    updock_guacd_port: int = 4822
+    updock_web_port: int = 8080
+    updock_guac_db_user: Optional[str] = None
+    updock_guac_db_password: Optional[str] = None
+    updock_guac_admin_user: Optional[str] = None
+    updock_guac_admin_password: Optional[str] = None
+    
+    # ===================================================
+    # TrueNAS Configuration
+    # ===================================================
+    truenas_api_user: Optional[str] = None
+    truenas_api_key: Optional[str] = None
+    
+    # ===================================================
+    # Database Configuration
+    # ===================================================
+    database_password: Optional[str] = None
     
     # ===================================================
     # Network Device Configuration
