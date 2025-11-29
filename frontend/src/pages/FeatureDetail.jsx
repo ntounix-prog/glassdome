@@ -1176,7 +1176,8 @@ Why "Updock"?
     description: `Overseer is Glassdome's AI-powered operator assistant. Built on Claude 3.5 Sonnet, 
     it provides natural language interaction for lab management, troubleshooting, and operational tasks. 
     With integrated tools for infrastructure control, email, and research, Overseer serves as an 
-    intelligent co-pilot for range operators.`,
+    intelligent co-pilot for range operators. The chat modal includes contextual help that knows what 
+    page you're on and provides relevant documentation and quick actions.`,
     
     implemented: [
       {
@@ -1220,6 +1221,18 @@ Why "Updock"?
           'Message history',
           'Code syntax highlighting',
           'Integrated SomaFM radio'
+        ]
+      },
+      {
+        name: 'Contextual Page Help',
+        status: 'working',
+        description: 'Page-specific help integrated into chat modal',
+        details: [
+          'Help tab shows topics for current page',
+          'Click "Ask" to query Overseer about any topic',
+          'Page context injected into all messages',
+          'Overseer knows what page you\'re on',
+          '10+ pages documented (Dashboard, Lab Designer, Player Portal, etc.)'
         ]
       },
       {
