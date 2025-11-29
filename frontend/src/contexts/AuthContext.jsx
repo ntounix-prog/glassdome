@@ -87,8 +87,15 @@ export function AuthProvider({ children }) {
       })
       
       if (!tokenResponse.ok) {
-        const errorData = await tokenResponse.json()
-        throw new Error(errorData.detail || 'Login failed')
+        let errorMessage = 'Login failed'
+        try {
+          const errorData = await tokenResponse.json()
+          errorMessage = errorData.detail || errorMessage
+        } catch (e) {
+          // Response body was empty or not JSON
+          errorMessage = `Login failed (${tokenResponse.status})`
+        }
+        throw new Error(errorMessage)
       }
       
       const tokenData = await tokenResponse.json()
@@ -143,8 +150,15 @@ export function AuthProvider({ children }) {
       })
       
       if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.detail || 'Registration failed')
+        let errorMessage = 'Registration failed'
+        try {
+          const errorData = await response.json()
+          errorMessage = errorData.detail || errorMessage
+        } catch (e) {
+          // Response body was empty or not JSON
+          errorMessage = `Registration failed (${response.status})`
+        }
+        throw new Error(errorMessage)
       }
       
       const userData = await response.json()
