@@ -190,11 +190,28 @@ export default function ChatModal({ isOpen, onClose, audioRef, radioState, setRa
       const parsed = JSON.parse(data)
       
       switch (parsed.type) {
-        case 'response':
+        case 'connected':
+          // Welcome message from server
+          console.log('Overseer connected:', parsed.message)
+          break
+          
+        case 'complete':
+          // Non-streaming response complete
           setMessages(prev => [...prev, {
             id: `msg-${Date.now()}`,
             role: 'assistant',
-            content: parsed.content,
+            content: parsed.response,
+            timestamp: new Date().toISOString()
+          }])
+          setIsLoading(false)
+          break
+          
+        case 'response':
+          // Legacy response format
+          setMessages(prev => [...prev, {
+            id: `msg-${Date.now()}`,
+            role: 'assistant',
+            content: parsed.content || parsed.response,
             timestamp: new Date().toISOString()
           }])
           setIsLoading(false)
