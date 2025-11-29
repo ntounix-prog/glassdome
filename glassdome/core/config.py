@@ -58,6 +58,17 @@ class Settings(BaseSettings):
     proxmox_verify_ssl: bool = False
     proxmox_node: str = "pve"
     
+    # ===================================================
+    # Lab Deployment Configuration
+    # ===================================================
+    # Which Proxmox instance to use for lab/training deployments
+    # Must match a configured instance ID (01, 02, 03, etc.)
+    # This is REQUIRED - system will not assume a default
+    lab_proxmox_instance: Optional[str] = None
+    
+    # Hot spare pool configuration
+    hot_spare_proxmox_instance: Optional[str] = None  # Defaults to lab_proxmox_instance if not set
+    
     # Legacy/alternative Proxmox variable names (for compatibility)
     proxmox_admin: Optional[str] = None  # Alternative to proxmox_user
     proxmox_admin_passwd: Optional[str] = None  # Alternative to proxmox_password
@@ -137,6 +148,10 @@ class Settings(BaseSettings):
             # Default machine credentials
             'windows_default_password': 'windows_default_password',
             'linux_default_password': 'linux_default_password',
+            
+            # Lab/Hot Spare deployment configuration
+            'lab_proxmox_instance': 'lab_proxmox_instance',
+            'hot_spare_proxmox_instance': 'hot_spare_proxmox_instance',
         }
         
         for field_name, secret_key in secret_mappings.items():
@@ -292,6 +307,95 @@ class Settings(BaseSettings):
                     instances.append(instance_id)
         
         return sorted(instances)
+    
+    def get_lab_proxmox_instance(self) -> str:
+        """
+        Get the configured Proxmox instance for lab deployments.
+        
+        Raises:
+            ValueError: If LAB_PROXMOX_INSTANCE is not configured or invalid
+            
+        Returns:
+            Instance ID (e.g., "01", "02")
+        """
+        instance = self.lab_proxmox_instance
+        
+        if not instance:
+            available = self.list_proxmox_instances()
+            raise ValueError(
+                f"LAB_PROXMOX_INSTANCE is not configured. "
+                f"Set it in .env to one of: {', '.join(available)}. "
+                f"Example: LAB_PROXMOX_INSTANCE=01"
+            )
+        
+        # Validate instance exists
+        available = self.list_proxmox_instances()
+        if instance not in available:
+            raise ValueError(
+                f"LAB_PROXMOX_INSTANCE='{instance}' is not a configured Proxmox instance. "
+                f"Available instances: {', '.join(available)}"
+            )
+        
+        return instance
+    
+    def get_lab_proxmox_config(self) -> Dict[str, Any]:
+        """
+        Get Proxmox configuration for lab deployments.
+        
+        Convenience method that combines get_lab_proxmox_instance() 
+        with get_proxmox_config().
+        
+        Raises:
+            ValueError: If LAB_PROXMOX_INSTANCE is not configured
+            
+        Returns:
+            Proxmox configuration dictionary
+        """
+        instance = self.get_lab_proxmox_instance()
+        return self.get_proxmox_config(instance)
+    
+    def get_lab_node_name(self) -> str:
+        """
+        Get the Proxmox node name for lab deployments.
+        
+        Returns the node name in format 'pveXX' based on instance ID.
+        
+        Raises:
+            ValueError: If LAB_PROXMOX_INSTANCE is not configured
+            
+        Returns:
+            Node name (e.g., "pve01", "pve02")
+        """
+        instance = self.get_lab_proxmox_instance()
+        # Node name follows pattern pveXX (e.g., pve01, pve02)
+        return f"pve{instance}" if instance.isdigit() else f"pve{instance}"
+    
+    def get_hot_spare_proxmox_instance(self) -> str:
+        """
+        Get the Proxmox instance for hot spare pool.
+        
+        Defaults to lab_proxmox_instance if not explicitly set.
+        
+        Raises:
+            ValueError: If neither hot_spare_proxmox_instance nor 
+                       lab_proxmox_instance is configured
+        """
+        instance = self.hot_spare_proxmox_instance or self.lab_proxmox_instance
+        
+        if not instance:
+            raise ValueError(
+                "HOT_SPARE_PROXMOX_INSTANCE (or LAB_PROXMOX_INSTANCE) is not configured. "
+                "Set at least LAB_PROXMOX_INSTANCE in .env"
+            )
+        
+        available = self.list_proxmox_instances()
+        if instance not in available:
+            raise ValueError(
+                f"Hot spare Proxmox instance '{instance}' is not configured. "
+                f"Available: {', '.join(available)}"
+            )
+        
+        return instance
     
     # ESXi
     esxi_host: Optional[str] = None
