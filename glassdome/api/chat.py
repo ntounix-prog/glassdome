@@ -93,6 +93,7 @@ class SendMessageRequest(BaseModel):
     """Request to send a message"""
     message: str
     stream: bool = False
+    context: Optional[str] = None  # Page-specific help context from frontend
 
 
 class MessageResponse(BaseModel):
@@ -213,8 +214,13 @@ async def send_message(conversation_id: str, request: SendMessageRequest):
         conversation.conversation_id = conversation_id
         agent.conversations[conversation_id] = conversation
     
-    # Process the message
-    result = await agent.process_message(conversation_id, request.message)
+    # Process the message with optional page context
+    message = request.message
+    if request.context:
+        # Prepend page context so Overseer knows what page the user is on
+        message = f"[Page Context]\n{request.context}\n\n[User Message]\n{request.message}"
+    
+    result = await agent.process_message(conversation_id, message)
     
     return MessageResponse(
         conversation_id=result["conversation_id"],
@@ -353,9 +359,14 @@ async def chat_websocket(websocket: WebSocket, conversation_id: str):
             
             if msg_type == "message":
                 content = data.get("content", "")
+                context = data.get("context", "")  # Page-specific help context
                 # Default to NON-streaming to support tool calls
                 # Streaming mode doesn't support tools properly
                 stream = data.get("stream", False)
+                
+                # Prepend context if provided
+                if context:
+                    content = f"[Page Context]\n{context}\n\n[User Message]\n{content}"
                 
                 logger.info(f"[WS:{conversation_id}] Processing message: '{content[:100]}...' stream={stream}")
                 
