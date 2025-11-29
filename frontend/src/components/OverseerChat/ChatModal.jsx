@@ -1,23 +1,21 @@
 /**
- * Chatmodal component
+ * Overseer Chat Modal with Contextual Help
+ * 
+ * A slide-out modal chat interface for interacting with the Overseer AI.
+ * Supports real-time WebSocket communication with streaming responses.
+ * Includes integrated SomaFM radio player and page-specific help.
  * 
  * @author Brett Turner (ntounix)
  * @created November 2025
  * @copyright (c) 2025 Brett Turner. All rights reserved.
  */
 
-/**
- * Overseer Chat Modal
- * 
- * A slide-out modal chat interface for interacting with the Overseer AI.
- * Supports real-time WebSocket communication with streaming responses.
- * Includes integrated SomaFM radio player at the bottom.
- */
-
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { useLocation } from 'react-router-dom'
 import MessageList from './MessageList'
 import MessageInput from './MessageInput'
 import ActionConfirm from './ActionConfirm'
+import { getHelpForRoute, getHelpContextForOverseer } from '../../help-content'
 import './ChatModal.css'
 
 const CHAT_API_BASE = '/api/chat'
@@ -34,13 +32,19 @@ const STATIONS = {
 }
 
 export default function ChatModal({ isOpen, onClose, audioRef, radioState, setRadioState, onMusicStateChange }) {
+  const location = useLocation()
+  const [activeTab, setActiveTab] = useState('chat') // 'chat' | 'help'
   const [messages, setMessages] = useState([])
   const [conversationId, setConversationId] = useState(null)
   const [isConnected, setIsConnected] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [pendingAction, setPendingAction] = useState(null)
   const [streamingContent, setStreamingContent] = useState('')
-  const [radioExpanded, setRadioExpanded] = useState(true)
+  const [radioExpanded, setRadioExpanded] = useState(false) // Start collapsed
+  
+  // Get help content for current page
+  const currentHelp = getHelpForRoute(location.pathname)
+  const helpContext = getHelpContextForOverseer(location.pathname)
   
   // Internal audio state if not provided externally
   const internalAudioRef = useRef(null)
@@ -102,164 +106,150 @@ export default function ChatModal({ isOpen, onClose, audioRef, radioState, setRa
   
   const setVolume = (vol) => {
     effectiveSetRadioState(prev => ({ ...prev, volume: vol }))
-    if (effectiveAudioRef.current) effectiveAudioRef.current.volume = vol
+    if (effectiveAudioRef.current) {
+      effectiveAudioRef.current.volume = vol
+    }
   }
 
-  // Initialize conversation and WebSocket on open
+  // Initialize conversation and WebSocket
   useEffect(() => {
-    if (isOpen && !conversationId) {
-      initializeConversation()
-    }
+    if (!isOpen) return
     
-    return () => {
-      if (reconnectTimeoutRef.current) {
-        clearTimeout(reconnectTimeoutRef.current)
+    const initConversation = async () => {
+      try {
+        const response = await fetch(`${CHAT_API_BASE}/conversations`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' }
+        })
+        const data = await response.json()
+        setConversationId(data.conversation_id)
+      } catch (error) {
+        console.error('Failed to create conversation:', error)
       }
     }
+
+    initConversation()
   }, [isOpen])
 
-  // Connect/disconnect WebSocket when conversation changes
+  // WebSocket connection management
   useEffect(() => {
-    if (conversationId && isOpen) {
-      connectWebSocket()
+    if (!isOpen || !conversationId) return
+
+    const connect = () => {
+      const ws = new WebSocket(`${WS_URL}/${conversationId}`)
+      
+      ws.onopen = () => {
+        console.log('WebSocket connected')
+        setIsConnected(true)
+      }
+      
+      ws.onclose = () => {
+        console.log('WebSocket disconnected')
+        setIsConnected(false)
+        reconnectTimeoutRef.current = setTimeout(connect, 3000)
+      }
+      
+      ws.onerror = (error) => {
+        console.error('WebSocket error:', error)
+      }
+      
+      ws.onmessage = (event) => {
+        handleWebSocketMessage(event.data)
+      }
+      
+      wsRef.current = ws
     }
-    
+
+    connect()
+
     return () => {
       if (wsRef.current) {
         wsRef.current.close()
       }
-    }
-  }, [conversationId, isOpen])
-
-  const initializeConversation = async () => {
-    try {
-      const response = await fetch(`${CHAT_API_BASE}/conversations`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
-      })
-      const data = await response.json()
-      setConversationId(data.conversation_id)
-      
-      // Add welcome message
-      setMessages([{
-        id: 'welcome',
-        role: 'assistant',
-        content: "Hello! I'm Overseer, your operations assistant. I can help you deploy labs, create Reaper missions, or check system status. What would you like to do?",
-        timestamp: new Date().toISOString()
-      }])
-    } catch (error) {
-      console.error('Failed to initialize conversation:', error)
-      setMessages([{
-        id: 'error',
-        role: 'system',
-        content: 'Failed to connect to Overseer. Please try again.',
-        timestamp: new Date().toISOString()
-      }])
-    }
-  }
-
-  const connectWebSocket = useCallback(() => {
-    if (wsRef.current?.readyState === WebSocket.OPEN) {
-      return
-    }
-
-    const ws = new WebSocket(`${WS_URL}/${conversationId}`)
-    
-    ws.onopen = () => {
-      console.log('WebSocket connected')
-      setIsConnected(true)
-    }
-    
-    ws.onclose = () => {
-      console.log('WebSocket disconnected')
-      setIsConnected(false)
-      
-      // Attempt reconnection after 3 seconds
-      if (isOpen) {
-        reconnectTimeoutRef.current = setTimeout(() => {
-          connectWebSocket()
-        }, 3000)
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current)
       }
     }
-    
-    ws.onerror = (error) => {
-      console.error('WebSocket error:', error)
-    }
-    
-    ws.onmessage = (event) => {
-      const data = JSON.parse(event.data)
-      handleWebSocketMessage(data)
-    }
-    
-    wsRef.current = ws
-  }, [conversationId, isOpen])
+  }, [isOpen, conversationId])
 
-  const handleWebSocketMessage = (data) => {
-    switch (data.type) {
-      case 'connected':
-        // Already handled welcome message
-        break
-        
-      case 'start':
-        // Start of streaming response
-        setIsLoading(true)
-        setStreamingContent('')
-        break
-        
-      case 'chunk':
-        // Streaming chunk
-        setStreamingContent(prev => prev + data.content)
-        break
-        
-      case 'complete':
-        // Response complete
-        setIsLoading(false)
-        if (streamingContent || data.response) {
+  // Heartbeat to keep connection alive
+  useEffect(() => {
+    if (!isOpen || !isConnected) return
+
+    const heartbeat = setInterval(() => {
+      if (wsRef.current?.readyState === WebSocket.OPEN) {
+        wsRef.current.send(JSON.stringify({ type: 'ping' }))
+      }
+    }, 30000)
+
+    return () => clearInterval(heartbeat)
+  }, [isOpen, isConnected])
+
+  const handleWebSocketMessage = useCallback((data) => {
+    try {
+      const parsed = JSON.parse(data)
+      
+      switch (parsed.type) {
+        case 'response':
           setMessages(prev => [...prev, {
             id: `msg-${Date.now()}`,
             role: 'assistant',
-            content: data.response || streamingContent,
+            content: parsed.content,
             timestamp: new Date().toISOString()
           }])
-        }
-        setStreamingContent('')
-        break
-        
-      case 'action':
-        // Pending action needs confirmation
-        setPendingAction(data.action)
-        break
-        
-      case 'action_result':
-        // Action was processed
-        setPendingAction(null)
-        setMessages(prev => [...prev, {
-          id: `msg-${Date.now()}`,
-          role: 'assistant',
-          content: data.response,
-          timestamp: new Date().toISOString(),
-          actionResult: data.result
-        }])
-        break
-        
-      case 'error':
-        setIsLoading(false)
-        setMessages(prev => [...prev, {
-          id: `msg-${Date.now()}`,
-          role: 'system',
-          content: `Error: ${data.error}`,
-          timestamp: new Date().toISOString()
-        }])
-        break
-        
-      case 'pong':
-        // Heartbeat response
-        break
-        
-      default:
-        console.log('Unknown message type:', data.type)
+          setIsLoading(false)
+          break
+          
+        case 'stream':
+          setStreamingContent(prev => prev + parsed.content)
+          break
+          
+        case 'stream_end':
+          if (streamingContent) {
+            setMessages(prev => [...prev, {
+              id: `msg-${Date.now()}`,
+              role: 'assistant',
+              content: streamingContent,
+              timestamp: new Date().toISOString()
+            }])
+            setStreamingContent('')
+          }
+          setIsLoading(false)
+          break
+          
+        case 'action_required':
+          setPendingAction(parsed.action)
+          break
+          
+        case 'tool_result':
+          setMessages(prev => [...prev, {
+            id: `msg-${Date.now()}`,
+            role: 'system',
+            content: `Tool executed: ${parsed.tool}\nResult: ${JSON.stringify(parsed.result, null, 2)}`,
+            timestamp: new Date().toISOString()
+          }])
+          break
+          
+        case 'error':
+          setIsLoading(false)
+          setMessages(prev => [...prev, {
+            id: `msg-${Date.now()}`,
+            role: 'system',
+            content: `Error: ${parsed.error}`,
+            timestamp: new Date().toISOString()
+          }])
+          break
+          
+        case 'pong':
+          break
+          
+        default:
+          console.log('Unknown message type:', parsed.type)
+      }
+    } catch (e) {
+      console.error('Failed to parse message:', e)
     }
-  }
+  }, [streamingContent])
 
   const sendMessage = async (content) => {
     if (!content.trim() || isLoading) return
@@ -273,13 +263,17 @@ export default function ChatModal({ isOpen, onClose, audioRef, radioState, setRa
     }
     setMessages(prev => [...prev, userMessage])
     
+    // Prepend page context to the message for Overseer
+    const contextualMessage = `[User is on page: ${currentHelp.title}]\n\n${content}`
+    
     // Send via WebSocket if connected
     if (wsRef.current?.readyState === WebSocket.OPEN) {
       setIsLoading(true)
       wsRef.current.send(JSON.stringify({
         type: 'message',
-        content: content,
-        stream: false  // Use non-streaming to support tool calls
+        content: contextualMessage,
+        context: helpContext, // Send help context as additional data
+        stream: false
       }))
     } else {
       // Fallback to REST API
@@ -290,7 +284,11 @@ export default function ChatModal({ isOpen, onClose, audioRef, radioState, setRa
           {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ message: content, stream: false })
+            body: JSON.stringify({ 
+              message: contextualMessage, 
+              context: helpContext,
+              stream: false 
+            })
           }
         )
         const data = await response.json()
@@ -336,6 +334,12 @@ export default function ChatModal({ isOpen, onClose, audioRef, radioState, setRa
     onClose()
   }
 
+  // Ask Overseer about a specific help topic
+  const askAboutTopic = (topic) => {
+    setActiveTab('chat')
+    sendMessage(`Tell me more about: ${topic.title}`)
+  }
+
   if (!isOpen) return null
 
   return (
@@ -356,33 +360,99 @@ export default function ChatModal({ isOpen, onClose, audioRef, radioState, setRa
           </button>
         </div>
         
-        <div className="chat-body">
-          <MessageList 
-            messages={messages} 
-            streamingContent={streamingContent}
-            isLoading={isLoading}
-          />
-          
-          {pendingAction && (
-            <ActionConfirm 
-              action={pendingAction}
-              onConfirm={() => handleActionConfirm(true)}
-              onReject={() => handleActionConfirm(false)}
-            />
-          )}
+        {/* Tab Navigation */}
+        <div className="chat-tabs">
+          <button 
+            className={`chat-tab ${activeTab === 'chat' ? 'active' : ''}`}
+            onClick={() => setActiveTab('chat')}
+          >
+            💬 Chat
+          </button>
+          <button 
+            className={`chat-tab ${activeTab === 'help' ? 'active' : ''}`}
+            onClick={() => setActiveTab('help')}
+          >
+            ❓ Help: {currentHelp.title}
+          </button>
         </div>
         
-        <div className="chat-footer">
-          <MessageInput 
-            onSend={sendMessage}
-            disabled={isLoading || !!pendingAction}
-            placeholder={
-              pendingAction 
-                ? "Please confirm or reject the action above..." 
-                : "Ask Overseer anything..."
-            }
-          />
-        </div>
+        {/* Chat Tab */}
+        {activeTab === 'chat' && (
+          <>
+            <div className="chat-body">
+              <MessageList 
+                messages={messages} 
+                streamingContent={streamingContent}
+                isLoading={isLoading}
+              />
+              
+              {pendingAction && (
+                <ActionConfirm 
+                  action={pendingAction}
+                  onConfirm={() => handleActionConfirm(true)}
+                  onReject={() => handleActionConfirm(false)}
+                />
+              )}
+            </div>
+            
+            <div className="chat-footer">
+              <MessageInput 
+                onSend={sendMessage}
+                disabled={isLoading || !!pendingAction}
+                placeholder={
+                  pendingAction 
+                    ? "Please confirm or reject the action above..." 
+                    : `Ask about ${currentHelp.title}...`
+                }
+              />
+            </div>
+          </>
+        )}
+        
+        {/* Help Tab */}
+        {activeTab === 'help' && (
+          <div className="help-tab-content">
+            <div className="help-page-header">
+              <span className="help-page-role">{currentHelp.role.toUpperCase()}</span>
+              <h2>{currentHelp.title}</h2>
+              <p>{currentHelp.summary}</p>
+            </div>
+            
+            <div className="help-topics">
+              {currentHelp.topics.map((topic, idx) => (
+                <div key={idx} className="help-topic">
+                  <div className="help-topic-header">
+                    <h3>{topic.title}</h3>
+                    <button 
+                      className="help-ask-btn"
+                      onClick={() => askAboutTopic(topic)}
+                      title="Ask Overseer about this"
+                    >
+                      💬 Ask
+                    </button>
+                  </div>
+                  <div className="help-topic-content">
+                    {topic.content.split('\n').map((line, i) => (
+                      <p key={i}>{line}</p>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+            
+            {currentHelp.quickActions.length > 0 && (
+              <div className="help-quick-actions">
+                <h4>Quick Actions</h4>
+                {currentHelp.quickActions.map((action, idx) => (
+                  <div key={idx} className="help-action">
+                    <span className="help-action-label">{action.label}</span>
+                    <span className="help-action-hint">{action.action}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
         
         {/* Integrated Radio Player */}
         <div className={`radio-section ${radioExpanded ? 'expanded' : 'collapsed'}`}>
@@ -470,4 +540,3 @@ export default function ChatModal({ isOpen, onClose, audioRef, radioState, setRa
     </div>
   )
 }
-

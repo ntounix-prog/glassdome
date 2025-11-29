@@ -350,10 +350,216 @@
   color: #00ff41;
 }
 
+/* ============================================
+   Tab Navigation
+   ============================================ */
+
+.chat-tabs {
+  display: flex;
+  border-bottom: 1px solid #30363d;
+  background: #161b22;
+}
+
+.chat-tab {
+  flex: 1;
+  padding: 10px 16px;
+  border: none;
+  background: transparent;
+  color: #8b949e;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  border-bottom: 2px solid transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.chat-tab:hover {
+  color: #e6edf3;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.chat-tab.active {
+  color: #58a6ff;
+  border-bottom-color: #58a6ff;
+  background: rgba(88, 166, 255, 0.05);
+}
+
+/* ============================================
+   Help Tab Content
+   ============================================ */
+
+.help-tab-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.help-page-header {
+  padding-bottom: 16px;
+  border-bottom: 1px solid #30363d;
+}
+
+.help-page-role {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  color: #58a6ff;
+  background: rgba(88, 166, 255, 0.1);
+  padding: 3px 8px;
+  border-radius: 4px;
+  display: inline-block;
+  margin-bottom: 8px;
+}
+
+.help-page-header h2 {
+  margin: 0 0 8px 0;
+  color: #e6edf3;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.help-page-header p {
+  margin: 0;
+  color: #8b949e;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.help-topics {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.help-topic {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid #30363d;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.help-topic-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  background: rgba(255, 255, 255, 0.02);
+  border-bottom: 1px solid #30363d;
+}
+
+.help-topic-header h3 {
+  margin: 0;
+  color: #e6edf3;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.help-ask-btn {
+  padding: 4px 10px;
+  font-size: 11px;
+  background: rgba(88, 166, 255, 0.1);
+  border: 1px solid rgba(88, 166, 255, 0.3);
+  color: #58a6ff;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.help-ask-btn:hover {
+  background: rgba(88, 166, 255, 0.2);
+  border-color: #58a6ff;
+}
+
+.help-topic-content {
+  padding: 12px 14px;
+}
+
+.help-topic-content p {
+  margin: 0 0 6px 0;
+  color: #8b949e;
+  font-size: 13px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+}
+
+.help-topic-content p:last-child {
+  margin-bottom: 0;
+}
+
+.help-quick-actions {
+  background: rgba(52, 211, 153, 0.05);
+  border: 1px solid rgba(52, 211, 153, 0.2);
+  border-radius: 8px;
+  padding: 12px 14px;
+}
+
+.help-quick-actions h4 {
+  margin: 0 0 10px 0;
+  color: #34d399;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.help-action {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(52, 211, 153, 0.1);
+}
+
+.help-action:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.help-action-label {
+  color: #e6edf3;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.help-action-hint {
+  color: #6e7681;
+  font-size: 12px;
+}
+
+/* Scrollbar for help content */
+.help-tab-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.help-tab-content::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.help-tab-content::-webkit-scrollbar-thumb {
+  background: #30363d;
+  border-radius: 3px;
+}
+
+.help-tab-content::-webkit-scrollbar-thumb:hover {
+  background: #484f58;
+}
+
 /* Responsive */
 @media (max-width: 480px) {
   .chat-modal {
     width: 100%;
+  }
+  
+  .chat-tab {
+    font-size: 12px;
+    padding: 8px 12px;
   }
 }
 
