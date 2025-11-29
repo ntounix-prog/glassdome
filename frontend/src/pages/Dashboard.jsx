@@ -34,10 +34,34 @@ function useRegistryStatus() {
   return status
 }
 
+// MXWest network probe hook
+function useMXWestStatus() {
+  const [status, setStatus] = useState(null)
+  
+  useEffect(() => {
+    const fetchStatus = async () => {
+      try {
+        const response = await fetch('/api/probes/mxwest')
+        if (response.ok) {
+          setStatus(await response.json())
+        }
+      } catch (err) {
+        console.error('MXWest probe error:', err)
+      }
+    }
+    fetchStatus()
+    const interval = setInterval(fetchStatus, 30000) // Check every 30s
+    return () => clearInterval(interval)
+  }, [])
+  
+  return status
+}
+
 function Dashboard({ healthStatus }) {
   const navigate = useNavigate()
   const [isDemoOpen, setIsDemoOpen] = useState(false)
   const registryStatus = useRegistryStatus()
+  const mxwestStatus = useMXWestStatus()
 
   return (
     <div className="dashboard">
@@ -88,6 +112,16 @@ function Dashboard({ healthStatus }) {
             <span className="status-label">Drifts</span>
             <span className={`status-value ${registryStatus?.active_drifts > 0 ? 'warning' : 'healthy'}`}>
               {registryStatus?.active_drifts || 0}
+            </span>
+          </div>
+          <div className="status-item">
+            <span className="status-label">MXWest Link</span>
+            <span className={`status-value ${mxwestStatus?.status === 'healthy' ? 'healthy' : 'error'}`}>
+              {mxwestStatus?.status === 'healthy' 
+                ? `✓ ${mxwestStatus?.mxwest?.latency_ms?.toFixed(0) || '?'}ms` 
+                : mxwestStatus?.status === 'vpn_down' 
+                  ? '⚠ VPN Down'
+                  : '✗ Offline'}
             </span>
           </div>
         </div>

@@ -35,6 +35,7 @@ from glassdome.api.canvas_deploy import router as canvas_deploy_router
 from glassdome.api.container_dispatch import router as dispatch_router
 from glassdome.api.registry import router as registry_router
 from glassdome.api.secrets import router as secrets_router
+from glassdome.api.network_probes import router as probes_router
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -67,6 +68,7 @@ app.include_router(canvas_deploy_router)  # Canvas lab deployment
 app.include_router(dispatch_router)  # Container worker dispatch
 app.include_router(registry_router)  # Lab Registry - source of truth
 app.include_router(secrets_router)  # Secrets management (admin only)
+app.include_router(probes_router)   # Network probes (MXWest link monitoring)
 
 
 # Startup and shutdown events

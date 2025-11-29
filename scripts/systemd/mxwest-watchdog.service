@@ -1,0 +1,15 @@
+[Unit]
+Description=MXWest VPN Link Watchdog
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/home/nomad/glassdome/scripts/mxwest-watchdog.sh
+User=root
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
+
