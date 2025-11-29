@@ -1,7 +1,7 @@
 # Glassdome Agent Context
 
 **Last Updated:** 2024-11-28
-**Version:** 0.6.2 (Demo Presenter Mode)
+**Version:** 0.6.3 (Contextual Help)
 
 This file provides context for AI assistants working on Glassdome. Read this first to understand the current state of the project.
 
@@ -388,3 +388,12 @@ npm run dev &
 - **Production**: `/opt/glassdome` on glassdome-prod-app
 - **Database**: PostgreSQL at 192.168.3.26
 - **User**: nomad
+
+## v0.6.3 Changes (November 29, 2025)
+- Contextual help system in Overseer modal
+- Help tab shows page-specific documentation
+- "Ask" button to query Overseer about topics
+- Page context injected into all chat messages
+- Extended demo showcase (12 slides, presenter mode)
+- Feature cards for Updock, WhiteKnight, WhitePawn, Overseer
+- Fixed WebSocket message handling for chat
