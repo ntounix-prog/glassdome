@@ -141,22 +141,39 @@ glassdome auth emergency-reset
 ## Common Commands
 
 ```bash
-# Start server
-glassdome serve
+# Initialize & Start
+glassdome init                       # Initialize database + admin
+glassdome serve                      # Start API server
+glassdome status                     # Full system status
 
-# Check status  
-glassdome status
+# Lab Management
+glassdome lab list                   # List all labs
+glassdome lab list --format json     # JSON for scripting
+glassdome lab create --name "My Lab" # Create a lab
+glassdome lab show <lab_id>          # Lab details
+glassdome lab delete <lab_id>        # Delete a lab
 
-# User management
+# Deployments
+glassdome deploy list                # List deployed VMs
+glassdome deploy create --lab-id <id> --platform proxmox
+glassdome deploy status <lab_id>     # Check progress
+glassdome deploy destroy <id>        # Destroy deployment
+
+# User Management
 glassdome auth list-users
 glassdome auth reset-password -u <username>
 glassdome auth create-admin
+glassdome auth emergency-reset       # Emergency recovery
 
 # Secrets
 glassdome secrets list
 glassdome secrets set <key>
 glassdome secrets migrate
 
-# Platform testing
-glassdome test-platform proxmox
+# Platform Testing
+glassdome test-platform --platform proxmox
+glassdome test-platform --platform aws
+glassdome test-platform --platform azure
 ```
+
+📖 **Full CLI Reference**: [CLI_REFERENCE.md](CLI_REFERENCE.md)
