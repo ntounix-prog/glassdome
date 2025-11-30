@@ -2,6 +2,64 @@
 
 All notable changes to Glassdome will be documented in this file.
 
+## [0.7.4] - 2025-11-30
+
+### Test Suite Expansion & Code Quality
+
+Comprehensive test coverage for critical monitoring and infrastructure modules.
+
+### Deprecation Fixes
+- **69 occurrences** of `datetime.utcnow()` replaced with `datetime.now(timezone.utc)`
+- Fixed across 19 files in the codebase
+- Warnings reduced from 72 to 20 (remaining are SQLAlchemy internals)
+
+### New Test Coverage
+
+#### WhitePawn Monitor (31 tests)
+- MonitoringResult creation and validation
+- Configuration and initial state tests
+- Ping success/failure/timeout handling with async mocks
+- Monitor lifecycle (start/stop)
+- Alert cooldown mechanism
+- Target management
+- Latency analysis and threshold detection
+- Database integration tests
+
+#### WhitePawn Orchestrator (23 tests)
+- Initialization and state management
+- Lifecycle start/stop operations
+- Multi-monitor management
+- Deployment operations
+- Alert aggregation and resolution
+- Guardian loop functionality
+- Configuration propagation
+
+#### Reaper Engine (36 tests)
+- Task model creation and serialization
+- ResultEvent with success/error states
+- HostState tracking (failures, locking, vulnerabilities)
+- MissionState lifecycle and task tracking
+- MissionEngine initialization and scheduling
+- Mission completion and failure scenarios
+- Mission types (web-security, network-defense, incident-response)
+
+#### Registry Core (42 tests)
+- ResourceType, ResourceState, DriftType, EventType enums
+- Resource model CRUD operations
+- StateChange event tracking
+- Drift detection and resolution
+- LabRegistry connection management
+- Resource registration and retrieval
+- Lab deployment workflows
+- LabSnapshot creation
+
+### Test Statistics
+- **Previous**: 78 tests
+- **Current**: 210 tests
+- **Added**: 132 new tests (+169%)
+
+---
+
 ## [0.7.3] - 2025-11-30
 
 ### Centralized Logging System
