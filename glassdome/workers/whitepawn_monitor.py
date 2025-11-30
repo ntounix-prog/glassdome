@@ -235,10 +235,9 @@ class WhitePawnMonitor:
 
 def main():
     """Entry point for WhitePawn monitor"""
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s [%(levelname)s] %(message)s"
-    )
+    # Use centralized logging
+    from glassdome.core.logging import setup_logging_from_settings
+    setup_logging_from_settings()
     
     monitor = WhitePawnMonitor()
     asyncio.run(monitor.start())

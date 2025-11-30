@@ -933,6 +933,198 @@ def auth_emergency_reset():
     asyncio.run(do_emergency())
 
 
+# =============================================================================
+# LOGS COMMANDS - Log Management
+# =============================================================================
+
+@main.group()
+def logs():
+    """Log management commands"""
+    pass
+
+
+@logs.command('tail')
+@click.option('--lines', '-n', default=50, help='Number of lines to show')
+@click.option('--follow', '-f', is_flag=True, help='Follow log output (like tail -f)')
+@click.option('--json', 'use_json', is_flag=True, help='Tail JSON log instead of text')
+def logs_tail(lines, follow, use_json):
+    """
+    Tail the Glassdome log files.
+    
+    Examples:
+        glassdome logs tail
+        glassdome logs tail -n 100
+        glassdome logs tail -f
+        glassdome logs tail --json
+    """
+    import subprocess
+    import os
+    
+    log_dir = settings.log_dir if hasattr(settings, 'log_dir') else 'logs'
+    log_file = Path(log_dir) / ('glassdome.json' if use_json else 'glassdome.log')
+    
+    if not log_file.exists():
+        click.echo(f"❌ Log file not found: {log_file}")
+        click.echo(f"   Make sure the server has been started at least once.")
+        return
+    
+    try:
+        if follow:
+            click.echo(f"📋 Following {log_file} (Ctrl+C to stop)...")
+            subprocess.run(['tail', '-f', str(log_file)])
+        else:
+            subprocess.run(['tail', '-n', str(lines), str(log_file)])
+    except KeyboardInterrupt:
+        click.echo("\nStopped.")
+
+
+@logs.command('level')
+@click.argument('new_level', required=False)
+def logs_level(new_level):
+    """
+    Show or change the log level.
+    
+    Examples:
+        glassdome logs level           # Show current level
+        glassdome logs level DEBUG     # Set to DEBUG
+        glassdome logs level WARNING   # Set to WARNING (quiet)
+    """
+    if new_level:
+        new_level = new_level.upper()
+        if new_level not in ('DEBUG', 'INFO', 'WARNING', 'ERROR'):
+            click.echo(f"❌ Invalid level: {new_level}")
+            click.echo("   Valid levels: DEBUG, INFO, WARNING, ERROR")
+            return
+        
+        # Update .env file
+        env_file = Path('.env')
+        if env_file.exists():
+            content = env_file.read_text()
+            if 'LOG_LEVEL=' in content:
+                import re
+                content = re.sub(r'LOG_LEVEL=\w+', f'LOG_LEVEL={new_level}', content)
+            else:
+                content += f'\nLOG_LEVEL={new_level}\n'
+            env_file.write_text(content)
+            click.echo(f"✅ Log level set to {new_level}")
+            click.echo("   Restart the server for changes to take effect.")
+        else:
+            click.echo(f"⚠️  No .env file found. Set LOG_LEVEL={new_level} in your environment.")
+    else:
+        current = getattr(settings, 'log_level', 'INFO')
+        click.echo(f"Current log level: {current}")
+        click.echo("\nTo change: glassdome logs level <DEBUG|INFO|WARNING|ERROR>")
+
+
+@logs.command('clear')
+@click.option('--older', '-o', default='7d', help='Clear logs older than (e.g., 7d, 24h)')
+@click.option('--all', 'clear_all', is_flag=True, help='Clear all logs')
+@click.confirmation_option(prompt='Are you sure you want to clear logs?')
+def logs_clear(older, clear_all):
+    """
+    Clear old log files.
+    
+    Examples:
+        glassdome logs clear               # Clear logs older than 7 days
+        glassdome logs clear --older 1d    # Clear logs older than 1 day
+        glassdome logs clear --all         # Clear all logs
+    """
+    import os
+    import time
+    
+    log_dir = Path(settings.log_dir if hasattr(settings, 'log_dir') else 'logs')
+    
+    if not log_dir.exists():
+        click.echo("No logs directory found.")
+        return
+    
+    # Parse time spec
+    if clear_all:
+        max_age = 0
+    else:
+        try:
+            if older.endswith('d'):
+                max_age = int(older[:-1]) * 86400  # days to seconds
+            elif older.endswith('h'):
+                max_age = int(older[:-1]) * 3600   # hours to seconds
+            else:
+                max_age = int(older) * 86400       # default to days
+        except ValueError:
+            click.echo(f"❌ Invalid time spec: {older}")
+            return
+    
+    now = time.time()
+    cleared = 0
+    total_size = 0
+    
+    for log_file in log_dir.glob('*.log*'):
+        file_age = now - log_file.stat().st_mtime
+        if clear_all or file_age > max_age:
+            size = log_file.stat().st_size
+            log_file.unlink()
+            cleared += 1
+            total_size += size
+    
+    for log_file in log_dir.glob('*.json*'):
+        file_age = now - log_file.stat().st_mtime
+        if clear_all or file_age > max_age:
+            size = log_file.stat().st_size
+            log_file.unlink()
+            cleared += 1
+            total_size += size
+    
+    size_mb = total_size / (1024 * 1024)
+    click.echo(f"✅ Cleared {cleared} log files ({size_mb:.2f} MB)")
+
+
+@logs.command('status')
+def logs_status():
+    """
+    Show logging status and file sizes.
+    
+    Example:
+        glassdome logs status
+    """
+    log_dir = Path(settings.log_dir if hasattr(settings, 'log_dir') else 'logs')
+    
+    click.echo(f"═══════════════════════════════════════════")
+    click.echo(f"  Logging Status")
+    click.echo(f"═══════════════════════════════════════════")
+    click.echo(f"Level:     {getattr(settings, 'log_level', 'INFO')}")
+    click.echo(f"Directory: {log_dir.absolute()}")
+    click.echo(f"Max Size:  {getattr(settings, 'log_max_size_mb', 10)} MB")
+    click.echo(f"Backups:   {getattr(settings, 'log_backup_count', 5)} files")
+    click.echo(f"JSON:      {'✓ Enabled' if getattr(settings, 'log_json_enabled', True) else '✗ Disabled'}")
+    
+    if not log_dir.exists():
+        click.echo(f"\n⚠️  Log directory does not exist yet.")
+        return
+    
+    click.echo(f"\n{'File':<30} {'Size':<12} {'Modified':<20}")
+    click.echo('─' * 65)
+    
+    total_size = 0
+    for log_file in sorted(log_dir.glob('glassdome*')):
+        stat = log_file.stat()
+        size = stat.st_size
+        total_size += size
+        
+        if size < 1024:
+            size_str = f"{size} B"
+        elif size < 1024 * 1024:
+            size_str = f"{size / 1024:.1f} KB"
+        else:
+            size_str = f"{size / (1024 * 1024):.2f} MB"
+        
+        from datetime import datetime
+        modified = datetime.fromtimestamp(stat.st_mtime).strftime('%Y-%m-%d %H:%M')
+        
+        click.echo(f"{log_file.name:<30} {size_str:<12} {modified:<20}")
+    
+    total_mb = total_size / (1024 * 1024)
+    click.echo(f"\nTotal: {total_mb:.2f} MB")
+
+
 if __name__ == '__main__':
     main()
 

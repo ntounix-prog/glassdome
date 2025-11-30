@@ -24,7 +24,7 @@ class Settings(BaseSettings):
     
     # Application
     app_name: str = "Glassdome"
-    app_version: str = "0.7.2"
+    app_version: str = "0.7.3"
     environment: str = "development"
     debug: bool = True
     
@@ -48,6 +48,15 @@ class Settings(BaseSettings):
     secret_key: str = "change-this-in-production-use-openssl-rand-hex-32"
     jwt_algorithm: str = "HS256"
     access_token_expire_minutes: int = 30
+    
+    # Logging
+    log_level: str = "INFO"              # DEBUG, INFO, WARNING, ERROR
+    log_dir: str = "logs"                # Directory for log files
+    log_max_size_mb: int = 10            # Max file size before rotation
+    log_backup_count: int = 5            # Number of rotated files to keep
+    log_json_enabled: bool = True        # Enable JSON output for SIEM
+    log_console_enabled: bool = True     # Enable console output
+    log_file_enabled: bool = True        # Enable file output
     
     # Proxmox (Default/Instance 01 - backward compatible)
     proxmox_host: Optional[str] = None

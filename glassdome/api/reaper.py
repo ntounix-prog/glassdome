@@ -29,31 +29,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 import os
 from pathlib import Path
 
-# ============================================================================
-# Reaper-specific logging setup
-# ============================================================================
-
+# Reaper logger - uses centralized logging configuration
 logger = logging.getLogger("glassdome.reaper")
-
-# Create logs directory if it doesn't exist
-LOGS_DIR = Path(__file__).parent.parent.parent / "logs"
-LOGS_DIR.mkdir(exist_ok=True)
-
-# File handler for Reaper-specific logs
-reaper_log_file = LOGS_DIR / "reaper.log"
-file_handler = logging.FileHandler(reaper_log_file)
-file_handler.setLevel(logging.DEBUG)
-file_handler.setFormatter(logging.Formatter(
-    '%(asctime)s [%(levelname)s] %(name)s - %(message)s',
-    datefmt='%Y-%m-%d %H:%M:%S'
-))
-logger.addHandler(file_handler)
-logger.setLevel(logging.DEBUG)
-
-logger.info("=" * 60)
-logger.info("REAPER API INITIALIZED")
-logger.info(f"Log file: {reaper_log_file}")
-logger.info("=" * 60)
 
 router = APIRouter(prefix="/api/reaper", tags=["reaper"])
 

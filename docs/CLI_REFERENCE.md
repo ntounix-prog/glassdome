@@ -595,6 +595,107 @@ done
 
 ---
 
+## Log Commands
+
+### `glassdome logs tail`
+
+Tail log files.
+
+```bash
+glassdome logs tail [OPTIONS]
+```
+
+| Option | Description |
+|--------|-------------|
+| `-n`, `--lines` | Number of lines (default: 50) |
+| `-f`, `--follow` | Follow output (like tail -f) |
+| `--json` | Tail JSON log instead of text |
+
+**Examples:**
+```bash
+glassdome logs tail                # Last 50 lines
+glassdome logs tail -n 100         # Last 100 lines
+glassdome logs tail -f             # Follow in real-time
+glassdome logs tail --json         # Tail SIEM-formatted JSON log
+```
+
+---
+
+### `glassdome logs level`
+
+Show or change log level.
+
+```bash
+glassdome logs level [LEVEL]
+```
+
+| Level | Description |
+|-------|-------------|
+| `DEBUG` | Everything (verbose) |
+| `INFO` | Normal operations (default) |
+| `WARNING` | Warnings and errors only |
+| `ERROR` | Errors only (quiet) |
+
+**Examples:**
+```bash
+glassdome logs level               # Show current level
+glassdome logs level DEBUG         # Set to DEBUG (requires restart)
+glassdome logs level WARNING       # Set to WARNING (quiet mode)
+```
+
+---
+
+### `glassdome logs clear`
+
+Clear old log files.
+
+```bash
+glassdome logs clear [OPTIONS]
+```
+
+| Option | Description |
+|--------|-------------|
+| `-o`, `--older` | Clear logs older than (e.g., 7d, 24h) |
+| `--all` | Clear all logs |
+
+**Examples:**
+```bash
+glassdome logs clear               # Clear > 7 days old
+glassdome logs clear --older 1d    # Clear > 1 day old
+glassdome logs clear --all         # Clear everything
+```
+
+---
+
+### `glassdome logs status`
+
+Show logging configuration and file sizes.
+
+```bash
+glassdome logs status
+```
+
+**Output:**
+```
+═══════════════════════════════════════════
+  Logging Status
+═══════════════════════════════════════════
+Level:     INFO
+Directory: /home/nomad/glassdome/logs
+Max Size:  10 MB
+Backups:   5 files
+JSON:      ✓ Enabled
+
+File                           Size         Modified
+─────────────────────────────────────────────────────────────────
+glassdome.json                 2.3 MB       2025-11-30 15:30
+glassdome.log                  1.8 MB       2025-11-30 15:30
+
+Total: 4.1 MB
+```
+
+---
+
 ## Environment Variables
 
 The CLI respects these environment variables:

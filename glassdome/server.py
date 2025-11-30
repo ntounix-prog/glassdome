@@ -6,33 +6,10 @@ Created: November 2025
 Copyright (c) 2025 Brett Turner. All rights reserved.
 """
 
-import logging
-import sys
-
 from glassdome.main import app
 from glassdome.core.config import settings
 from glassdome.core.security import ensure_security_context
-
-
-def configure_logging():
-    """Configure logging for the application"""
-    # Root logger configuration
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s %(levelname)s [%(name)s] %(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S",
-        stream=sys.stdout
-    )
-    
-    # Enable DEBUG for chat and LLM modules for troubleshooting
-    logging.getLogger("glassdome.chat").setLevel(logging.DEBUG)
-    logging.getLogger("glassdome.api.chat").setLevel(logging.DEBUG)
-    
-    # Suppress noisy loggers
-    logging.getLogger("httpx").setLevel(logging.WARNING)
-    logging.getLogger("httpcore").setLevel(logging.WARNING)
-    logging.getLogger("openai").setLevel(logging.INFO)
-    logging.getLogger("anthropic").setLevel(logging.INFO)
+from glassdome.core.logging import setup_logging_from_settings
 
 
 def run(host: str = "0.0.0.0", port: int = None):
@@ -45,8 +22,8 @@ def run(host: str = "0.0.0.0", port: int = None):
     """
     import uvicorn
 
-    # Configure logging first
-    configure_logging()
+    # Configure centralized logging
+    setup_logging_from_settings()
     
     # Ensure this process has a valid security context (no prompts here).
     # If the session hasn't been initialized on this host/user, this will

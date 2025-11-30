@@ -2,6 +2,49 @@
 
 All notable changes to Glassdome will be documented in this file.
 
+## [0.7.3] - 2025-11-30
+
+### Centralized Logging System
+
+Implemented enterprise-grade logging with JSON output for SIEM integration.
+
+### New Features
+- **Centralized logging configuration** in `glassdome/core/logging.py`
+- **JSON log output** for Filebeat/Logstash/ELK ingestion (`logs/glassdome.json`)
+- **Rotating file handlers** with configurable size limits
+- **Colored console output** for development
+- **Log level control** via `LOG_LEVEL` environment variable
+
+### CLI Commands
+- `glassdome logs tail` - Tail log files (with `-f` follow mode)
+- `glassdome logs level` - Show/change log level
+- `glassdome logs clear` - Clear old log files
+- `glassdome logs status` - Show logging configuration and file sizes
+
+### Configuration
+New settings in `.env`:
+```bash
+LOG_LEVEL=INFO              # DEBUG, INFO, WARNING, ERROR
+LOG_DIR=logs                # Log directory
+LOG_MAX_SIZE_MB=10          # Max file size before rotation
+LOG_BACKUP_COUNT=5          # Rotated files to keep
+LOG_JSON_ENABLED=true       # Enable JSON output for SIEM
+```
+
+### Files Changed
+- `glassdome/core/config.py` - Added 7 logging settings
+- `glassdome/core/logging.py` - **New** centralized logging module
+- `glassdome/server.py` - Simplified to use centralized logging
+- `glassdome/api/reaper.py` - Removed ad-hoc file handler
+- `glassdome/workers/whitepawn_monitor.py` - Uses centralized logging
+- `glassdome/cli.py` - Added `logs` command group
+
+### Documentation
+- `docs/LOGGING.md` - Comprehensive logging guide
+- `deploy/filebeat.yml` - Sample Filebeat config for ELK
+
+---
+
 ## [0.7.2] - 2025-11-30
 
 ### Wiring & Integration Release
