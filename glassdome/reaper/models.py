@@ -8,7 +8,7 @@ Copyright (c) 2025 Brett Turner. All rights reserved.
 
 from dataclasses import dataclass, field
 from typing import Dict, Any, Optional, List
-from datetime import datetime
+from datetime import datetime, timezone
 
 
 @dataclass
@@ -58,7 +58,7 @@ class ResultEvent:
     stderr_tail: str = ""
     data: Dict[str, Any] = field(default_factory=dict)
     logs_ref: Optional[str] = None
-    ts: str = field(default_factory=lambda: datetime.utcnow().isoformat() + "Z")
+    ts: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat() + "Z")
     retriable: bool = False
     error_code: Optional[str] = None
     
@@ -132,8 +132,8 @@ class MissionState:
     pending_tasks: List[str] = field(default_factory=list)
     completed_tasks: List[str] = field(default_factory=list)
     failed_tasks: List[str] = field(default_factory=list)
-    created_at: str = field(default_factory=lambda: datetime.utcnow().isoformat() + "Z")
-    updated_at: str = field(default_factory=lambda: datetime.utcnow().isoformat() + "Z")
+    created_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat() + "Z")
+    updated_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat() + "Z")
     status: str = "pending"  # "pending" | "running" | "completed" | "failed" | "cancelled"
     
     def to_dict(self) -> dict:

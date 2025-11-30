@@ -10,7 +10,7 @@ import asyncio
 import logging
 import os
 from typing import Dict, Any, List, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 
 from celery import group, chord
 from .celery_app import celery_app
@@ -146,7 +146,7 @@ def deploy_lab(self, lab_id: str, lab_data: Dict[str, Any], platform_id: str = "
     return {
         "success": len(errors) == 0,
         "lab_id": lab_id,
-        "deployment_id": f"deploy-{lab_id[:12]}-{datetime.utcnow().strftime('%H%M%S')}",
+        "deployment_id": f"deploy-{lab_id[:12]}-{datetime.now(timezone.utc).strftime('%H%M%S')}",
         "vms_deployed": len(deployed_vms),
         "vms_failed": len(errors),
         "deployed_vms": deployed_vms,

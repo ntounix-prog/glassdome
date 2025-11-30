@@ -10,7 +10,7 @@ import asyncio
 import logging
 import ipaddress
 from typing import Dict, Any, List, Optional, Set
-from datetime import datetime
+from datetime import datetime, timezone
 from fastapi import APIRouter, HTTPException, Depends, BackgroundTasks
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -689,7 +689,7 @@ async def deploy_canvas_lab(
             vms=[], errors=["Platform not supported"]
         )
     
-    deployment_id = f"deploy-{lab_short}-{datetime.utcnow().strftime('%H%M%S')}"
+    deployment_id = f"deploy-{lab_short}-{datetime.now(timezone.utc).strftime('%H%M%S')}"
     
     # Separate VMs and networks
     vm_nodes = [n for n in nodes if n.type == "vm"]

@@ -10,7 +10,7 @@ import json
 import logging
 import traceback
 from typing import Dict, Any, Optional, List
-from datetime import datetime
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, HTTPException, Depends
 from pydantic import BaseModel
@@ -374,7 +374,7 @@ async def chat_websocket(websocket: WebSocket, conversation_id: str):
                     # Stream response
                     await websocket.send_json({
                         "type": "start",
-                        "timestamp": datetime.utcnow().isoformat()
+                        "timestamp": datetime.now(timezone.utc).isoformat()
                     })
                     
                     full_response = ""

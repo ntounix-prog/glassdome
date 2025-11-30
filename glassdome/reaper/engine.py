@@ -8,7 +8,7 @@ Copyright (c) 2025 Brett Turner. All rights reserved.
 
 import asyncio
 from typing import List, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 import logging
 
 from glassdome.reaper.task_queue import TaskQueue
@@ -75,7 +75,7 @@ class MissionEngine:
         
         # Update status
         initial_state.status = "running"
-        initial_state.updated_at = datetime.utcnow().isoformat() + "Z"
+        initial_state.updated_at = datetime.now(timezone.utc).isoformat() + "Z"
         
         # Save initial state
         self.store.save(initial_state)
@@ -117,7 +117,7 @@ class MissionEngine:
             )
         
         # Update mission timestamp
-        mission.updated_at = datetime.utcnow().isoformat() + "Z"
+        mission.updated_at = datetime.now(timezone.utc).isoformat() + "Z"
         self.store.save(mission)
     
     def process_result(self, event: ResultEvent) -> None:

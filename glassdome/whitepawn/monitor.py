@@ -10,7 +10,7 @@ import asyncio
 import logging
 import subprocess
 import time
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Dict, Any, List, Optional, Tuple
 from sqlalchemy import select, and_
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -44,7 +44,7 @@ class MonitoringResult:
         self.latency_ms = latency_ms
         self.error = error
         self.details = details or {}
-        self.timestamp = datetime.utcnow()
+        self.timestamp = datetime.now(timezone.utc)
 
 
 class WhitePawnMonitor:
@@ -419,7 +419,7 @@ class WhitePawnMonitor:
                 "name": target["name"],
                 "reachable": result.success,
                 "latency_ms": result.latency_ms,
-                "last_check": datetime.utcnow().isoformat()
+                "last_check": datetime.now(timezone.utc).isoformat()
             }
         
         return matrix
@@ -477,7 +477,7 @@ class WhitePawnMonitor:
             )
             deployment = result.scalar_one_or_none()
             if deployment:
-                deployment.last_heartbeat = datetime.utcnow()
+                deployment.last_heartbeat = datetime.now(timezone.utc)
                 deployment.total_checks = self._check_count
                 deployment.total_alerts = self._alert_count
                 deployment.status = "active"
@@ -528,10 +528,10 @@ class WhitePawnMonitor:
         
         if last_alert:
             cooldown = timedelta(seconds=self.config["alert_cooldown"])
-            if datetime.utcnow() - last_alert < cooldown:
+            if datetime.now(timezone.utc) - last_alert < cooldown:
                 return  # Still in cooldown
         
-        self._last_alerts[cooldown_key] = datetime.utcnow()
+        self._last_alerts[cooldown_key] = datetime.now(timezone.utc)
         self._alert_count += 1
         
         async with AsyncSessionLocal() as session:

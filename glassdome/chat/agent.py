@@ -12,7 +12,7 @@ import logging
 import traceback
 from dataclasses import dataclass, field
 from typing import Dict, Any, List, Optional, AsyncIterator
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 
 from glassdome.chat.llm_service import LLMService, LLMMessage, LLMResponse, Tool, ToolCall
@@ -38,7 +38,7 @@ class ChatMessage:
     id: str
     role: MessageRole
     content: str
-    timestamp: str = field(default_factory=lambda: datetime.utcnow().isoformat())
+    timestamp: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
     tool_calls: Optional[List[Dict[str, Any]]] = None
     tool_call_id: Optional[str] = None
     metadata: Optional[Dict[str, Any]] = None
@@ -72,8 +72,8 @@ class Conversation:
     active_workflow: Optional[str] = None  # Workflow ID if in progress
     pending_action: Optional[ActionRequest] = None
     context: Dict[str, Any] = field(default_factory=dict)
-    created_at: str = field(default_factory=lambda: datetime.utcnow().isoformat())
-    updated_at: str = field(default_factory=lambda: datetime.utcnow().isoformat())
+    created_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    updated_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
     
     def add_message(self, role: MessageRole, content: str, **kwargs) -> ChatMessage:
         """Add a message to the conversation"""
@@ -84,7 +84,7 @@ class Conversation:
             **kwargs
         )
         self.messages.append(message)
-        self.updated_at = datetime.utcnow().isoformat()
+        self.updated_at = datetime.now(timezone.utc).isoformat()
         return message
     
     def get_llm_messages(self, max_messages: int = 50) -> List[LLMMessage]:
@@ -185,7 +185,7 @@ class OverseerChatAgent:
         conversation.add_message(
             MessageRole.SYSTEM,
             OVERSEER_SYSTEM_PROMPT.format(
-                current_time=datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC")
+                current_time=datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
             )
         )
         

@@ -10,7 +10,7 @@ import uuid
 import logging
 from dataclasses import dataclass, field
 from typing import Dict, Any, List, Optional, Callable, Awaitable
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 
 logger = logging.getLogger(__name__)
@@ -69,8 +69,8 @@ class Workflow:
     optional_fields: List[str] = field(default_factory=list)
     status: WorkflowStatus = WorkflowStatus.PENDING
     current_step_index: int = 0
-    created_at: str = field(default_factory=lambda: datetime.utcnow().isoformat())
-    updated_at: str = field(default_factory=lambda: datetime.utcnow().isoformat())
+    created_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    updated_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
     result: Optional[Dict[str, Any]] = None
     error: Optional[str] = None
     
@@ -311,7 +311,7 @@ class WorkflowEngine:
             raise ValueError(f"Workflow {workflow_id} not found")
         
         workflow.collected_data.update(data)
-        workflow.updated_at = datetime.utcnow().isoformat()
+        workflow.updated_at = datetime.now(timezone.utc).isoformat()
         
         # Check if data collection is complete
         if workflow.is_data_complete() and workflow.status == WorkflowStatus.COLLECTING_DATA:
@@ -339,7 +339,7 @@ class WorkflowEngine:
             raise ValueError(f"Workflow missing required data: {missing}")
         
         workflow.status = WorkflowStatus.EXECUTING
-        workflow.updated_at = datetime.utcnow().isoformat()
+        workflow.updated_at = datetime.now(timezone.utc).isoformat()
         
         logger.info(f"Executing workflow {workflow_id}")
         
@@ -355,7 +355,7 @@ class WorkflowEngine:
             
             workflow.status = WorkflowStatus.COMPLETED
             workflow.result = result
-            workflow.updated_at = datetime.utcnow().isoformat()
+            workflow.updated_at = datetime.now(timezone.utc).isoformat()
             
             logger.info(f"Workflow {workflow_id} completed successfully")
             return result
@@ -363,7 +363,7 @@ class WorkflowEngine:
         except Exception as e:
             workflow.status = WorkflowStatus.FAILED
             workflow.error = str(e)
-            workflow.updated_at = datetime.utcnow().isoformat()
+            workflow.updated_at = datetime.now(timezone.utc).isoformat()
             
             logger.error(f"Workflow {workflow_id} failed: {e}")
             raise
@@ -375,19 +375,19 @@ class WorkflowEngine:
         for i, step in enumerate(workflow.steps):
             workflow.current_step_index = i
             step.status = StepStatus.ACTIVE
-            step.started_at = datetime.utcnow().isoformat()
+            step.started_at = datetime.now(timezone.utc).isoformat()
             
             try:
                 # Mark step as completed (actual execution would happen here)
                 step.status = StepStatus.COMPLETED
-                step.completed_at = datetime.utcnow().isoformat()
+                step.completed_at = datetime.now(timezone.utc).isoformat()
                 step.result = {"success": True}
                 results.append({"step": step.name, "status": "completed"})
                 
             except Exception as e:
                 step.status = StepStatus.FAILED
                 step.error = str(e)
-                step.completed_at = datetime.utcnow().isoformat()
+                step.completed_at = datetime.now(timezone.utc).isoformat()
                 raise
         
         return {
@@ -412,7 +412,7 @@ class WorkflowEngine:
             return {"success": False, "error": f"Workflow {workflow_id} not found"}
         
         workflow.status = WorkflowStatus.CANCELLED
-        workflow.updated_at = datetime.utcnow().isoformat()
+        workflow.updated_at = datetime.now(timezone.utc).isoformat()
         
         # Remove from active workflows
         del self.active_workflows[workflow_id]

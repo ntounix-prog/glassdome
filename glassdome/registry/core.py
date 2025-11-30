@@ -9,7 +9,7 @@ Copyright (c) 2025 Brett Turner. All rights reserved.
 import asyncio
 import logging
 import json
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Dict, Any, List, Optional, AsyncIterator, Set
 import redis.asyncio as redis
 
@@ -83,10 +83,10 @@ class LabRegistry:
         existing = Resource.from_json(existing_json) if existing_json else None
         
         # Update timestamps
-        resource.updated_at = datetime.utcnow()
-        resource.last_seen = datetime.utcnow()
+        resource.updated_at = datetime.now(timezone.utc)
+        resource.last_seen = datetime.now(timezone.utc)
         if not existing:
-            resource.created_at = datetime.utcnow()
+            resource.created_at = datetime.now(timezone.utc)
         
         # Store in Redis
         await self._redis.set(key, resource.to_json())
@@ -418,7 +418,7 @@ class LabRegistry:
         
         if drift_data:
             drift = Drift(**json.loads(drift_data))
-            drift.resolved_at = datetime.utcnow()
+            drift.resolved_at = datetime.now(timezone.utc)
             
             # Move to resolved
             await self._redis.srem("registry:drift:active", resource_id)
@@ -464,7 +464,7 @@ class LabRegistry:
         key = f"{self.AGENT_PREFIX}{agent_name}"
         data = {
             "name": agent_name,
-            "last_heartbeat": datetime.utcnow().isoformat(),
+            "last_heartbeat": datetime.now(timezone.utc).isoformat(),
             "status": status or {},
         }
         await self._redis.set(key, json.dumps(data))

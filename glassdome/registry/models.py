@@ -7,7 +7,7 @@ Copyright (c) 2025 Brett Turner. All rights reserved.
 """
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Dict, Any, List, Optional
 import json
@@ -150,9 +150,9 @@ class Resource:
             config=data.get("config", {}),
             desired_state=ResourceState(data["desired_state"]) if data.get("desired_state") else None,
             desired_config=data.get("desired_config", {}),
-            created_at=datetime.fromisoformat(data["created_at"]) if data.get("created_at") else datetime.utcnow(),
-            updated_at=datetime.fromisoformat(data["updated_at"]) if data.get("updated_at") else datetime.utcnow(),
-            last_seen=datetime.fromisoformat(data["last_seen"]) if data.get("last_seen") else datetime.utcnow(),
+            created_at=datetime.fromisoformat(data["created_at"]) if data.get("created_at") else datetime.now(timezone.utc),
+            updated_at=datetime.fromisoformat(data["updated_at"]) if data.get("updated_at") else datetime.now(timezone.utc),
+            last_seen=datetime.fromisoformat(data["last_seen"]) if data.get("last_seen") else datetime.now(timezone.utc),
             tier=data.get("tier", 2),
         )
     
@@ -223,7 +223,7 @@ class StateChange:
             lab_id=data.get("lab_id"),
             platform=data.get("platform"),
             agent=data.get("agent"),
-            timestamp=datetime.fromisoformat(data["timestamp"]) if data.get("timestamp") else datetime.utcnow(),
+            timestamp=datetime.fromisoformat(data["timestamp"]) if data.get("timestamp") else datetime.now(timezone.utc),
         )
 
 

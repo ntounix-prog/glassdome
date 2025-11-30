@@ -8,7 +8,7 @@ Copyright (c) 2025 Brett Turner. All rights reserved.
 
 import asyncio
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, Any, List, Optional
 
 from glassdome.registry.core import LabRegistry, get_registry
@@ -99,7 +99,7 @@ class LabController:
     
     async def _do_reconcile(self):
         """Execute a single reconciliation cycle"""
-        self._last_check = datetime.utcnow()
+        self._last_check = datetime.now(timezone.utc)
         self._check_count += 1
         
         # Get all labs
@@ -258,7 +258,7 @@ class LabController:
         Returns:
             Reconciliation results
         """
-        start_time = datetime.utcnow()
+        start_time = datetime.now(timezone.utc)
         
         # Publish start event
         await self.registry.publish_event(StateChange(
@@ -304,7 +304,7 @@ class LabController:
             lab_id=lab_id,
         ))
         
-        results["duration_ms"] = int((datetime.utcnow() - start_time).total_seconds() * 1000)
+        results["duration_ms"] = int((datetime.now(timezone.utc) - start_time).total_seconds() * 1000)
         results["success"] = len(results["errors"]) == 0
         
         return results

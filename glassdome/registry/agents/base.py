@@ -9,7 +9,7 @@ Copyright (c) 2025 Brett Turner. All rights reserved.
 import asyncio
 import logging
 from abc import ABC, abstractmethod
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, Any, List, Optional
 
 from glassdome.registry.core import LabRegistry, get_registry
@@ -124,7 +124,7 @@ class BaseAgent(ABC):
     
     async def _do_poll(self):
         """Execute a single poll cycle"""
-        self._last_poll = datetime.utcnow()
+        self._last_poll = datetime.now(timezone.utc)
         self._poll_count += 1
         
         # Poll for resources

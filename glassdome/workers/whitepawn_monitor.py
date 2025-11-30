@@ -11,7 +11,7 @@ import logging
 import os
 import signal
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, List, Set
 
 import redis
@@ -63,7 +63,7 @@ class WhitePawnMonitor:
         self.redis_client.hset(
             "whitepawn:workers",
             self.worker_id,
-            datetime.utcnow().isoformat()
+            datetime.now(timezone.utc).isoformat()
         )
         logger.info(f"[{self.worker_id}] Registered with orchestrator")
     
@@ -143,13 +143,13 @@ class WhitePawnMonitor:
                 continue
             
             try:
-                start = datetime.utcnow()
+                start = datetime.now(timezone.utc)
                 result = subprocess.run(
                     ["ping", "-c", "1", "-W", "2", vm_ip],
                     capture_output=True,
                     timeout=5
                 )
-                latency_ms = (datetime.utcnow() - start).total_seconds() * 1000
+                latency_ms = (datetime.now(timezone.utc) - start).total_seconds() * 1000
                 
                 results.append({
                     "vm_id": vm.get("vm_id"),
@@ -177,7 +177,7 @@ class WhitePawnMonitor:
             key,
             300,  # 5 minute expiry
             json.dumps({
-                "timestamp": datetime.utcnow().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
                 "results": results
             })
         )
@@ -214,7 +214,7 @@ class WhitePawnMonitor:
                     "ip": result.get("ip"),
                     "type": "unreachable",
                     "severity": "critical",
-                    "timestamp": datetime.utcnow().isoformat()
+                    "timestamp": datetime.now(timezone.utc).isoformat()
                 }
                 self.redis_client.publish("whitepawn:alerts", json.dumps(alert))
                 logger.warning(f"ALERT: VM {result.get('vm_id')} unreachable")
@@ -228,7 +228,7 @@ class WhitePawnMonitor:
                     "type": "high_latency",
                     "severity": "warning",
                     "latency_ms": result.get("latency_ms"),
-                    "timestamp": datetime.utcnow().isoformat()
+                    "timestamp": datetime.now(timezone.utc).isoformat()
                 }
                 self.redis_client.publish("whitepawn:alerts", json.dumps(alert))
 

@@ -8,7 +8,7 @@ Copyright (c) 2025 Brett Turner. All rights reserved.
 
 import asyncio
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Dict, Any, List, Optional
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -44,7 +44,7 @@ class ReconciliationResult:
         self.actual_state = actual_state
         self.drifted = drifted
         self.details = details
-        self.timestamp = datetime.utcnow()
+        self.timestamp = datetime.now(timezone.utc)
     
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -114,7 +114,7 @@ class NetworkReconciler:
         while self._running:
             try:
                 await self._run_reconciliation()
-                self._last_run = datetime.utcnow()
+                self._last_run = datetime.now(timezone.utc)
             except Exception as e:
                 logger.error(f"Reconciliation error: {e}")
             

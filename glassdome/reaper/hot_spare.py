@@ -8,7 +8,7 @@ Copyright (c) 2025 Brett Turner. All rights reserved.
 
 from sqlalchemy import Column, Integer, String, DateTime, Boolean, Enum as SQLEnum
 from sqlalchemy.sql import func
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional, List, Dict, Any
 from enum import Enum
 import asyncio
@@ -329,7 +329,7 @@ class HotSparePool:
                     spare.ip_address = result["ip_address"]
                 
                 spare.status = SpareStatus.READY.value
-                spare.ready_at = datetime.utcnow()
+                spare.ready_at = datetime.now(timezone.utc)
                 await session.commit()
                 
                 logger.info(f"Spare {spare.name} ready at {spare.ip_address}")
@@ -363,7 +363,7 @@ class HotSparePool:
                 await proc.wait()
                 
                 if proc.returncode == 0:
-                    spare.last_health_check = datetime.utcnow()
+                    spare.last_health_check = datetime.now(timezone.utc)
                     spare.health_check_failures = 0
                 else:
                     spare.health_check_failures += 1
@@ -409,7 +409,7 @@ class HotSparePool:
             # Row is locked - safe to update
             spare.status = SpareStatus.IN_USE.value
             spare.assigned_to_mission = mission_id
-            spare.assigned_at = datetime.utcnow()
+            spare.assigned_at = datetime.now(timezone.utc)
             await session.commit()  # Releases the lock
             logger.info(f"Acquired spare {spare.name} for mission {mission_id}")
             

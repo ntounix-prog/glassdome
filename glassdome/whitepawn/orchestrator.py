@@ -8,7 +8,7 @@ Copyright (c) 2025 Brett Turner. All rights reserved.
 
 import asyncio
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Dict, Any, List, Optional
 from sqlalchemy import select, and_
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -111,7 +111,7 @@ class WhitePawnOrchestrator:
                 
                 # Check heartbeat
                 if deployment.last_heartbeat:
-                    stale_threshold = datetime.utcnow() - timedelta(minutes=2)
+                    stale_threshold = datetime.now(timezone.utc) - timedelta(minutes=2)
                     if deployment.last_heartbeat < stale_threshold:
                         logger.warning(f"Monitor {deployment.id} heartbeat stale, restarting")
                         await self._restart_monitor(deployment.id)
@@ -330,7 +330,7 @@ class WhitePawnOrchestrator:
             
             alert.acknowledged = True
             alert.acknowledged_by = user
-            alert.acknowledged_at = datetime.utcnow()
+            alert.acknowledged_at = datetime.now(timezone.utc)
             await session.commit()
             
             return True
@@ -347,7 +347,7 @@ class WhitePawnOrchestrator:
                 return False
             
             alert.resolved = True
-            alert.resolved_at = datetime.utcnow()
+            alert.resolved_at = datetime.now(timezone.utc)
             alert.auto_resolved = auto
             await session.commit()
             

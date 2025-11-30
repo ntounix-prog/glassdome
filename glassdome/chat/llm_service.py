@@ -14,7 +14,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import Dict, Any, List, Optional, AsyncIterator, Callable
 from enum import Enum
-from datetime import datetime
+from datetime import datetime, timezone
 
 logger = logging.getLogger(__name__)
 
@@ -564,8 +564,8 @@ class LLMService:
         Returns:
             LLMResponse
         """
-        request_id = f"llm-{datetime.utcnow().strftime('%H%M%S')}"
-        start_time = datetime.utcnow()
+        request_id = f"llm-{datetime.now(timezone.utc).strftime('%H%M%S')}"
+        start_time = datetime.now(timezone.utc)
         
         logger.info(f"[{request_id}] LLM complete request - {len(messages)} messages, {len(tools or [])} tools")
         
@@ -594,7 +594,7 @@ class LLMService:
                     max_tokens=max_tokens
                 )
                 
-                elapsed = (datetime.utcnow() - start_time).total_seconds()
+                elapsed = (datetime.now(timezone.utc) - start_time).total_seconds()
                 logger.info(
                     f"[{request_id}] SUCCESS via {provider_name} in {elapsed:.2f}s - "
                     f"usage: {response.usage}, tool_calls: {len(response.tool_calls or [])}"
@@ -602,7 +602,7 @@ class LLMService:
                 return response
                 
             except Exception as e:
-                elapsed = (datetime.utcnow() - start_time).total_seconds()
+                elapsed = (datetime.now(timezone.utc) - start_time).total_seconds()
                 logger.error(
                     f"[{request_id}] Provider '{provider_name}' FAILED after {elapsed:.2f}s: {e}\n"
                     f"Traceback: {traceback.format_exc()}"

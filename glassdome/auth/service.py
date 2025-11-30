@@ -5,7 +5,7 @@ JWT token generation, password hashing, user operations.
 """
 
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from jose import jwt, JWTError
@@ -44,9 +44,9 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
     to_encode = data.copy()
     
     if expires_delta:
-        expire = datetime.utcnow() + expires_delta
+        expire = datetime.now(timezone.utc) + expires_delta
     else:
-        expire = datetime.utcnow() + timedelta(minutes=config["expire_minutes"])
+        expire = datetime.now(timezone.utc) + timedelta(minutes=config["expire_minutes"])
     
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(to_encode, config["jwt_secret"], algorithm=config["algorithm"])
@@ -136,7 +136,7 @@ async def authenticate_user(session: AsyncSession, username: str, password: str)
         return None
     
     # Update last login
-    user.last_login = datetime.utcnow()
+    user.last_login = datetime.now(timezone.utc)
     await session.commit()
     
     return user
@@ -197,7 +197,7 @@ async def update_user_password(
 ) -> User:
     """Update user password."""
     user.hashed_password = get_password_hash(new_password)
-    user.updated_at = datetime.utcnow()
+    user.updated_at = datetime.now(timezone.utc)
     await session.commit()
     await session.refresh(user)
     return user

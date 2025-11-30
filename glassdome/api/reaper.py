@@ -9,7 +9,7 @@ Copyright (c) 2025 Brett Turner. All rights reserved.
 from fastapi import APIRouter, HTTPException, Depends, BackgroundTasks
 from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any
-from datetime import datetime
+from datetime import datetime, timezone
 import uuid
 import logging
 import asyncio
@@ -460,7 +460,7 @@ async def export_exploits(
         })
     
     return {
-        "exported_at": datetime.utcnow().isoformat(),
+        "exported_at": datetime.now(timezone.utc).isoformat(),
         "count": len(export_data),
         "exploits": export_data
     }
@@ -602,7 +602,7 @@ async def start_mission(
     
     # Update status
     mission.status = "starting"
-    mission.started_at = datetime.utcnow()
+    mission.started_at = datetime.now(timezone.utc)
     await session.commit()
     
     # Run mission in background
@@ -822,7 +822,7 @@ async def execute_mission(mission_id: str):
             mission.progress = 100
             mission.current_step = "Mission complete"
             mission.results = results
-            mission.completed_at = datetime.utcnow()
+            mission.completed_at = datetime.now(timezone.utc)
             await session.commit()
             
             # Log completion summary
@@ -1386,7 +1386,7 @@ async def acquire_spare(
     
     spare.status = SpareStatus.IN_USE.value
     spare.assigned_to_mission = mission_id
-    spare.assigned_at = datetime.utcnow()
+    spare.assigned_at = datetime.now(timezone.utc)
     await session.commit()
     
     return {
@@ -1461,7 +1461,7 @@ async def get_mission_history(
     Get mission history with logs and validation summary
     Default: last 14 days, max 100 missions
     """
-    cutoff = datetime.utcnow() - timedelta(days=days)
+    cutoff = datetime.now(timezone.utc) - timedelta(days=days)
     
     result = await session.execute(
         select(ExploitMission)
@@ -1622,7 +1622,7 @@ async def cleanup_old_missions(
     Delete missions older than specified days (default 14)
     This also deletes associated logs and validation results via CASCADE
     """
-    cutoff = datetime.utcnow() - timedelta(days=days)
+    cutoff = datetime.now(timezone.utc) - timedelta(days=days)
     
     # Get count of missions to delete
     result = await session.execute(
