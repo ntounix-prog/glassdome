@@ -61,7 +61,9 @@ async def async_engine():
     from glassdome.models.lab import Lab
     from glassdome.networking.models import NetworkDefinition, DeployedVM
     from glassdome.reaper.exploit_library import Exploit, ExploitMission
-    from glassdome.whitepawn.models import WhitePawnDeployment
+    from glassdome.whitepawn.models import (
+        WhitePawnDeployment, NetworkAlert, MonitoringEvent, ConnectivityMatrix
+    )
     
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)

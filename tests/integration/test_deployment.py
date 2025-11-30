@@ -74,7 +74,8 @@ class TestCanvasDeploymentValidation:
         assert response.status_code == 200
         data = response.json()
         assert data["success"] is False
-        assert "not supported" in data["message"].lower()
+        # Message says "Only Proxmox deployment is currently supported"
+        assert "proxmox" in data["message"].lower()
     
     @pytest.mark.asyncio
     async def test_deployment_needs_vms(self, async_client: AsyncClient):
