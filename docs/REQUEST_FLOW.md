@@ -1,5 +1,7 @@
 # Request Flow: Frontend → Backend → Agent/Orchestrator
 
+> **Updated:** November 2025 - All API paths now use `/api/v1/` prefix
+
 ## Two Deployment Paths
 
 ### Path 1: **Simple Single VM** → Direct to Agent
@@ -20,7 +22,7 @@ React Frontend (Dropdown)
   - Memory: 4GB
   - Disk: 20GB
   ↓
-POST /api/agents/ubuntu/create
+POST /api/v1/agents/ubuntu/create
   ↓
 FastAPI Backend
   ↓
@@ -37,7 +39,7 @@ Return VM details to frontend
 ```jsx
 // React: Simple VM request
 const createSimpleVM = async () => {
-  const response = await fetch('/api/agents/ubuntu/create', {
+  const response = await fetch('/api/v1/agents/ubuntu/create', {
     method: 'POST',
     body: JSON.stringify({
       name: 'my-ubuntu-vm',
@@ -74,7 +76,7 @@ React Frontend (Lab Designer)
   - Configure users, packages, network
   - Connect VMs
   ↓
-POST /api/labs/deploy
+POST /api/v1/canvas/deploy
   ↓
 FastAPI Backend
   ↓
@@ -96,7 +98,7 @@ Return lab details to frontend
 ```jsx
 // React: Lab deployment request
 const deployLab = async (labDesign) => {
-  const response = await fetch('/api/labs/deploy', {
+  const response = await fetch('/api/v1/canvas/deploy', {
     method: 'POST',
     body: JSON.stringify({
       lab_id: 'security_lab_001',
@@ -206,7 +208,7 @@ const deployLab = async (labDesign) => {
 
 ```python
 # glassdome/api/ubuntu.py
-@router.post("/agents/ubuntu/create")
+@router.post("/api/v1/agents/ubuntu/create")
 async def create_ubuntu_vm(request: CreateVMRequest):
     """
     Create a single Ubuntu VM
@@ -220,16 +222,16 @@ async def create_ubuntu_vm(request: CreateVMRequest):
     return result
 
 # Similar for other OSes:
-# POST /api/agents/kali/create
-# POST /api/agents/debian/create
-# POST /api/agents/centos/create
+# POST /api/v1/agents/kali/create
+# POST /api/v1/agents/debian/create
+# POST /api/v1/agents/centos/create
 ```
 
 ### Lab Endpoint (Orchestrator)
 
 ```python
 # glassdome/api/labs.py
-@router.post("/labs/deploy")
+@router.post("/api/v1/canvas/deploy")
 async def deploy_lab(request: LabDeployRequest):
     """
     Deploy complete lab with multiple VMs
@@ -249,12 +251,12 @@ Frontend User Action
     ↓
     Is it a single VM?
     ├─ YES → Call agent endpoint directly
-    │         POST /api/agents/{os}/create
+    │         POST /api/v1/agents/{os}/create
     │         └─→ Agent creates VM
     │
     └─ NO → Is it a lab?
               └─ YES → Call orchestrator endpoint
-                       POST /api/labs/deploy
+                       POST /api/v1/canvas/deploy
                        └─→ Orchestrator calls multiple agents
                            └─→ Each agent creates one VM
                            └─→ Orchestrator does post-config
@@ -273,7 +275,7 @@ export default function SimpleVMCreator() {
   
   const handleQuickDeploy = async () => {
     // Direct to agent
-    const response = await fetch(`/api/agents/${vmType}/create`, {
+    const response = await fetch(`/api/v1/agents/${vmType}/create`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -317,7 +319,7 @@ export default function LabDeployer() {
     // Send to orchestrator
     const labSpec = LAB_TEMPLATES[labTemplate]; // Pre-defined template
     
-    const response = await fetch('/api/labs/deploy', {
+    const response = await fetch('/api/v1/canvas/deploy', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ lab_spec: labSpec })
@@ -350,8 +352,8 @@ export default function LabDeployer() {
 
 | User Action | API Endpoint | Backend Handler | Who Creates VM |
 |-------------|--------------|-----------------|----------------|
-| **Single VM** | `POST /api/agents/{os}/create` | Direct to Agent | **Agent alone** |
-| **Complete Lab** | `POST /api/labs/deploy` | Orchestrator | **Orchestrator → Agent** |
+| **Single VM** | `POST /api/v1/agents/{os}/create` | Direct to Agent | **Agent alone** |
+| **Complete Lab** | `POST /api/v1/canvas/deploy` | Orchestrator | **Orchestrator → Agent** |
 
 ### Single VM (Direct to Agent):
 - ✅ Faster
