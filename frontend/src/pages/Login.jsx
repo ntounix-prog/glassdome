@@ -42,7 +42,7 @@ export default function Login() {
   const checkFirstUser = async () => {
     try {
       // Try to get roles (this will fail if no users exist)
-      const response = await fetch('/api/auth/roles')
+      const response = await fetch('/api/v1/auth/roles')
       if (response.ok) {
         // API works, check if we need to show register
         setIsFirstUser(false)

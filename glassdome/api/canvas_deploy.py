@@ -349,7 +349,14 @@ async def deploy_pfsense_gateway(
     """
     vm_name = f"{lab_short}-gateway"
     template_id = TEMPLATE_MAPPING["pfsense"]
-    node_name = "pve02"
+    
+    # Get lab deployment target from configuration (never hardcoded)
+    try:
+        lab_instance = settings.get_lab_proxmox_instance()
+        node_name = settings.get_lab_node_name()
+    except ValueError as e:
+        logger.error(f"[Gateway] Configuration error: {e}")
+        return {"success": False, "node_id": node.id, "error": str(e)}
     
     logger.info(f"")
     logger.info(f"[Gateway] ========================================")
@@ -358,12 +365,12 @@ async def deploy_pfsense_gateway(
     logger.info(f"[Gateway]   lab_short: {lab_short}")
     logger.info(f"[Gateway]   vm_name: {vm_name}")
     logger.info(f"[Gateway]   template_id: {template_id}")
-    logger.info(f"[Gateway]   node: {node_name}")
+    logger.info(f"[Gateway]   node: {node_name} (instance {lab_instance})")
     logger.info(f"[Gateway] ========================================")
     
     try:
-        # Get Proxmox client
-        pve_config = settings.get_proxmox_config("02")
+        # Get Proxmox client for configured lab instance
+        pve_config = settings.get_lab_proxmox_config()
         client = ProxmoxClient(
             host=pve_config["host"],
             user=pve_config["user"],
@@ -445,7 +452,7 @@ async def deploy_pfsense_gateway(
             name=vm_name,
             vm_id=str(vmid),
             platform="proxmox",
-            platform_instance="02",
+            platform_instance=lab_instance,
             os_type="pfsense",
             template_id=str(template_id),
             cpu_cores=VM_SPECS["pfsense"]["cores"],
@@ -491,16 +498,23 @@ async def deploy_lab_vm(
     specs = VM_SPECS.get(element_id, {"cores": 2, "memory": 2048, "disk": 20})
     # Use lab_short for naming, add index for uniqueness
     vm_name = f"{lab_short}-{element_id}-{vm_index:02d}"
-    node_name = "pve02"
     
-    logger.info(f"[Lab VM {vm_index}] Starting: {vm_name} (element: {element_id}, template: {template_id})")
+    # Get lab deployment target from configuration (never hardcoded)
+    try:
+        lab_instance = settings.get_lab_proxmox_instance()
+        node_name = settings.get_lab_node_name()
+    except ValueError as e:
+        logger.error(f"[Lab VM {vm_index}] Configuration error: {e}")
+        return {"success": False, "node_id": node.id, "error": str(e)}
+    
+    logger.info(f"[Lab VM {vm_index}] Starting: {vm_name} (element: {element_id}, template: {template_id}, node: {node_name})")
     
     # Use semaphore to limit concurrent API calls
     async with _proxmox_semaphore:
         logger.info(f"[Lab VM {vm_index}] Acquired semaphore, proceeding with deployment")
         return await _deploy_lab_vm_internal(
             node, lab_id, lab_short, vm_name, element_id, template_id, specs, 
-            network_config, vm_index
+            network_config, vm_index, lab_instance, node_name
         )
 
 
@@ -513,23 +527,27 @@ async def _deploy_lab_vm_internal(
     template_id: int,
     specs: Dict[str, Any],
     network_config: Dict[str, Any],
-    vm_index: int
+    vm_index: int,
+    lab_instance: str,
+    node_name: str
 ) -> Dict[str, Any]:
     """Internal implementation of lab VM deployment (called within semaphore).
+    
+    Args:
+        lab_instance: Proxmox instance ID (e.g., "01", "02")
+        node_name: Proxmox node name (e.g., "pve01", "pve02")
     
     Note: Hot spares are skipped for parallel deployment to avoid session conflicts.
     VMs are cloned directly from templates instead.
     """
-    node_name = "pve02"
-    
     try:
         # NOTE: Hot spares disabled for parallel deployment (session conflicts)
         # Direct clone from template instead
         if True:  # Skip hot spare check
             # Fall back to clone
-            logger.info(f"[Lab VM] No hot spares, cloning from template {template_id}")
+            logger.info(f"[Lab VM] No hot spares, cloning from template {template_id} on {node_name}")
             
-            pve_config = settings.get_proxmox_config("02")
+            pve_config = settings.get_lab_proxmox_config()
             client = ProxmoxClient(
                 host=pve_config["host"],
                 user=pve_config["user"],
@@ -586,6 +604,8 @@ async def _deploy_lab_vm_internal(
             "lab_ip": "DHCP",
             "role": "client",
             "status": "running",
+            "node_name": node_name,
+            "lab_instance": lab_instance,
             # Include data needed for deferred DB registration
             "_db_data": {
                 "lab_id": lab_id,
@@ -593,7 +613,9 @@ async def _deploy_lab_vm_internal(
                 "vm_id": str(vmid),
                 "element_id": element_id,
                 "template_id": str(template_id),
-                "specs": specs
+                "specs": specs,
+                "lab_instance": lab_instance,
+                "node_name": node_name
             }
         }
         
@@ -820,7 +842,7 @@ async def deploy_canvas_lab(
                         name=db_data["name"],
                         vm_id=db_data["vm_id"],
                         platform="proxmox",
-                        platform_instance="02",
+                        platform_instance=db_data["lab_instance"],
                         os_type=db_data["element_id"],
                         template_id=db_data["template_id"],
                         cpu_cores=db_data["specs"]["cores"],
@@ -836,22 +858,26 @@ async def deploy_canvas_lab(
     # ========================================================================
     if deployed_vms:
         try:
+            # Get lab instance info (already validated above, but get fresh reference)
+            reg_lab_instance = settings.get_lab_proxmox_instance()
+            reg_node_name = settings.get_lab_node_name()
+            
             registry = get_registry()
             for vm_info in deployed_vms:
                 # The vm_info.name is already the correct name (e.g., "brettlab-gateway")
                 expected_name = vm_info.name
                 
                 resource = Resource(
-                    id=Resource.make_id("proxmox", "lab_vm", vm_info.vm_id, "02"),
+                    id=Resource.make_id("proxmox", "lab_vm", vm_info.vm_id, reg_lab_instance),
                     resource_type=ResourceType.LAB_VM,
                     name=vm_info.name,
                     platform="proxmox",
-                    platform_instance="02",
+                    platform_instance=reg_lab_instance,
                     platform_id=vm_info.vm_id,
                     state=ResourceState.RUNNING,  # VMs should be running after deploy
                     lab_id=lab_id,
                     config={
-                        "node": "pve02",
+                        "node": reg_node_name,
                         "vmid": int(vm_info.vm_id),
                         "vlan_id": vlan_id,
                         "role": "gateway" if vm_info.name.lower() == "pfsense" else "lab_vm",
@@ -862,7 +888,7 @@ async def deploy_canvas_lab(
                     tier=1,  # Lab VMs are Tier 1 (1s updates)
                 )
                 await registry.register(resource)
-            logger.info(f"[Registry] Registered {len(deployed_vms)} VMs in Lab Registry")
+            logger.info(f"[Registry] Registered {len(deployed_vms)} VMs in Lab Registry on {reg_node_name}")
         except Exception as e:
             logger.warning(f"[Registry] Failed to register VMs: {e}")
     
@@ -981,8 +1007,14 @@ async def destroy_deployment(lab_id: str, session: AsyncSession = Depends(get_db
     if not vms:
         raise HTTPException(status_code=404, detail=f"No deployment found for lab {lab_id}")
     
-    # Get Proxmox client
-    pve_config = settings.get_proxmox_config("02")
+    # Get Proxmox client for lab deployment target
+    try:
+        lab_instance = settings.get_lab_proxmox_instance()
+        node_name = settings.get_lab_node_name()
+        pve_config = settings.get_lab_proxmox_config()
+    except ValueError as e:
+        raise HTTPException(status_code=500, detail=f"Lab configuration error: {e}")
+    
     client = ProxmoxClient(
         host=pve_config["host"],
         user=pve_config["user"],
@@ -990,7 +1022,7 @@ async def destroy_deployment(lab_id: str, session: AsyncSession = Depends(get_db
         token_name=pve_config.get("token_name"),
         token_value=pve_config.get("token_value"),
         verify_ssl=pve_config.get("verify_ssl", False),
-        default_node="pve02"
+        default_node=node_name
     )
     
     destroyed = []

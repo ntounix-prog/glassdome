@@ -333,7 +333,7 @@ async def configure_proxmox_vm_ip(
     vm_id: str,
     interface_index: int,
     config: IPConfig,
-    platform_instance: str = "02"
+    platform_instance: Optional[str] = None  # Uses configured LAB_PROXMOX_INSTANCE if not specified
 ):
     """Configure IP address on a Proxmox VM via cloud-init"""
     handler = get_proxmox_network_handler()
@@ -344,7 +344,7 @@ async def configure_proxmox_vm_ip(
         ip_address=config.ip_address,
         gateway=config.gateway,
         dns_servers=config.dns_servers,
-        platform_instance=platform_instance
+        platform_instance=platform_instance  # Handler uses config default if None
     )
     
     if not success:
@@ -361,20 +361,24 @@ async def configure_proxmox_vm_ip(
 @router.get("/proxmox/{vm_id}/interfaces")
 async def get_proxmox_vm_interfaces(
     vm_id: str,
-    platform_instance: str = "02"
+    platform_instance: Optional[str] = None  # Uses configured LAB_PROXMOX_INSTANCE if not specified
 ):
     """Get network interfaces for a Proxmox VM"""
     handler = get_proxmox_network_handler()
     
     interfaces = await handler.get_vm_interfaces(
         vm_id=vm_id,
-        platform_instance=platform_instance
+        platform_instance=platform_instance  # Handler uses config default if None
     )
+    
+    # Get actual instance used (from handler's default if None was passed)
+    from glassdome.core.config import settings
+    actual_instance = platform_instance or settings.get_lab_proxmox_instance()
     
     return {
         "vm_id": vm_id,
         "platform": "proxmox",
-        "platform_instance": platform_instance,
+        "platform_instance": actual_instance,
         "interfaces": interfaces
     }
 

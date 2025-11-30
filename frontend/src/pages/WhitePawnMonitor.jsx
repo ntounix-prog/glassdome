@@ -31,13 +31,13 @@ function WhitePawnMonitor() {
     try {
       // Fetch all data in parallel (WhitePawn + Registry)
       const [statusRes, deploymentsRes, alertsRes, reconcilerRes, regStatusRes, regLabsRes, regDriftRes] = await Promise.all([
-        fetch('/api/whitepawn/status'),
-        fetch('/api/whitepawn/deployments'),
-        fetch('/api/whitepawn/alerts?limit=50'),
-        fetch('/api/whitepawn/reconciler/status'),
-        fetch('/api/registry/status').catch(() => ({ json: () => ({}) })),
-        fetch('/api/registry/labs').catch(() => ({ json: () => ({ labs: [] }) })),
-        fetch('/api/registry/drift').catch(() => ({ json: () => ({ drifts: [] }) })),
+        fetch('/api/v1/whitepawn/status'),
+        fetch('/api/v1/whitepawn/deployments'),
+        fetch('/api/v1/whitepawn/alerts?limit=50'),
+        fetch('/api/v1/whitepawn/reconciler/status'),
+        fetch('/api/v1/registry/status').catch(() => ({ json: () => ({}) })),
+        fetch('/api/v1/registry/labs').catch(() => ({ json: () => ({ labs: [] }) })),
+        fetch('/api/v1/registry/drift').catch(() => ({ json: () => ({ drifts: [] }) })),
       ])
 
       const statusData = await statusRes.json()
@@ -82,13 +82,13 @@ function WhitePawnMonitor() {
   useEffect(() => {
     if (selectedLab) {
       // WhitePawn matrix
-      fetch(`/api/whitepawn/labs/${selectedLab}/matrix`)
+      fetch(`/api/v1/whitepawn/labs/${selectedLab}/matrix`)
         .then(res => res.json())
         .then(data => setConnectivityMatrix(data))
         .catch(err => console.error('Failed to fetch matrix:', err))
       
       // Registry lab snapshot
-      fetch(`/api/registry/labs/${selectedLab}`)
+      fetch(`/api/v1/registry/labs/${selectedLab}`)
         .then(res => res.ok ? res.json() : null)
         .then(data => setLabSnapshot(data))
         .catch(() => setLabSnapshot(null))
@@ -97,7 +97,7 @@ function WhitePawnMonitor() {
 
   const startOrchestrator = async () => {
     try {
-      await fetch('/api/whitepawn/start', { method: 'POST' })
+      await fetch('/api/v1/whitepawn/start', { method: 'POST' })
       fetchData()
     } catch (err) {
       console.error('Failed to start orchestrator:', err)
@@ -106,7 +106,7 @@ function WhitePawnMonitor() {
 
   const stopOrchestrator = async () => {
     try {
-      await fetch('/api/whitepawn/stop', { method: 'POST' })
+      await fetch('/api/v1/whitepawn/stop', { method: 'POST' })
       fetchData()
     } catch (err) {
       console.error('Failed to stop orchestrator:', err)
@@ -115,7 +115,7 @@ function WhitePawnMonitor() {
 
   const startReconciler = async () => {
     try {
-      await fetch('/api/whitepawn/reconciler/start', { method: 'POST' })
+      await fetch('/api/v1/whitepawn/reconciler/start', { method: 'POST' })
       fetchData()
     } catch (err) {
       console.error('Failed to start reconciler:', err)
@@ -124,7 +124,7 @@ function WhitePawnMonitor() {
 
   const acknowledgeAlert = async (alertId) => {
     try {
-      await fetch(`/api/whitepawn/alerts/${alertId}/acknowledge`, {
+      await fetch(`/api/v1/whitepawn/alerts/${alertId}/acknowledge`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ user: 'admin' })
@@ -137,7 +137,7 @@ function WhitePawnMonitor() {
 
   const resolveAlert = async (alertId) => {
     try {
-      await fetch(`/api/whitepawn/alerts/${alertId}/resolve`, { method: 'POST' })
+      await fetch(`/api/v1/whitepawn/alerts/${alertId}/resolve`, { method: 'POST' })
       fetchData()
     } catch (err) {
       console.error('Failed to resolve alert:', err)

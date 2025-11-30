@@ -889,18 +889,19 @@ async def deploy_mission_vm(platform: str, config: Dict[str, Any]) -> Dict[str, 
         if platform == "proxmox":
             from glassdome.platforms.proxmox_client import ProxmoxClient
             
-            # Get Proxmox instance - prefer "02" (pve02) which has working template
-            instances = settings.list_proxmox_instances()
-            if not instances:
-                return {"success": False, "error": "No Proxmox instances configured"}
+            # Use instance from config parameter, or fall back to configured lab instance
+            instance_id = config.get("proxmox_instance")
+            if not instance_id:
+                try:
+                    instance_id = settings.get_lab_proxmox_instance()
+                except ValueError as e:
+                    return {"success": False, "error": str(e)}
             
-            # Use instance from config, or prefer 02 if available (pve01 TrueNAS is offline)
-            instance_id = config.get("proxmox_instance") or ("02" if "02" in instances else instances[0])
             logger.info(f"Using Proxmox instance: {instance_id}")
             pve_config = settings.get_proxmox_config(instance_id)
             
             # Node name matches instance (pve01 for 01, pve02 for 02)
-            node_name = f"pve{instance_id}" if instance_id.isdigit() else pve_config.get("node", "pve01")
+            node_name = f"pve{instance_id}" if instance_id.isdigit() else pve_config.get("node", "pve")
             
             client = ProxmoxClient(
                 host=pve_config["host"],
@@ -1555,11 +1556,15 @@ async def destroy_mission_vm(
     # Try to destroy the VM
     try:
         from glassdome.platforms.proxmox_client import ProxmoxClient
-        from glassdome.core.config import Settings
+        from glassdome.core.config import settings as app_settings
         
-        settings = Settings()
-        # Get the platform instance - default to "02" for pve02
-        pve_config = settings.get_proxmox_config("02")
+        # Get lab deployment configuration (no hardcoded defaults)
+        try:
+            lab_instance = app_settings.get_lab_proxmox_instance()
+            node_name = app_settings.get_lab_node_name()
+            pve_config = app_settings.get_lab_proxmox_config()
+        except ValueError as e:
+            raise HTTPException(status_code=500, detail=f"Lab configuration error: {e}")
         
         client = ProxmoxClient(
             host=pve_config["host"],
@@ -1568,7 +1573,7 @@ async def destroy_mission_vm(
             token_name=pve_config.get("token_name"),
             token_value=pve_config.get("token_value"),
             verify_ssl=False,
-            default_node="pve02"
+            default_node=node_name
         )
         
         vmid = mission.vm_created_id  # Keep as string

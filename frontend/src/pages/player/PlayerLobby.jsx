@@ -37,7 +37,7 @@ export default function PlayerLobby() {
       setLoading(true);
       
       // Try to get deployment info
-      const response = await fetch(`/api/deployments/${labId}`);
+      const response = await fetch(`/api/v1/deployments/${labId}`);
       
       if (response.ok) {
         const data = await response.json();

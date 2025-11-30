@@ -34,7 +34,7 @@ export default function AdminUsers() {
   const fetchUsers = useCallback(async () => {
     try {
       setLoading(true)
-      const response = await fetch('/api/auth/users', {
+      const response = await fetch('/api/v1/auth/users', {
         headers: getAuthHeaders()
       })
       
@@ -59,7 +59,7 @@ export default function AdminUsers() {
   const handleCreate = async (e) => {
     e.preventDefault()
     try {
-      const response = await fetch('/api/auth/users', {
+      const response = await fetch('/api/v1/auth/users', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -92,7 +92,7 @@ export default function AdminUsers() {
         is_active: formData.is_active
       }
       
-      const response = await fetch(`/api/auth/users/${editingUser.id}`, {
+      const response = await fetch(`/api/v1/auth/users/${editingUser.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -118,7 +118,7 @@ export default function AdminUsers() {
     if (!confirm('Are you sure you want to deactivate this user?')) return
     
     try {
-      const response = await fetch(`/api/auth/users/${userId}`, {
+      const response = await fetch(`/api/v1/auth/users/${userId}`, {
         method: 'DELETE',
         headers: getAuthHeaders()
       })

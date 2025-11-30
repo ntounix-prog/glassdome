@@ -108,7 +108,7 @@ export default function PlayerPortal() {
     
     try {
       // Check if lab exists - but navigate anyway for demo
-      const response = await fetch(`/api/deployments/${labCode.trim()}`);
+      const response = await fetch(`/api/v1/deployments/${labCode.trim()}`);
       
       // Always navigate - lobby has mock data fallback
       navigate(`/player/${labCode.trim().toLowerCase()}`);

@@ -46,8 +46,8 @@ class HotSpare(Base):
     
     # Platform info
     platform = Column(String(50), default="proxmox") # Platform type
-    platform_instance = Column(String(10), default="02")  # Which Proxmox (01, 02)
-    node = Column(String(50), default="pve02")       # Proxmox node name
+    platform_instance = Column(String(10), nullable=False)  # Which Proxmox (01, 02) - from config
+    node = Column(String(50), nullable=False)        # Proxmox node name - from config
     
     # VM details
     os_type = Column(String(50), default="ubuntu")   # ubuntu, windows, kali, etc.
@@ -96,7 +96,7 @@ class HotSparePoolConfig:
         min_spares: int = 3,
         max_spares: int = 6,
         os_type: str = "ubuntu",
-        platform_instance: str = "02",
+        platform_instance: Optional[str] = None,  # From config - no default
         template_id: int = 9001,  # Template with qemu-guest-agent pre-installed
         ip_range_start: str = "192.168.3.100",
         ip_range_end: str = "192.168.3.120",
@@ -104,6 +104,11 @@ class HotSparePoolConfig:
         vm_memory: int = 2048,
         health_check_interval: int = 60,  # seconds
     ):
+        # Get platform instance from config if not provided
+        if platform_instance is None:
+            from glassdome.core.config import settings
+            platform_instance = settings.get_hot_spare_proxmox_instance()
+        
         self.min_spares = min_spares
         self.max_spares = max_spares
         self.os_type = os_type

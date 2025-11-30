@@ -18,7 +18,7 @@ function useRegistryStatus() {
   useEffect(() => {
     const fetchStatus = async () => {
       try {
-        const response = await fetch('/api/registry/status')
+        const response = await fetch('/api/v1/registry/status')
         if (response.ok) {
           setStatus(await response.json())
         }
@@ -41,7 +41,7 @@ function useMXWestStatus() {
   useEffect(() => {
     const fetchStatus = async () => {
       try {
-        const response = await fetch('/api/probes/mxwest')
+        const response = await fetch('/api/v1/probes/mxwest')
         if (response.ok) {
           setStatus(await response.json())
         }

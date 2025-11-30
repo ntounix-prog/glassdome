@@ -36,7 +36,7 @@ export default function AdminSecrets() {
   const fetchSecrets = useCallback(async () => {
     try {
       setLoading(true)
-      const response = await fetch('/api/secrets', {
+      const response = await fetch('/api/v1/secrets', {
         headers: getAuthHeaders()
       })
       
@@ -61,7 +61,7 @@ export default function AdminSecrets() {
   const handleAddSecret = async (e) => {
     e.preventDefault()
     try {
-      const response = await fetch('/api/secrets', {
+      const response = await fetch('/api/v1/secrets', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -87,7 +87,7 @@ export default function AdminSecrets() {
     if (!confirm(`Delete secret "${key}"? This cannot be undone.`)) return
     
     try {
-      const response = await fetch(`/api/secrets/${encodeURIComponent(key)}`, {
+      const response = await fetch(`/api/v1/secrets/${encodeURIComponent(key)}`, {
         method: 'DELETE',
         headers: getAuthHeaders()
       })

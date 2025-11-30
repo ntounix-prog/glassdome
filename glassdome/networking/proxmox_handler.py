@@ -12,9 +12,18 @@ from typing import Dict, Any, List, Optional
 from glassdome.networking.orchestrator import PlatformNetworkHandler
 from glassdome.networking.models import NetworkDefinition
 from glassdome.platforms.proxmox_client import ProxmoxClient
-from glassdome.core.config import Settings
+from glassdome.core.config import settings as app_settings
 
 logger = logging.getLogger(__name__)
+
+
+def _get_default_instance() -> str:
+    """Get the default Proxmox instance from configuration."""
+    try:
+        return app_settings.get_lab_proxmox_instance()
+    except ValueError as e:
+        logger.error(f"No lab Proxmox instance configured: {e}")
+        raise
 
 
 class ProxmoxNetworkHandler(PlatformNetworkHandler):
@@ -35,11 +44,13 @@ class ProxmoxNetworkHandler(PlatformNetworkHandler):
     def __init__(self):
         self._clients: Dict[str, ProxmoxClient] = {}
     
-    def _get_client(self, platform_instance: str = "01") -> ProxmoxClient:
+    def _get_client(self, platform_instance: Optional[str] = None) -> ProxmoxClient:
         """Get or create a Proxmox client for the instance"""
+        if platform_instance is None:
+            platform_instance = _get_default_instance()
+            
         if platform_instance not in self._clients:
-            settings = Settings()
-            config = settings.get_proxmox_config(platform_instance)
+            config = app_settings.get_proxmox_config(platform_instance)
             
             self._clients[platform_instance] = ProxmoxClient(
                 host=config["host"],
@@ -104,7 +115,7 @@ class ProxmoxNetworkHandler(PlatformNetworkHandler):
         For VLANs, we don't need to create anything - just use the tag
         when attaching VMs.
         """
-        instance = platform_instance or "02"
+        instance = platform_instance or _get_default_instance()
         client = self._get_client(instance)
         
         bridge = config.get("bridge", "vmbr2")
@@ -159,7 +170,7 @@ class ProxmoxNetworkHandler(PlatformNetworkHandler):
         Creates a NIC on the VM connected to the specified bridge
         with optional VLAN tag.
         """
-        instance = platform_instance or "02"
+        instance = platform_instance or _get_default_instance()
         client = self._get_client(instance)
         node = client.default_node
         vmid = int(vm_id)
@@ -214,7 +225,7 @@ class ProxmoxNetworkHandler(PlatformNetworkHandler):
         platform_instance: Optional[str] = None
     ) -> bool:
         """Remove a network interface from a VM"""
-        instance = platform_instance or "02"
+        instance = platform_instance or _get_default_instance()
         client = self._get_client(instance)
         node = client.default_node
         vmid = int(vm_id)
@@ -241,7 +252,7 @@ class ProxmoxNetworkHandler(PlatformNetworkHandler):
         
         Queries the VM config and QEMU guest agent for interface details.
         """
-        instance = platform_instance or "02"
+        instance = platform_instance or _get_default_instance()
         client = self._get_client(instance)
         node = client.default_node
         vmid = int(vm_id)
@@ -331,7 +342,7 @@ class ProxmoxNetworkHandler(PlatformNetworkHandler):
         Note: This updates the cloud-init config. For running VMs,
         you may need to use QEMU guest agent or SSH.
         """
-        instance = platform_instance or "02"
+        instance = platform_instance or _get_default_instance()
         client = self._get_client(instance)
         node = client.default_node
         vmid = int(vm_id)

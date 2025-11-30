@@ -196,7 +196,7 @@ function AppContent() {
   const audioRef = useRef(null)
 
   useEffect(() => {
-    fetch('/api/health')
+    fetch('/api/v1/health')
       .then(res => res.json())
       .then(data => {
         setHealthStatus(data)

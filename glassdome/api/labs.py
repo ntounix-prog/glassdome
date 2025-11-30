@@ -1,21 +1,134 @@
 """
 API endpoints for labs
 
+Includes both:
+- Lab CRUD operations (canvas-based lab definitions)
+- Lab deployment orchestration
+
 Author: Brett Turner (ntounix)
 Created: November 2025
 Copyright (c) 2025 Brett Turner. All rights reserved.
 """
-from fastapi import APIRouter, HTTPException, BackgroundTasks
+from fastapi import APIRouter, HTTPException, BackgroundTasks, Depends
 from pydantic import BaseModel, Field
 from typing import Dict, Any, List, Optional
 import logging
 
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select, delete
+
+from glassdome.core.database import get_db
+from glassdome.models.lab import Lab
 from glassdome.orchestration.lab_orchestrator import LabOrchestrator
 from glassdome.platforms.proxmox_client import ProxmoxClient
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/labs", tags=["labs"])
 
+
+# =============================================================================
+# Lab CRUD Operations (Canvas-based lab definitions)
+# =============================================================================
+
+@router.post("")
+async def create_lab(lab_data: Dict[str, Any], db: AsyncSession = Depends(get_db)):
+    """Create or update a lab configuration (upsert)."""
+    lab_id = lab_data.get("id")
+    name = lab_data.get("name", "Untitled Lab")
+    canvas_data = lab_data.get("canvas_data")
+    
+    # Check if lab exists (upsert)
+    result = await db.execute(select(Lab).where(Lab.id == lab_id))
+    existing = result.scalar_one_or_none()
+    
+    if existing:
+        existing.name = name
+        existing.canvas_data = canvas_data
+        await db.commit()
+        return {"success": True, "lab_id": lab_id, "message": "Lab updated"}
+    else:
+        lab = Lab(id=lab_id, name=name, canvas_data=canvas_data)
+        db.add(lab)
+        await db.commit()
+        return {"success": True, "lab_id": lab_id, "message": "Lab created"}
+
+
+@router.get("")
+async def list_labs(db: AsyncSession = Depends(get_db)):
+    """List all lab configurations."""
+    result = await db.execute(select(Lab).order_by(Lab.created_at.desc()))
+    labs = result.scalars().all()
+    
+    return {
+        "labs": [
+            {
+                "id": lab.id,
+                "name": lab.name,
+                "description": lab.description,
+                "created_at": lab.created_at.isoformat() if lab.created_at else None,
+                "node_count": len(lab.canvas_data.get("nodes", [])) if lab.canvas_data else 0
+            }
+            for lab in labs
+        ],
+        "total": len(labs)
+    }
+
+
+@router.get("/{lab_id}")
+async def get_lab(lab_id: str, db: AsyncSession = Depends(get_db)):
+    """Get lab configuration by ID."""
+    result = await db.execute(select(Lab).where(Lab.id == lab_id))
+    lab = result.scalar_one_or_none()
+    
+    if not lab:
+        raise HTTPException(status_code=404, detail=f"Lab {lab_id} not found")
+    
+    return {
+        "id": lab.id,
+        "name": lab.name,
+        "description": lab.description,
+        "canvas_data": lab.canvas_data,
+        "created_at": lab.created_at.isoformat() if lab.created_at else None
+    }
+
+
+@router.put("/{lab_id}")
+async def update_lab(lab_id: str, lab_data: Dict[str, Any], db: AsyncSession = Depends(get_db)):
+    """Update lab configuration."""
+    result = await db.execute(select(Lab).where(Lab.id == lab_id))
+    lab = result.scalar_one_or_none()
+    
+    if not lab:
+        raise HTTPException(status_code=404, detail=f"Lab {lab_id} not found")
+    
+    if "name" in lab_data:
+        lab.name = lab_data["name"]
+    if "canvas_data" in lab_data:
+        lab.canvas_data = lab_data["canvas_data"]
+    if "description" in lab_data:
+        lab.description = lab_data["description"]
+    
+    await db.commit()
+    return {"success": True, "lab_id": lab_id}
+
+
+@router.delete("/{lab_id}")
+async def delete_lab(lab_id: str, db: AsyncSession = Depends(get_db)):
+    """Delete a lab configuration."""
+    result = await db.execute(select(Lab).where(Lab.id == lab_id))
+    lab = result.scalar_one_or_none()
+    
+    if not lab:
+        raise HTTPException(status_code=404, detail=f"Lab {lab_id} not found")
+    
+    await db.execute(delete(Lab).where(Lab.id == lab_id))
+    await db.commit()
+    return {"success": True, "lab_id": lab_id}
+
+
+# =============================================================================
+# Lab Deployment Orchestration
+# =============================================================================
 
 class LabDeployRequest(BaseModel):
     """Lab deployment request"""
@@ -338,19 +451,5 @@ async def get_lab_status(lab_id: str) -> Dict[str, Any]:
     }
 
 
-@router.delete("/{lab_id}")
-async def delete_lab(lab_id: str) -> Dict[str, Any]:
-    """
-    Delete entire lab (all VMs, networks)
-    
-    This would orchestrate cleanup of all lab components
-    """
-    # TODO: Implement lab deletion
-    logger.info(f"Deleting lab: {lab_id}")
-    
-    return {
-        "lab_id": lab_id,
-        "status": "deleted",
-        "message": f"Lab {lab_id} deleted successfully"
-    }
-
+# NOTE: delete_lab is defined above in the CRUD section (line ~115)
+# The orchestrated lab deletion (with VM cleanup) is in canvas_deploy.py

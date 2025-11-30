@@ -93,7 +93,7 @@ export default function PlatformStatus() {
       
       if (platform === 'proxmox') {
         // Use Registry API for fast updates
-        const response = await fetch('/api/registry/resources?platform=proxmox')
+        const response = await fetch('/api/v1/registry/resources?platform=proxmox')
         const data = await response.json()
         
         if (!response.ok) {
@@ -156,11 +156,11 @@ export default function PlatformStatus() {
         // Use platform API for non-Proxmox
         let url
         if (platform === 'aws') {
-          url = '/api/platforms/aws/all-regions'
+          url = '/api/v1/platforms/aws/all-regions'
         } else if (instanceId) {
-          url = `/api/platforms/${platform}/${instanceId}/vms`
+          url = `/api/v1/platforms/${platform}/${instanceId}/vms`
         } else {
-          url = `/api/platforms/${platform}`
+          url = `/api/v1/platforms/${platform}`
         }
         
         const response = await fetch(url)
@@ -206,7 +206,7 @@ export default function PlatformStatus() {
         }
       }
       
-      const url = `/api/platforms/${platform}/${targetInstance}/vms/${vmid}/${action}`
+      const url = `/api/v1/platforms/${platform}/${targetInstance}/vms/${vmid}/${action}`
       const response = await fetch(url, { method: 'POST' })
       const data = await response.json()
       

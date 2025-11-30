@@ -6,11 +6,9 @@
  */
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react'
+import { API_BASE } from '../config/api'
 
 const AuthContext = createContext(null)
-
-// API base URL
-const API_BASE = ''
 
 // Token storage keys
 const TOKEN_KEY = 'glassdome_token'
@@ -49,7 +47,7 @@ export function AuthProvider({ children }) {
    */
   const verifyToken = async (authToken) => {
     try {
-      const response = await fetch(`${API_BASE}/api/auth/me`, {
+      const response = await fetch(`${API_BASE}/auth/me`, {
         headers: {
           'Authorization': `Bearer ${authToken}`
         }
@@ -78,7 +76,7 @@ export function AuthProvider({ children }) {
     
     try {
       // Get token
-      const tokenResponse = await fetch(`${API_BASE}/api/auth/login/user`, {
+      const tokenResponse = await fetch(`${API_BASE}/auth/login/user`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -106,7 +104,7 @@ export function AuthProvider({ children }) {
       localStorage.setItem(TOKEN_KEY, authToken)
       
       // Get user info
-      const userResponse = await fetch(`${API_BASE}/api/auth/me`, {
+      const userResponse = await fetch(`${API_BASE}/auth/me`, {
         headers: {
           'Authorization': `Bearer ${authToken}`
         }
@@ -135,7 +133,7 @@ export function AuthProvider({ children }) {
     setLoading(true)
     
     try {
-      const response = await fetch(`${API_BASE}/api/auth/register`, {
+      const response = await fetch(`${API_BASE}/auth/register`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

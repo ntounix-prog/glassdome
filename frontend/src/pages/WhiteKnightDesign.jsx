@@ -17,7 +17,7 @@ const useDeployedMissions = () => {
   useEffect(() => {
     const fetchMissions = async () => {
       try {
-        const response = await fetch('/api/reaper/missions')
+        const response = await fetch('/api/v1/reaper/missions')
         if (response.ok) {
           const data = await response.json()
           // Show ALL missions that have a VM IP - the VM may still be running
@@ -55,7 +55,7 @@ function ValidationHistory() {
 
   const fetchHistory = async () => {
     try {
-      const response = await fetch('/api/reaper/history?days=14')
+      const response = await fetch('/api/v1/reaper/history?days=14')
       if (response.ok) {
         const data = await response.json()
         // Only show missions with validations
@@ -71,7 +71,7 @@ function ValidationHistory() {
 
   const fetchMissionValidations = async (missionId) => {
     try {
-      const response = await fetch(`/api/reaper/missions/${missionId}/validations`)
+      const response = await fetch(`/api/v1/reaper/missions/${missionId}/validations`)
       if (response.ok) {
         const data = await response.json()
         setMissionValidations(data.validations)
@@ -244,7 +244,7 @@ function WhiteKnightDesign() {
 
   const checkContainerStatus = async () => {
     try {
-      const response = await fetch('/api/whiteknight/status')
+      const response = await fetch('/api/v1/whiteknight/status')
       if (response.ok) {
         const data = await response.json()
         setContainerStatus(data.status)
@@ -285,7 +285,7 @@ function WhiteKnightDesign() {
     setTestResults([])
 
     try {
-      const response = await fetch('/api/whiteknight/validate', {
+      const response = await fetch('/api/v1/whiteknight/validate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

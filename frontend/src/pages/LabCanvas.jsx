@@ -81,7 +81,7 @@ function LabCanvas() {
 
   const fetchSavedLabs = async () => {
     try {
-      const response = await fetch('/api/labs')
+      const response = await fetch('/api/v1/labs')
       if (response.ok) {
         const data = await response.json()
         setSavedLabs(data.labs || [])
@@ -93,7 +93,7 @@ function LabCanvas() {
 
   const loadLab = async (lab) => {
     try {
-      const response = await fetch(`/api/labs/${lab.id}`)
+      const response = await fetch(`/api/v1/labs/${lab.id}`)
       if (!response.ok) throw new Error('Failed to load lab')
       
       const labData = await response.json()
@@ -288,7 +288,7 @@ function LabCanvas() {
     }
 
     try {
-      const response = await fetch('/api/labs', {
+      const response = await fetch('/api/v1/labs', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(labData)
@@ -354,7 +354,7 @@ function LabCanvas() {
 
       addLog('📤 Sending to deployment API...', 'info')
       
-      const response = await fetch('/api/deployments', {
+      const response = await fetch('/api/v1/deployments', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(deploymentData)

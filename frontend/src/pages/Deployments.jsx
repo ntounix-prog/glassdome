@@ -21,8 +21,8 @@ function Deployments() {
     try {
       // Fetch both missions and labs in parallel
       const [missionsRes, labsRes] = await Promise.all([
-        fetch('/api/reaper/missions').catch(() => ({ json: () => ({ missions: [] }) })),
-        fetch('/api/registry/labs').catch(() => ({ json: () => ({ labs: [] }) })),
+        fetch('/api/v1/reaper/missions').catch(() => ({ json: () => ({ missions: [] }) })),
+        fetch('/api/v1/registry/labs').catch(() => ({ json: () => ({ labs: [] }) })),
       ])
       
       const missionsData = await missionsRes.json()
@@ -87,7 +87,7 @@ function Deployments() {
     if (!confirm(`Destroy VM ${mission.vm_created_id} (${mission.vm_ip_address})?\n\nThis will permanently delete the VM from Proxmox. This cannot be undone.`)) return
     
     try {
-      const response = await fetch(`/api/reaper/missions/${mission.mission_id}/destroy`, {
+      const response = await fetch(`/api/v1/reaper/missions/${mission.mission_id}/destroy`, {
         method: 'DELETE',
       })
       const data = await response.json()

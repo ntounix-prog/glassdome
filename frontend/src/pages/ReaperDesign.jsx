@@ -55,7 +55,7 @@ export default function ReaperDesign() {
   };
 
   const fetchExploits = async () => {
-    let url = `${API_BASE}/api/reaper/exploits?enabled_only=false`;
+    let url = `${API_BASE}/api/v1/reaper/exploits?enabled_only=false`;
     if (typeFilter) url += `&exploit_type=${typeFilter}`;
     if (severityFilter) url += `&severity=${severityFilter}`;
     
@@ -65,20 +65,20 @@ export default function ReaperDesign() {
   };
 
   const fetchMissions = async () => {
-    const res = await fetch(`${API_BASE}/api/reaper/missions`);
+    const res = await fetch(`${API_BASE}/api/v1/reaper/missions`);
     const data = await res.json();
     setMissions(data.missions || []);
   };
 
   const fetchStats = async () => {
-    const res = await fetch(`${API_BASE}/api/reaper/stats`);
+    const res = await fetch(`${API_BASE}/api/v1/reaper/stats`);
     const data = await res.json();
     setStats(data);
   };
 
   const seedExploits = async () => {
     try {
-      await fetch(`${API_BASE}/api/reaper/exploits/seed`, { method: 'POST' });
+      await fetch(`${API_BASE}/api/v1/reaper/exploits/seed`, { method: 'POST' });
       await fetchExploits();
       await fetchStats();
     } catch (err) {
@@ -282,7 +282,7 @@ function ExploitLibrary({
       // Handle both formats: {exploits: [...]} or direct array
       const exploitsArray = data.exploits || (Array.isArray(data) ? data : [data]);
       
-      const res = await fetch(`${API_BASE}/api/reaper/exploits/import`, {
+      const res = await fetch(`${API_BASE}/api/v1/reaper/exploits/import`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -307,7 +307,7 @@ function ExploitLibrary({
 
   const downloadTemplate = async () => {
     try {
-      const res = await fetch(`${API_BASE}/api/reaper/exploits/template`);
+      const res = await fetch(`${API_BASE}/api/v1/reaper/exploits/template`);
       const template = await res.json();
       
       const blob = new Blob([JSON.stringify(template, null, 2)], { type: 'application/json' });
@@ -324,7 +324,7 @@ function ExploitLibrary({
 
   const exportExploits = async () => {
     try {
-      const res = await fetch(`${API_BASE}/api/reaper/exploits/export`);
+      const res = await fetch(`${API_BASE}/api/v1/reaper/exploits/export`);
       const data = await res.json();
       
       const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -534,7 +534,7 @@ function MissionBuilder({ exploits, onMissionCreated }) {
         target_vm_config: targetType === 'new' ? vmConfig : null,
       };
 
-      const res = await fetch(`${API_BASE}/api/reaper/missions`, {
+      const res = await fetch(`${API_BASE}/api/v1/reaper/missions`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -545,7 +545,7 @@ function MissionBuilder({ exploits, onMissionCreated }) {
       const mission = await res.json();
       
       // Start the mission
-      await fetch(`${API_BASE}/api/reaper/missions/${mission.mission_id}/start`, {
+      await fetch(`${API_BASE}/api/v1/reaper/missions/${mission.mission_id}/start`, {
         method: 'POST'
       });
 
@@ -958,7 +958,7 @@ function AddExploitModal({ onClose, onCreated }) {
         ansible_vars: Object.keys(formData.ansible_vars).length > 0 ? formData.ansible_vars : null,
       };
 
-      const res = await fetch(`${API_BASE}/api/reaper/exploits`, {
+      const res = await fetch(`${API_BASE}/api/v1/reaper/exploits`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -1261,7 +1261,7 @@ function ExploitDetailModal({ exploit, onClose }) {
   const [fullExploit, setFullExploit] = useState(null);
   
   useEffect(() => {
-    fetch(`${API_BASE}/api/reaper/exploits/${exploit.id}`)
+    fetch(`${API_BASE}/api/v1/reaper/exploits/${exploit.id}`)
       .then(res => res.json())
       .then(data => setFullExploit(data));
   }, [exploit.id]);
@@ -1344,7 +1344,7 @@ function LogViewer({ isOpen, onClose }) {
   useEffect(() => {
     if (isOpen) {
       // Fetch initial logs
-      fetch(`${API_BASE}/api/reaper/logs?lines=50`)
+      fetch(`${API_BASE}/api/v1/reaper/logs?lines=50`)
         .then(res => res.json())
         .then(data => {
           if (data.logs) {
@@ -1354,7 +1354,7 @@ function LogViewer({ isOpen, onClose }) {
         .catch(err => console.error('Failed to fetch logs:', err));
 
       // Connect WebSocket for live updates
-      const wsUrl = API_BASE.replace('http', 'ws') + '/api/reaper/logs/stream';
+      const wsUrl = API_BASE.replace('http', 'ws') + '/api/v1/reaper/logs/stream';
       wsRef.current = new WebSocket(wsUrl);
       
       wsRef.current.onopen = () => setConnected(true);
