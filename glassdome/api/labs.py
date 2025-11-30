@@ -430,25 +430,89 @@ async def get_lab_template(template_id: str) -> Dict[str, Any]:
 
 
 @router.get("/{lab_id}/status")
-async def get_lab_status(lab_id: str) -> Dict[str, Any]:
+async def get_lab_status(
+    lab_id: str,
+    db: AsyncSession = Depends(get_db)
+) -> Dict[str, Any]:
     """
-    Get lab deployment status
+    Get lab deployment status with real data from database.
+    """
+    from glassdome.models.deployment import DeployedVM
     
-    In production, this would query the database for deployment status
-    """
-    # TODO: Implement database lookup
+    # Get lab
+    result = await db.execute(select(Lab).where(Lab.id == lab_id))
+    lab = result.scalar_one_or_none()
+    
+    if not lab:
+        raise HTTPException(status_code=404, detail="Lab not found")
+    
+    # Get deployed VMs for this lab
+    result = await db.execute(
+        select(DeployedVM).where(DeployedVM.lab_id == lab_id)
+    )
+    deployed_vms = result.scalars().all()
+    
+    # Calculate status
+    total_elements = len(lab.elements) if lab.elements else 0
+    deployed_count = len(deployed_vms)
+    running_count = len([vm for vm in deployed_vms if vm.status == "running"])
+    pending_count = total_elements - deployed_count
+    
+    # Determine overall status
+    if deployed_count == 0:
+        status = "draft" if lab.status == "draft" else "pending"
+        progress = 0.0
+    elif running_count == total_elements:
+        status = "running"
+        progress = 1.0
+    elif deployed_count > 0:
+        status = "deploying"
+        progress = deployed_count / total_elements if total_elements > 0 else 0
+    else:
+        status = lab.status or "unknown"
+        progress = 0.0
+    
     return {
         "lab_id": lab_id,
-        "status": "deploying",
-        "message": "Lab deployment in progress",
-        "progress": 0.5,
+        "lab_name": lab.name,
+        "status": status,
+        "message": _get_status_message(status, running_count, total_elements),
+        "progress": round(progress, 2),
         "vms": {
-            "total": 3,
-            "completed": 1,
-            "in_progress": 1,
-            "pending": 1
-        }
+            "total": total_elements,
+            "deployed": deployed_count,
+            "running": running_count,
+            "pending": pending_count
+        },
+        "deployed_vms": [
+            {
+                "id": vm.id,
+                "name": vm.name,
+                "status": vm.status,
+                "ip_address": vm.ip_address,
+                "platform": vm.platform
+            }
+            for vm in deployed_vms
+        ]
     }
+
+
+def _get_status_message(status: str, running: int, total: int) -> str:
+    """Generate human-readable status message."""
+    if status == "draft":
+        return "Lab is in draft mode. Add VMs and deploy."
+    elif status == "pending":
+        return "Lab is ready for deployment."
+    elif status == "deploying":
+        return f"Deployment in progress ({running}/{total} VMs running)"
+    elif status == "running":
+        return f"All {total} VMs running successfully"
+    elif status == "stopped":
+        return "Lab deployment stopped"
+    elif status == "error":
+        return "Deployment encountered an error"
+    else:
+        return f"Status: {status}"
 
 
 # NOTE: delete_lab is defined above in the CRUD section (line ~115)

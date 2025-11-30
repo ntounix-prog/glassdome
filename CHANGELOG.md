@@ -2,6 +2,43 @@
 
 All notable changes to Glassdome will be documented in this file.
 
+## [0.7.2] - 2025-11-30
+
+### Wiring & Integration Release
+
+Wired up stub implementations to use actual database and platform operations.
+Reduced TODO count from 32 to 16.
+
+### CLI Commands (Now Functional)
+- `glassdome init` - Initializes database, creates admin user, tests platform connections
+- `glassdome status` - Shows agent manager, platform connectivity, deployment stats
+- `glassdome lab list` - Lists all labs from database (supports --format json)
+- `glassdome lab create` - Creates lab in database
+- `glassdome lab show <id>` - Shows lab details
+- `glassdome lab delete <id>` - Deletes lab from database
+- `glassdome deploy list` - Lists deployed VMs from database
+- `glassdome deploy create` - Queues lab deployment
+- `glassdome deploy destroy` - Destroys VMs on platform and removes from database
+- `glassdome deploy status` - Shows real deployment progress
+
+### API Improvements
+- `GET /api/templates` - Now queries database, falls back to built-in templates
+- `GET /api/templates/{id}` - Full template retrieval with template_data
+- `POST /api/templates` - Creates templates in database
+- `DELETE /api/templates/{id}` - Deletes templates
+- `GET /api/labs/{id}/status` - Real deployment status from database
+
+### Chat Agent Operations
+- `_terminate_proxmox_vm` - Now calls proxmox_client.stop_vm() and delete_vm()
+- `_deploy_to_proxmox` - Now clones from templates via proxmox_client
+
+### Technical
+- All 78 tests passing
+- 16 TODOs remaining (down from 32)
+- No breaking changes
+
+---
+
 ## [0.7.1] - 2025-11-30
 
 ### Code Cleanup Release

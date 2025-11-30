@@ -1152,11 +1152,42 @@ class OverseerChatAgent:
     
     async def _terminate_proxmox_vm(self, details: Dict[str, Any]) -> Dict[str, Any]:
         """Terminate a Proxmox VM"""
-        # TODO: Implement Proxmox VM termination
-        return {
-            "success": False,
-            "error": "Proxmox VM termination not yet implemented"
-        }
+        vm_id = details.get("vm_id") or details.get("instance_id")
+        instance_id = details.get("platform_instance", "01")
+        
+        if not vm_id:
+            return {"success": False, "error": "No VM ID provided"}
+        
+        try:
+            from glassdome.platforms.proxmox_client import get_proxmox_client
+            
+            client = get_proxmox_client(instance_id)
+            logger.info(f"Terminating Proxmox VM {vm_id} on instance {instance_id}")
+            
+            # Stop the VM first
+            try:
+                await client.stop_vm(str(vm_id))
+                logger.info(f"VM {vm_id} stopped")
+            except Exception as e:
+                logger.warning(f"Stop VM failed (may already be stopped): {e}")
+            
+            # Delete the VM
+            await client.delete_vm(str(vm_id))
+            logger.info(f"VM {vm_id} deleted")
+            
+            return {
+                "success": True,
+                "message": f"✅ VM {vm_id} terminated successfully",
+                "vm_id": vm_id,
+                "platform": "proxmox",
+                "instance": instance_id
+            }
+        except Exception as e:
+            logger.error(f"Failed to terminate Proxmox VM {vm_id}: {e}")
+            return {
+                "success": False,
+                "error": f"Failed to terminate VM: {str(e)}"
+            }
     
     async def _execute_send_email(self, details: Dict[str, Any]) -> Dict[str, Any]:
         """Send an email via Mailcow"""
@@ -1370,15 +1401,69 @@ class OverseerChatAgent:
     
     async def _deploy_to_proxmox(self, details: Dict[str, Any]) -> Dict[str, Any]:
         """Deploy VM to Proxmox"""
-        # TODO: Implement actual Proxmox deployment
-        lab_id = f"lab-{uuid.uuid4().hex[:8]}"
-        return {
-            "success": True,
-            "message": f"Lab '{details.get('lab_name')}' queued for Proxmox deployment",
-            "lab_id": lab_id,
-            "platform": "proxmox",
-            "status": "queued"
-        }
+        instance_id = details.get("platform_instance", "01")
+        template_id = details.get("template_id")
+        vm_name = details.get("vm_name") or details.get("lab_name", "glassdome-vm")
+        
+        try:
+            from glassdome.platforms.proxmox_client import get_proxmox_client
+            from glassdome.core.config import settings
+            
+            client = get_proxmox_client(instance_id)
+            config = settings.get_proxmox_config(instance_id)
+            node = config.get("node", "pve")
+            
+            logger.info(f"Deploying to Proxmox {instance_id}: {vm_name}")
+            
+            # If template_id provided, clone from template
+            if template_id:
+                # Get next available VMID
+                new_vmid = await client.get_next_vmid()
+                
+                result = await client.clone_vm_from_template(
+                    node=node,
+                    template_id=int(template_id),
+                    new_vmid=new_vmid,
+                    name=vm_name,
+                    full_clone=True
+                )
+                
+                if result.get("success"):
+                    # Start the VM
+                    await client.start_vm(str(new_vmid))
+                    
+                    return {
+                        "success": True,
+                        "message": f"✅ VM '{vm_name}' deployed successfully",
+                        "vm_id": new_vmid,
+                        "platform": "proxmox",
+                        "instance": instance_id,
+                        "status": "running"
+                    }
+                else:
+                    return {
+                        "success": False,
+                        "error": result.get("error", "Clone failed")
+                    }
+            else:
+                # No template - create basic VM config
+                lab_id = f"lab-{uuid.uuid4().hex[:8]}"
+                return {
+                    "success": True,
+                    "message": f"Lab '{vm_name}' queued for deployment. Use canvas UI to configure VMs.",
+                    "lab_id": lab_id,
+                    "platform": "proxmox",
+                    "instance": instance_id,
+                    "status": "queued",
+                    "note": "Provide template_id for direct VM creation"
+                }
+                
+        except Exception as e:
+            logger.error(f"Proxmox deployment failed: {e}")
+            return {
+                "success": False,
+                "error": f"Deployment failed: {str(e)}"
+            }
     
     async def _execute_mission_creation(self, details: Dict[str, Any]) -> Dict[str, Any]:
         """Execute Reaper mission creation"""
