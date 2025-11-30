@@ -2,6 +2,31 @@
 
 All notable changes to Glassdome will be documented in this file.
 
+## [0.7.1] - 2025-11-30
+
+### Code Cleanup Release
+
+Minor cleanup release removing deprecated code and improving codebase hygiene.
+
+### Removed
+- **`_deprecated/` folder** - Deleted 9 unused files:
+  - `cloudbase_init_builder.py` - Unused Windows cloud-init builder
+  - `os_installer_base.py` - Abstract base never implemented
+  - `proxmox_gateway.py` - Experimental gateway code
+  - `secrets_web.py` - Duplicate of CLI secrets functionality
+  - `logging_config.py` - Unused worker logging config
+  - `frontend/LabTemplates.jsx` - Old component
+  - `frontend/LabTemplates.css` - Old styles
+  - `frontend/QuickDeploy.jsx` - Old component
+  - `frontend/QuickDeploy.css` - Old styles
+
+### Technical Notes
+- 32 TODO markers remain for future feature work
+- All tests still passing (78/81)
+- No breaking changes
+
+---
+
 ## [0.7.0] - 2025-11-30
 
 ### 🚀 Major Release: API v1 Refactor
