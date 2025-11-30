@@ -11,21 +11,39 @@ Technitium DNS Server provides centralized, authoritative DNS for all network se
 
 ## Access Credentials
 
-**Credentials stored in HashiCorp Vault:**
-```bash
-# Retrieve credentials
-vault kv get glassdome/dns_server
-```
-
-**Quick Reference (for emergencies only):**
 | Item | Value |
 |------|-------|
 | VM IP | 192.168.3.10 |
 | OS User | ubuntu |
-| OS Password | (in Vault: `glassdome/dns_server`) |
+| SSH | Key-based (from glassdome server) |
 | Web Interface | http://192.168.3.10:5380 |
 | Admin User | admin |
-| Admin Password | (in Vault: `glassdome/dns_server`) |
+| Admin Password | Admin123! |
+
+## Ad Blocking
+
+Technitium is configured with comprehensive ad blocking using the following blocklists:
+
+| Blocklist | URL |
+|-----------|-----|
+| Steven Black | `https://raw.githubusercontent.com/StevenBlack/hosts/master/hosts` |
+| OISD Big | `https://big.oisd.nl/domainswildcard` |
+| AdGuard DNS | `https://adguardteam.github.io/AdGuardSDNSFilter/Filters/filter.txt` |
+
+**Settings:**
+- Blocking enabled: ✅ Yes
+- Blocking type: NxDomain
+- Auto-update: Every 24 hours
+
+**Test ad blocking:**
+```bash
+# Should return NXDOMAIN (blocked)
+nslookup ads.google.com 192.168.3.10
+nslookup doubleclick.net 192.168.3.10
+
+# Should resolve normally
+nslookup google.com 192.168.3.10
+```
 
 ## Network Configuration
 
