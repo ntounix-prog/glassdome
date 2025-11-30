@@ -93,9 +93,10 @@ class Settings(BaseSettings):
             # Database
             'database_password': 'database_password',
             
-            # Proxmox (passwords and users)
+            # Proxmox (host, passwords and users)
+            'proxmox_host': 'proxmox_01_host',
             'proxmox_user': 'proxmox_01_user',
-            'proxmox_password': 'proxmox_password',
+            'proxmox_password': 'proxmox_01_password',
             'proxmox_token_value': 'proxmox_token_value',
             'proxmox_root_password': 'proxmox_root_password',
             
