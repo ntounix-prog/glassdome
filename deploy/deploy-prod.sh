@@ -57,7 +57,7 @@ sudo systemctl restart glassdome
 sleep 3
 echo ""
 echo "=== Verification ==="
-curl -s http://localhost/api/health
+curl -s http://localhost/api/v1/health
 
 echo ""
 echo "=== Deployment Complete ==="
