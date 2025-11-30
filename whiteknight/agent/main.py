@@ -17,12 +17,11 @@ from dataclasses import dataclass, asdict
 from enum import Enum
 import logging
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s [%(levelname)s] %(message)s',
-    handlers=[logging.StreamHandler(sys.stdout)]
-)
+# Use centralized logging configuration
+from logging_config import setup_logging, set_log_context
+
+# Initialize logging
+setup_logging()
 logger = logging.getLogger("whiteknight")
 
 

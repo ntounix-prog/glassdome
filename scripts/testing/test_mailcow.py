@@ -18,10 +18,12 @@ ensure_security_context()
 
 from glassdome.agents.mailcow_agent import MailcowAgent
 
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
+# Use centralized logging
+try:
+    from glassdome.core.logging import setup_logging_from_settings
+    setup_logging_from_settings()
+except ImportError:
+    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 

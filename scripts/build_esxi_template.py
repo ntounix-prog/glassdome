@@ -28,11 +28,9 @@ settings = get_secure_settings()
 
 from glassdome.platforms.esxi_template_builder import ESXiTemplateBuilder
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
+# Use centralized logging
+from glassdome.core.logging import setup_logging_from_settings
+setup_logging_from_settings()
 logger = logging.getLogger(__name__)
 
 

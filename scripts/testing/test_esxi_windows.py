@@ -14,7 +14,12 @@ ensure_security_context()
 settings = get_secure_settings()
 import logging
 
-logging.basicConfig(level=logging.INFO)
+# Use centralized logging
+try:
+    from glassdome.core.logging import setup_logging_from_settings
+    setup_logging_from_settings()
+except ImportError:
+    logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 async def test_esxi_windows():

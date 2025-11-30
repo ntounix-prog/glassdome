@@ -62,7 +62,12 @@ except Exception as e:
     class Settings:
         pass
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+# Use centralized logging
+try:
+    from glassdome.core.logging import setup_logging_from_settings
+    setup_logging_from_settings()
+except ImportError:
+    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 # Network configuration

@@ -21,7 +21,12 @@ from glassdome.core.config import Settings
 from glassdome.core.secrets import get_secrets_manager
 import logging
 
-logging.basicConfig(level=logging.INFO)
+# Use centralized logging
+try:
+    from glassdome.core.logging import setup_logging_from_settings
+    setup_logging_from_settings()
+except ImportError:
+    logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
