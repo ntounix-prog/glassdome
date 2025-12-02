@@ -17,8 +17,8 @@ export const API_BASE = `/api/${API_VERSION}`;
 // Legacy API URL (for backwards compatibility during migration)
 export const API_BASE_LEGACY = '/api';
 
-// WebSocket base URL
-export const WS_BASE = `ws://${window.location.host}/api/${API_VERSION}`;
+// WebSocket base URL (uses legacy path - v1 redirect doesn't support WebSocket)
+export const WS_BASE = `ws://${window.location.host}/api`;
 
 // Helper to build API URLs
 export function apiUrl(path) {

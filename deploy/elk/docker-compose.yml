@@ -1,0 +1,162 @@
+# ELK Stack for Glassdome Lab Deployment
+# ========================================
+# Deploy on: 192.168.3.26
+#
+# Quick Start:
+#   1. Copy this folder to 192.168.3.26:/opt/elk/
+#   2. cd /opt/elk && docker compose up -d
+#   3. Access Kibana: http://192.168.3.26:5601
+#
+# Author: Brett Turner (ntounix)
+# Created: December 2025
+
+services:
+  # ============================================================================
+  # Elasticsearch - Data Store
+  # ============================================================================
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.3
+    container_name: elk-elasticsearch
+    hostname: elasticsearch
+    environment:
+      # Single-node mode (lab/dev environment)
+      - discovery.type=single-node
+      - cluster.name=glassdome-cluster
+      - node.name=glassdome-es-01
+      
+      # Memory settings (adjust based on available RAM)
+      - "ES_JAVA_OPTS=-Xms2g -Xmx2g"
+      - bootstrap.memory_lock=true
+      
+      # Security (disabled for internal lab - enable for production)
+      - xpack.security.enabled=false
+      - xpack.security.enrollment.enabled=false
+      
+      # Network
+      - network.host=0.0.0.0
+      - http.port=9200
+      - transport.port=9300
+      
+      # Index settings
+      - action.auto_create_index=true
+      
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+    networks:
+      - elk-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:9200/_cluster/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    restart: unless-stopped
+
+  # ============================================================================
+  # Logstash - Log Processing Pipeline
+  # ============================================================================
+  logstash:
+    image: docker.elastic.co/logstash/logstash:8.11.3
+    container_name: elk-logstash
+    hostname: logstash
+    environment:
+      - "LS_JAVA_OPTS=-Xms512m -Xmx512m"
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+    volumes:
+      - ./logstash/pipeline:/usr/share/logstash/pipeline:ro
+      - ./logstash/config/logstash.yml:/usr/share/logstash/config/logstash.yml:ro
+      - logstash_data:/usr/share/logstash/data
+    ports:
+      # Beats input (Filebeat)
+      - "5044:5044"
+      # JSON/TCP input (direct from Python)
+      - "5045:5045"
+      # HTTP input (webhooks/REST)
+      - "5046:5046"
+      # Syslog input
+      - "5514:5514/udp"
+      - "5514:5514/tcp"
+    networks:
+      - elk-network
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:9600/_node/stats || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    restart: unless-stopped
+
+  # ============================================================================
+  # Kibana - Visualization & Dashboard
+  # ============================================================================
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.11.3
+    container_name: elk-kibana
+    hostname: kibana
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+      - SERVER_HOST=0.0.0.0
+      - SERVER_PORT=5601
+      - SERVER_NAME=glassdome-kibana
+      
+      # Disable security for lab environment
+      - XPACK_SECURITY_ENABLED=false
+      
+      # Telemetry
+      - TELEMETRY_ENABLED=false
+    volumes:
+      - kibana_data:/usr/share/kibana/data
+    ports:
+      - "5601:5601"
+    networks:
+      - elk-network
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:5601/api/status || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 90s
+    restart: unless-stopped
+
+  # ============================================================================
+  # Index Lifecycle Management is handled via Elasticsearch ILM policies
+  # See README.md for ILM setup instructions
+  # ============================================================================
+
+# ============================================================================
+# Networks
+# ============================================================================
+networks:
+  elk-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.31.0.0/24
+
+# ============================================================================
+# Volumes
+# ============================================================================
+volumes:
+  elasticsearch_data:
+    driver: local
+  logstash_data:
+    driver: local
+  kibana_data:
+    driver: local
+

@@ -358,3 +358,51 @@
     box-shadow: 0 0 20px rgba(16, 185, 129, 0.6);
   }
 }
+
+/* API Docs Card - Documentation/Book Theme */
+.feature-card.api-docs-card {
+  border-color: rgba(99, 102, 241, 0.3);
+  background: linear-gradient(
+    135deg,
+    rgba(99, 102, 241, 0.08) 0%,
+    rgba(79, 70, 229, 0.05) 50%,
+    rgba(0, 0, 0, 0.2) 100%
+  );
+}
+
+.feature-card.api-docs-card:hover {
+  border-color: rgba(99, 102, 241, 0.6);
+  box-shadow: 0 8px 30px rgba(99, 102, 241, 0.25);
+}
+
+.feature-card.api-docs-card .feature-icon {
+  filter: drop-shadow(0 0 10px rgba(99, 102, 241, 0.5));
+}
+
+.feature-card.api-docs-card .feature-link {
+  color: #6366f1;
+}
+
+/* API Testing Card - Lab/Testing Theme */
+.feature-card.api-testing-card {
+  border-color: rgba(236, 72, 153, 0.3);
+  background: linear-gradient(
+    135deg,
+    rgba(236, 72, 153, 0.08) 0%,
+    rgba(219, 39, 119, 0.05) 50%,
+    rgba(0, 0, 0, 0.2) 100%
+  );
+}
+
+.feature-card.api-testing-card:hover {
+  border-color: rgba(236, 72, 153, 0.6);
+  box-shadow: 0 8px 30px rgba(236, 72, 153, 0.25);
+}
+
+.feature-card.api-testing-card .feature-icon {
+  filter: drop-shadow(0 0 10px rgba(236, 72, 153, 0.5));
+}
+
+.feature-card.api-testing-card .feature-link {
+  color: #ec4899;
+}

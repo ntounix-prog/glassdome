@@ -477,7 +477,7 @@ class WhitePawnMonitor:
             )
             deployment = result.scalar_one_or_none()
             if deployment:
-                deployment.last_heartbeat = datetime.now(timezone.utc)
+                deployment.last_heartbeat = datetime.utcnow()  # naive datetime for DB
                 deployment.total_checks = self._check_count
                 deployment.total_alerts = self._alert_count
                 deployment.status = "active"

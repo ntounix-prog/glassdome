@@ -91,7 +91,7 @@ Quick access to Glassdome features:
 - 🔮 **Overseer**: AI assistant for lab management
 - ☠️ **Reaper**: Vulnerability injection framework
 - 🛡️ **WhiteKnight**: Security validation engine
-- ♟️ **WhitePawn**: Continuous monitoring
+- ♙ **WhitePawn**: Continuous monitoring
 - 🎮 **Player Portal**: Access lab environments
 
 ### Quick Stats

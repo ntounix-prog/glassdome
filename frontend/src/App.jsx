@@ -93,7 +93,7 @@ function Navigation({ healthStatus, loading, radioState }) {
   
   const monitorItems = [
     { name: 'Lab Monitor', icon: '🔬', path: '/monitor' },
-    { name: 'WhitePawn', icon: '♟️', path: '/whitepawn' },
+    { name: 'WhitePawn', icon: '♙', path: '/whitepawn' },
     { name: 'Proxmox', icon: '🖥️', path: '/platform/proxmox' },
     { name: 'ESXi', icon: '🏢', path: '/platform/esxi' },
     { name: 'AWS', icon: '☁️', path: '/platform/aws' },

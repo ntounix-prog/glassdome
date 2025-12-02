@@ -3,6 +3,49 @@ version: '3.8'
 # Glassdome Container Fleet
 # =========================
 # Always-on orchestrators ready to deploy labs, inject vulns, validate, monitor
+# Logs shipped to ELK stack at 192.168.3.26
+
+# Common logging environment variables (ELK Stack at 192.168.3.26)
+x-logging-env: &logging-env
+  LOGSTASH_ENABLED: ${LOGSTASH_ENABLED:-true}
+  LOGSTASH_HOST: ${LOGSTASH_HOST:-192.168.3.26}
+  LOGSTASH_PORT: ${LOGSTASH_PORT:-5045}
+  LOG_LEVEL: ${LOG_LEVEL:-INFO}
+  LOG_JSON_ENABLED: "true"
+
+# Common reaper environment
+x-reaper-env: &reaper-env
+  REDIS_URL: redis://redis:6379/0
+  DATABASE_URL: ${DATABASE_URL}
+  GLASSDOME_MODE: reaper
+  LOGSTASH_ENABLED: ${LOGSTASH_ENABLED:-true}
+  LOGSTASH_HOST: ${LOGSTASH_HOST:-192.168.3.26}
+  LOGSTASH_PORT: ${LOGSTASH_PORT:-5045}
+  LOG_LEVEL: ${LOG_LEVEL:-INFO}
+  LOG_JSON_ENABLED: "true"
+
+# Common whiteknight environment
+x-whiteknight-env: &whiteknight-env
+  REDIS_URL: redis://redis:6379/0
+  DATABASE_URL: ${DATABASE_URL}
+  GLASSDOME_MODE: whiteknight
+  LOGSTASH_ENABLED: ${LOGSTASH_ENABLED:-true}
+  LOGSTASH_HOST: ${LOGSTASH_HOST:-192.168.3.26}
+  LOGSTASH_PORT: ${LOGSTASH_PORT:-5045}
+  LOG_LEVEL: ${LOG_LEVEL:-INFO}
+  LOG_JSON_ENABLED: "true"
+
+# Common whitepawn environment
+x-whitepawn-env: &whitepawn-env
+  REDIS_URL: redis://redis:6379/0
+  DATABASE_URL: ${DATABASE_URL}
+  GLASSDOME_MODE: whitepawn
+  MONITOR_INTERVAL: 15
+  LOGSTASH_ENABLED: ${LOGSTASH_ENABLED:-true}
+  LOGSTASH_HOST: ${LOGSTASH_HOST:-192.168.3.26}
+  LOGSTASH_PORT: ${LOGSTASH_PORT:-5045}
+  LOG_LEVEL: ${LOG_LEVEL:-INFO}
+  LOG_JSON_ENABLED: "true"
 
 services:
   # ============================================================================
@@ -42,6 +85,12 @@ services:
       - PROXMOX_HOST=${PROXMOX_HOST}
       - PROXMOX_USER=${PROXMOX_USER}
       - PROXMOX_PASSWORD=${PROXMOX_PASSWORD}
+      # ELK Stack Logging
+      - LOGSTASH_ENABLED=${LOGSTASH_ENABLED:-true}
+      - LOGSTASH_HOST=${LOGSTASH_HOST:-192.168.3.26}
+      - LOGSTASH_PORT=${LOGSTASH_PORT:-5045}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - LOG_JSON_ENABLED=true
     ports:
       - "8011:8000"
     depends_on:
@@ -76,6 +125,13 @@ services:
       - PROXMOX_HOST=${PROXMOX_HOST}
       - PROXMOX_USER=${PROXMOX_USER}
       - PROXMOX_PASSWORD=${PROXMOX_PASSWORD}
+      # ELK Stack Logging
+      - LOGSTASH_ENABLED=${LOGSTASH_ENABLED:-true}
+      - LOGSTASH_HOST=${LOGSTASH_HOST:-192.168.3.26}
+      - LOGSTASH_PORT=${LOGSTASH_PORT:-5045}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - LOG_JSON_ENABLED=true
+      - WORKER_ID=orchestrator
     depends_on:
       - redis
       - backend
@@ -97,10 +153,8 @@ services:
     container_name: glassdome-reaper-1
     restart: unless-stopped
     environment:
-      - REDIS_URL=redis://redis:6379/0
-      - DATABASE_URL=${DATABASE_URL}
-      - GLASSDOME_MODE=reaper
-      - WORKER_ID=reaper-1
+      <<: *reaper-env
+      WORKER_ID: reaper-1
     depends_on:
       - redis
       - orchestrator
@@ -118,10 +172,8 @@ services:
     container_name: glassdome-reaper-2
     restart: unless-stopped
     environment:
-      - REDIS_URL=redis://redis:6379/0
-      - DATABASE_URL=${DATABASE_URL}
-      - GLASSDOME_MODE=reaper
-      - WORKER_ID=reaper-2
+      <<: *reaper-env
+      WORKER_ID: reaper-2
     depends_on:
       - redis
       - orchestrator
@@ -139,10 +191,8 @@ services:
     container_name: glassdome-reaper-3
     restart: unless-stopped
     environment:
-      - REDIS_URL=redis://redis:6379/0
-      - DATABASE_URL=${DATABASE_URL}
-      - GLASSDOME_MODE=reaper
-      - WORKER_ID=reaper-3
+      <<: *reaper-env
+      WORKER_ID: reaper-3
     depends_on:
       - redis
       - orchestrator
@@ -160,10 +210,8 @@ services:
     container_name: glassdome-reaper-4
     restart: unless-stopped
     environment:
-      - REDIS_URL=redis://redis:6379/0
-      - DATABASE_URL=${DATABASE_URL}
-      - GLASSDOME_MODE=reaper
-      - WORKER_ID=reaper-4
+      <<: *reaper-env
+      WORKER_ID: reaper-4
     depends_on:
       - redis
       - orchestrator
@@ -181,10 +229,8 @@ services:
     container_name: glassdome-reaper-5
     restart: unless-stopped
     environment:
-      - REDIS_URL=redis://redis:6379/0
-      - DATABASE_URL=${DATABASE_URL}
-      - GLASSDOME_MODE=reaper
-      - WORKER_ID=reaper-5
+      <<: *reaper-env
+      WORKER_ID: reaper-5
     depends_on:
       - redis
       - orchestrator
@@ -202,10 +248,8 @@ services:
     container_name: glassdome-reaper-6
     restart: unless-stopped
     environment:
-      - REDIS_URL=redis://redis:6379/0
-      - DATABASE_URL=${DATABASE_URL}
-      - GLASSDOME_MODE=reaper
-      - WORKER_ID=reaper-6
+      <<: *reaper-env
+      WORKER_ID: reaper-6
     depends_on:
       - redis
       - orchestrator
@@ -223,10 +267,8 @@ services:
     container_name: glassdome-reaper-7
     restart: unless-stopped
     environment:
-      - REDIS_URL=redis://redis:6379/0
-      - DATABASE_URL=${DATABASE_URL}
-      - GLASSDOME_MODE=reaper
-      - WORKER_ID=reaper-7
+      <<: *reaper-env
+      WORKER_ID: reaper-7
     depends_on:
       - redis
       - orchestrator
@@ -244,10 +286,8 @@ services:
     container_name: glassdome-reaper-8
     restart: unless-stopped
     environment:
-      - REDIS_URL=redis://redis:6379/0
-      - DATABASE_URL=${DATABASE_URL}
-      - GLASSDOME_MODE=reaper
-      - WORKER_ID=reaper-8
+      <<: *reaper-env
+      WORKER_ID: reaper-8
     depends_on:
       - redis
       - orchestrator
@@ -269,10 +309,8 @@ services:
     container_name: glassdome-whiteknight-1
     restart: unless-stopped
     environment:
-      - REDIS_URL=redis://redis:6379/0
-      - DATABASE_URL=${DATABASE_URL}
-      - GLASSDOME_MODE=whiteknight
-      - WORKER_ID=whiteknight-1
+      <<: *whiteknight-env
+      WORKER_ID: whiteknight-1
     depends_on:
       - redis
       - orchestrator
@@ -294,11 +332,8 @@ services:
     container_name: glassdome-whitepawn-1
     restart: unless-stopped
     environment:
-      - REDIS_URL=redis://redis:6379/0
-      - DATABASE_URL=${DATABASE_URL}
-      - GLASSDOME_MODE=whitepawn
-      - WORKER_ID=whitepawn-1
-      - MONITOR_INTERVAL=15
+      <<: *whitepawn-env
+      WORKER_ID: whitepawn-1
     depends_on:
       - redis
       - orchestrator
@@ -316,11 +351,8 @@ services:
     container_name: glassdome-whitepawn-2
     restart: unless-stopped
     environment:
-      - REDIS_URL=redis://redis:6379/0
-      - DATABASE_URL=${DATABASE_URL}
-      - GLASSDOME_MODE=whitepawn
-      - WORKER_ID=whitepawn-2
-      - MONITOR_INTERVAL=15
+      <<: *whitepawn-env
+      WORKER_ID: whitepawn-2
     depends_on:
       - redis
       - orchestrator
@@ -338,11 +370,8 @@ services:
     container_name: glassdome-whitepawn-3
     restart: unless-stopped
     environment:
-      - REDIS_URL=redis://redis:6379/0
-      - DATABASE_URL=${DATABASE_URL}
-      - GLASSDOME_MODE=whitepawn
-      - WORKER_ID=whitepawn-3
-      - MONITOR_INTERVAL=15
+      <<: *whitepawn-env
+      WORKER_ID: whitepawn-3
     depends_on:
       - redis
       - orchestrator
@@ -360,11 +389,8 @@ services:
     container_name: glassdome-whitepawn-4
     restart: unless-stopped
     environment:
-      - REDIS_URL=redis://redis:6379/0
-      - DATABASE_URL=${DATABASE_URL}
-      - GLASSDOME_MODE=whitepawn
-      - WORKER_ID=whitepawn-4
-      - MONITOR_INTERVAL=15
+      <<: *whitepawn-env
+      WORKER_ID: whitepawn-4
     depends_on:
       - redis
       - orchestrator
@@ -374,6 +400,38 @@ services:
       - glassdome-internal
     cap_add:
       - NET_ADMIN
+
+  # ============================================================================
+  # Filebeat - Log Shipper (ships logs to ELK stack)
+  # ============================================================================
+  
+  filebeat:
+    image: docker.elastic.co/beats/filebeat:8.11.3
+    container_name: glassdome-filebeat
+    user: root
+    restart: unless-stopped
+    environment:
+      - ELASTICSEARCH_HOSTS=192.168.3.26:9200
+      - LOGSTASH_HOSTS=192.168.3.26:5044
+      - KIBANA_HOST=192.168.3.26:5601
+    volumes:
+      # Filebeat configuration
+      - ./deploy/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
+      # Glassdome logs
+      - ./logs:/app/logs:ro
+      # Docker container logs
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - glassdome-internal
+    depends_on:
+      - backend
+    healthcheck:
+      test: ["CMD", "filebeat", "test", "config"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    command: ["filebeat", "-e", "-strict.perms=false"]
 
 # ============================================================================
 # Networks

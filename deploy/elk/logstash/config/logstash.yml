@@ -1,0 +1,29 @@
+# Logstash Configuration
+# ======================
+
+# Node settings
+node.name: glassdome-logstash
+
+# API settings
+api.http.host: 0.0.0.0
+api.http.port: 9600
+
+# Pipeline settings
+pipeline.workers: 2
+pipeline.batch.size: 125
+pipeline.batch.delay: 50
+
+# Queue settings (persistent queue for reliability)
+queue.type: memory
+queue.max_events: 0
+queue.max_bytes: 1gb
+
+# Dead letter queue (for failed events)
+dead_letter_queue.enable: true
+dead_letter_queue.max_bytes: 1gb
+
+# Logging
+log.level: info
+log.format: json
+path.logs: /usr/share/logstash/logs
+

@@ -4,17 +4,21 @@ Centralized Logging Configuration
 Provides unified logging across all Glassdome modules with:
 - Rotating file handlers (size-based)
 - JSON output for SIEM integration (Filebeat/Logstash/ELK)
+- Direct Logstash TCP shipping for real-time log aggregation
 - Configurable log levels via environment
 - Colored console output for development
 
 Author: Brett Turner (ntounix)
 Created: November 2025
+Updated: December 2025 - Added Logstash TCP handler
 Copyright (c) 2025 Brett Turner. All rights reserved.
 """
 import logging
 import logging.handlers
 import json
 import sys
+import socket
+import os
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional, Dict, Any
@@ -143,6 +147,152 @@ class PlainFormatter(logging.Formatter):
         return msg
 
 
+class LogstashHandler(logging.Handler):
+    """
+    Handler for sending logs directly to Logstash via TCP.
+    
+    This provides real-time log shipping without requiring Filebeat,
+    useful for containerized deployments.
+    
+    The handler:
+    - Sends JSON-formatted logs over TCP
+    - Automatically reconnects on connection failure
+    - Buffers logs during connection issues
+    - Adds metadata (hostname, application, etc.)
+    """
+    
+    def __init__(
+        self, 
+        host: str = "192.168.3.26", 
+        port: int = 5045,
+        timeout: float = 5.0,
+        max_buffer: int = 1000,
+    ):
+        super().__init__()
+        self.host = host
+        self.port = port
+        self.timeout = timeout
+        self.max_buffer = max_buffer
+        self.socket: Optional[socket.socket] = None
+        self.buffer: list = []
+        self._lock = threading.Lock()
+        self._hostname = socket.gethostname()
+        self._worker_id = os.getenv("WORKER_ID", "main")
+        self._glassdome_mode = os.getenv("GLASSDOME_MODE", "backend")
+    
+    def _connect(self) -> bool:
+        """Establish connection to Logstash."""
+        try:
+            if self.socket:
+                try:
+                    self.socket.close()
+                except Exception:
+                    pass
+            
+            self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            self.socket.settimeout(self.timeout)
+            self.socket.connect((self.host, self.port))
+            return True
+        except Exception:
+            self.socket = None
+            return False
+    
+    def _send(self, message: str) -> bool:
+        """Send a message to Logstash."""
+        if not self.socket:
+            if not self._connect():
+                return False
+        
+        try:
+            # Logstash expects newline-delimited JSON
+            data = (message + "\n").encode('utf-8')
+            self.socket.sendall(data)
+            return True
+        except Exception:
+            self.socket = None
+            return False
+    
+    def _flush_buffer(self):
+        """Attempt to send buffered messages."""
+        while self.buffer:
+            message = self.buffer[0]
+            if self._send(message):
+                self.buffer.pop(0)
+            else:
+                break
+    
+    def emit(self, record: logging.LogRecord):
+        """Emit a log record to Logstash."""
+        try:
+            # Build log entry
+            log_entry = {
+                "@timestamp": datetime.now(timezone.utc).isoformat(),
+                "level": record.levelname,
+                "logger": record.name,
+                "message": record.getMessage(),
+                "module": record.module,
+                "function": record.funcName,
+                "line": record.lineno,
+                "application": "glassdome",
+                "host": self._hostname,
+                "worker_id": self._worker_id,
+                "glassdome_mode": self._glassdome_mode,
+            }
+            
+            # Add context
+            context = get_log_context()
+            if context:
+                log_entry.update(context)
+            
+            # Add exception info
+            if record.exc_info:
+                log_entry["exception"] = self.formatException(record.exc_info)
+                log_entry["has_exception"] = True
+            
+            # Add extra fields
+            for key, value in record.__dict__.items():
+                if key not in ('name', 'msg', 'args', 'created', 'filename', 
+                              'funcName', 'levelname', 'levelno', 'lineno',
+                              'module', 'msecs', 'pathname', 'process',
+                              'processName', 'relativeCreated', 'stack_info',
+                              'exc_info', 'exc_text', 'thread', 'threadName',
+                              'message', 'taskName'):
+                    if not key.startswith('_'):
+                        try:
+                            # Ensure value is JSON serializable
+                            json.dumps(value)
+                            log_entry[key] = value
+                        except (TypeError, ValueError):
+                            log_entry[key] = str(value)
+            
+            message = json.dumps(log_entry)
+            
+            with self._lock:
+                # Try to flush buffer first
+                self._flush_buffer()
+                
+                # Send current message
+                if not self._send(message):
+                    # Buffer on failure (with limit)
+                    if len(self.buffer) < self.max_buffer:
+                        self.buffer.append(message)
+        
+        except Exception:
+            # Don't let logging errors break the application
+            self.handleError(record)
+    
+    def close(self):
+        """Close the handler and socket."""
+        with self._lock:
+            if self.socket:
+                try:
+                    self.socket.close()
+                except Exception:
+                    pass
+                self.socket = None
+        super().close()
+
+
 def setup_logging(
     level: str = "INFO",
     log_dir: str = "logs",
@@ -151,6 +301,9 @@ def setup_logging(
     json_enabled: bool = True,
     console_enabled: bool = True,
     file_enabled: bool = True,
+    logstash_enabled: bool = None,
+    logstash_host: str = None,
+    logstash_port: int = None,
 ) -> None:
     """
     Configure centralized logging for Glassdome.
@@ -163,6 +316,9 @@ def setup_logging(
         json_enabled: Enable JSON output file for SIEM
         console_enabled: Enable console output
         file_enabled: Enable text file output
+        logstash_enabled: Enable direct Logstash TCP output (default: from env)
+        logstash_host: Logstash host (default: from env or 192.168.3.26)
+        logstash_port: Logstash TCP port (default: from env or 5045)
     """
     # Convert level string to logging constant
     log_level = getattr(logging, level.upper(), logging.INFO)
@@ -224,6 +380,27 @@ def setup_logging(
         json_handler.setFormatter(JSONFormatter())
         root_logger.addHandler(json_handler)
     
+    # Logstash TCP handler for real-time log shipping
+    # Get settings from environment if not provided
+    if logstash_enabled is None:
+        logstash_enabled = os.getenv("LOGSTASH_ENABLED", "false").lower() in ("true", "1", "yes")
+    if logstash_host is None:
+        logstash_host = os.getenv("LOGSTASH_HOST", "192.168.3.26")
+    if logstash_port is None:
+        logstash_port = int(os.getenv("LOGSTASH_PORT", "5045"))
+    
+    if logstash_enabled:
+        try:
+            logstash_handler = LogstashHandler(
+                host=logstash_host,
+                port=logstash_port,
+            )
+            logstash_handler.setLevel(logging.INFO)  # Always INFO+ for Logstash
+            root_logger.addHandler(logstash_handler)
+        except Exception as e:
+            # Don't fail startup if Logstash is unreachable
+            print(f"Warning: Could not initialize Logstash handler: {e}", file=sys.stderr)
+    
     # Suppress noisy third-party loggers
     logging.getLogger("httpx").setLevel(logging.WARNING)
     logging.getLogger("httpcore").setLevel(logging.WARNING)
@@ -236,6 +413,8 @@ def setup_logging(
     logger.info(f"Logging initialized: level={level}, dir={log_dir}")
     if json_enabled:
         logger.info(f"JSON logs enabled at {log_path / 'glassdome.json'} (SIEM-ready)")
+    if logstash_enabled:
+        logger.info(f"Logstash TCP handler enabled: {logstash_host}:{logstash_port}")
 
 
 def setup_logging_from_settings() -> None:
@@ -255,6 +434,9 @@ def setup_logging_from_settings() -> None:
         json_enabled=settings.log_json_enabled,
         console_enabled=settings.log_console_enabled,
         file_enabled=settings.log_file_enabled,
+        logstash_enabled=settings.logstash_enabled,
+        logstash_host=settings.logstash_host,
+        logstash_port=settings.logstash_port,
     )
 
 

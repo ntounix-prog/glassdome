@@ -135,8 +135,8 @@ async def authenticate_user(session: AsyncSession, username: str, password: str)
         logger.debug(f"Invalid password for: {username}")
         return None
     
-    # Update last login
-    user.last_login = datetime.now(timezone.utc)
+    # Update last login (use naive datetime for DB compatibility)
+    user.last_login = datetime.utcnow()
     await session.commit()
     
     return user

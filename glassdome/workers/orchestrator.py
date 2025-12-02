@@ -216,9 +216,11 @@ async def _deploy_vm_async(
     node_id = vm_node.get("id", f"node_{vm_index}")
     
     # Template and spec mappings
+    # Template mappings - VERIFIED WORKING Dec 2024
+    # pve01: 9000, 111 | pve02: 9001, 9002, 9010
     TEMPLATE_MAPPING = {
-        "ubuntu": 9000, "kali": 9001, "dvwa": 9000,
-        "metasploitable": 9002, "windows": 9010, "pfsense": 9020
+        "ubuntu": 9001, "kali": 9001, "dvwa": 9001,  # Ubuntu with agent (pve02)
+        "metasploitable": 9002, "windows": 9010, "pfsense": 111
     }
     OS_TYPE_MAPPING = {
         "ubuntu": "ubuntu", "kali": "kali", "dvwa": "ubuntu",

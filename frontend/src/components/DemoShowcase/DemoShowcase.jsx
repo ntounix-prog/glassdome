@@ -141,18 +141,22 @@ class SynthwaveGenerator {
   }
 }
 
-// Phase definitions
+// Phase definitions - All dashboard feature cards included
 const PHASES = [
   { id: 'intro', title: 'Introduction' },
   { id: 'problem', title: 'The Problem' },
+  { id: 'agents', title: 'Autonomous Agents' },
   { id: 'platforms', title: 'Multi-Platform' },
   { id: 'designer', title: 'Lab Designer' },
+  { id: 'orchestration', title: 'Orchestration' },
   { id: 'overseer', title: 'Overseer AI' },
-  { id: 'deploy', title: 'Deployment' },
+  { id: 'deploy', title: 'Rapid Deployment' },
   { id: 'reaper', title: 'Reaper Engine' },
   { id: 'updock', title: 'Player Access' },
   { id: 'validation', title: 'WhiteKnight' },
   { id: 'monitoring', title: 'WhitePawn' },
+  { id: 'security', title: 'Security & Access' },
+  { id: 'api', title: 'API Platform' },
   { id: 'stats', title: 'By The Numbers' },
   { id: 'finale', title: 'Finale' },
 ]
@@ -434,7 +438,75 @@ export default function DemoShowcase({ isOpen, onClose }) {
             </motion.div>
           )}
 
-          {/* PHASE 3: PLATFORMS */}
+          {/* PHASE 3: AUTONOMOUS AGENTS */}
+          {phase === 'agents' && (
+            <motion.div
+              key="agents"
+              className="demo-phase agents"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+            >
+              <motion.div 
+                className="agent-icon"
+                initial={{ scale: 0, rotate: -180 }}
+                animate={{ scale: 1, rotate: 0 }}
+                transition={{ type: "spring", stiffness: 200 }}
+              >
+                🤖
+              </motion.div>
+              <motion.h2
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.3 }}
+              >
+                <span className="highlight-blue">Autonomous</span> Agents
+              </motion.h2>
+              <motion.p
+                className="section-desc"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.5 }}
+              >
+                AI-powered deployment agents handle complex orchestration automatically
+              </motion.p>
+              <motion.div 
+                className="agent-grid"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.8 }}
+              >
+                {[
+                  { icon: '🧠', label: 'Intelligent Planning', desc: 'Analyzes lab requirements' },
+                  { icon: '⚡', label: 'Parallel Execution', desc: 'Concurrent task processing' },
+                  { icon: '🔄', label: 'Self-Correcting', desc: 'Automatic error recovery' },
+                  { icon: '📋', label: 'Task Queuing', desc: 'Priority-based scheduling' },
+                ].map((item, i) => (
+                  <motion.div
+                    key={item.label}
+                    className="agent-card"
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 1 + i * 0.15 }}
+                  >
+                    <div className="agent-card-icon">{item.icon}</div>
+                    <div className="agent-card-label">{item.label}</div>
+                    <div className="agent-card-desc">{item.desc}</div>
+                  </motion.div>
+                ))}
+              </motion.div>
+              <motion.div 
+                className="agent-flow"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 1.8 }}
+              >
+                <span>Request</span> → <span>Plan</span> → <span>Execute</span> → <span>Verify</span> → <span>Report</span>
+              </motion.div>
+            </motion.div>
+          )}
+
+          {/* PHASE 4: PLATFORMS */}
           {phase === 'platforms' && (
             <motion.div
               key="platforms"
@@ -541,7 +613,89 @@ export default function DemoShowcase({ isOpen, onClose }) {
             </motion.div>
           )}
 
-          {/* PHASE 5: OVERSEER AI */}
+          {/* PHASE 6: ORCHESTRATION */}
+          {phase === 'orchestration' && (
+            <motion.div
+              key="orchestration"
+              className="demo-phase orchestration"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+            >
+              <motion.div 
+                className="orchestration-icon"
+                animate={{ rotate: 360 }}
+                transition={{ duration: 8, repeat: Infinity, ease: "linear" }}
+              >
+                🔄
+              </motion.div>
+              <motion.h2
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.3 }}
+              >
+                Intelligent <span className="highlight-orange">Orchestration</span>
+              </motion.h2>
+              <motion.p
+                className="section-desc"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.5 }}
+              >
+                Complex dependency management and parallel execution
+              </motion.p>
+              <motion.div 
+                className="orchestration-visual"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.8 }}
+              >
+                <div className="dependency-tree">
+                  {[
+                    { level: 0, items: [{ name: 'pfSense Gateway', status: 'complete' }] },
+                    { level: 1, items: [
+                      { name: 'Domain Controller', status: 'complete' },
+                      { name: 'Database Server', status: 'complete' },
+                    ]},
+                    { level: 2, items: [
+                      { name: 'Web Server', status: 'running' },
+                      { name: 'App Server', status: 'running' },
+                      { name: 'Kali Attacker', status: 'pending' },
+                    ]},
+                  ].map((level, li) => (
+                    <motion.div 
+                      key={li}
+                      className="tree-level"
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: 1 + li * 0.3 }}
+                    >
+                      {level.items.map((item, ii) => (
+                        <div key={item.name} className={`tree-node ${item.status}`}>
+                          <span className="node-status">
+                            {item.status === 'complete' ? '✓' : item.status === 'running' ? '◉' : '○'}
+                          </span>
+                          <span className="node-name">{item.name}</span>
+                        </div>
+                      ))}
+                    </motion.div>
+                  ))}
+                </div>
+              </motion.div>
+              <motion.div 
+                className="orchestration-features"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 2 }}
+              >
+                <span>⚡ Parallel Cloning</span>
+                <span>🔗 Dependency Aware</span>
+                <span>🎯 Smart Ordering</span>
+              </motion.div>
+            </motion.div>
+          )}
+
+          {/* PHASE 7: OVERSEER AI */}
           {phase === 'overseer' && (
             <motion.div
               key="overseer"
@@ -901,7 +1055,7 @@ export default function DemoShowcase({ isOpen, onClose }) {
                 animate={{ y: 0, opacity: 1 }}
                 transition={{ type: "spring" }}
               >
-                ♟️
+                ♙
               </motion.div>
               <motion.h2
                 initial={{ opacity: 0 }}
@@ -946,7 +1100,179 @@ export default function DemoShowcase({ isOpen, onClose }) {
             </motion.div>
           )}
 
-          {/* PHASE 11: STATS */}
+          {/* PHASE 13: SECURITY & ACCESS */}
+          {phase === 'security' && (
+            <motion.div
+              key="security"
+              className="demo-phase security"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+            >
+              <motion.h2
+                initial={{ y: -30, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+              >
+                Enterprise <span className="highlight-emerald">Security</span>
+              </motion.h2>
+              <motion.p
+                className="section-desc"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.3 }}
+              >
+                Production-ready security controls built-in from day one
+              </motion.p>
+              <div className="security-grid">
+                <motion.div
+                  className="security-card rbac"
+                  initial={{ opacity: 0, x: -30 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.5 }}
+                >
+                  <div className="security-icon">🔐</div>
+                  <h3>Role-Based Access Control</h3>
+                  <div className="role-list">
+                    {[
+                      { role: 'Admin', color: '#ff6b6b', perms: 'Full system access' },
+                      { role: 'Architect', color: '#fbbf24', perms: 'Design & deploy labs' },
+                      { role: 'Engineer', color: '#34d399', perms: 'Operate & monitor' },
+                      { role: 'Observer', color: '#60a5fa', perms: 'View only' },
+                    ].map((item, i) => (
+                      <motion.div 
+                        key={item.role}
+                        className="role-item"
+                        initial={{ opacity: 0, x: -10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: 0.8 + i * 0.1 }}
+                        style={{ '--role-color': item.color }}
+                      >
+                        <span className="role-badge">{item.role}</span>
+                        <span className="role-perms">{item.perms}</span>
+                      </motion.div>
+                    ))}
+                  </div>
+                  <span className="active-badge">✓ Active</span>
+                </motion.div>
+                <motion.div
+                  className="security-card vault"
+                  initial={{ opacity: 0, x: 30 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.7 }}
+                >
+                  <div className="security-icon">🔒</div>
+                  <h3>HashiCorp Vault</h3>
+                  <div className="vault-features">
+                    {[
+                      '🔑 API Key Management',
+                      '🎫 Token Rotation',
+                      '📜 Audit Logging',
+                      '🔐 Encrypted Storage',
+                    ].map((feature, i) => (
+                      <motion.div 
+                        key={feature}
+                        className="vault-feature"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ delay: 1 + i * 0.1 }}
+                      >
+                        {feature}
+                      </motion.div>
+                    ))}
+                  </div>
+                  <span className="active-badge">✓ Active</span>
+                </motion.div>
+              </div>
+            </motion.div>
+          )}
+
+          {/* PHASE 14: API PLATFORM */}
+          {phase === 'api' && (
+            <motion.div
+              key="api"
+              className="demo-phase api"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+            >
+              <motion.h2
+                initial={{ y: -30, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+              >
+                Developer <span className="highlight-indigo">API Platform</span>
+              </motion.h2>
+              <motion.p
+                className="section-desc"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.3 }}
+              >
+                Full-featured REST API with comprehensive documentation and testing
+              </motion.p>
+              <div className="api-grid">
+                <motion.div
+                  className="api-card docs"
+                  initial={{ opacity: 0, y: 30 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.5 }}
+                >
+                  <div className="api-icon">📖</div>
+                  <h3>Documented & Versioned API</h3>
+                  <div className="api-features">
+                    <div className="api-feature">
+                      <span className="api-bullet">●</span>
+                      Interactive OpenAPI/Swagger UI
+                    </div>
+                    <div className="api-feature">
+                      <span className="api-bullet">●</span>
+                      Full schema validation
+                    </div>
+                    <div className="api-feature">
+                      <span className="api-bullet">●</span>
+                      Versioned endpoints (v1, v2)
+                    </div>
+                    <div className="api-feature">
+                      <span className="api-bullet">●</span>
+                      Try-it-now testing
+                    </div>
+                  </div>
+                  <span className="active-badge">✓ Active</span>
+                </motion.div>
+                <motion.div
+                  className="api-card testing"
+                  initial={{ opacity: 0, y: 30 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.7 }}
+                >
+                  <div className="api-icon">🧪</div>
+                  <h3>Test & Validation Pipeline</h3>
+                  <div className="test-results">
+                    {[
+                      { name: 'Smoke Tests', status: 'pass', count: '12/12' },
+                      { name: 'Auth Tests', status: 'pass', count: '8/8' },
+                      { name: 'Endpoint Tests', status: 'pass', count: '45/45' },
+                      { name: 'Schema Validation', status: 'pass', count: '100%' },
+                    ].map((test, i) => (
+                      <motion.div 
+                        key={test.name}
+                        className="test-row"
+                        initial={{ opacity: 0, x: 20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: 1 + i * 0.15 }}
+                      >
+                        <span className="test-status">✓</span>
+                        <span className="test-name">{test.name}</span>
+                        <span className="test-count">{test.count}</span>
+                      </motion.div>
+                    ))}
+                  </div>
+                  <span className="active-badge">✓ Active</span>
+                </motion.div>
+              </div>
+            </motion.div>
+          )}
+
+          {/* PHASE 15: STATS */}
           {phase === 'stats' && (
             <motion.div
               key="stats"
@@ -964,9 +1290,9 @@ export default function DemoShowcase({ isOpen, onClose }) {
               <div className="stats-grid">
                 {[
                   { value: '4', label: 'Platforms', suffix: '', desc: 'Proxmox, AWS, Azure, ESXi' },
-                  { value: '167', label: 'Source Files', suffix: '+', desc: 'Python & React' },
+                  { value: '15', label: 'Core Features', suffix: '', desc: 'Production-ready' },
                   { value: '47', label: 'Deploy Time', suffix: 's', desc: 'Average lab ready' },
-                  { value: '6', label: 'Major Systems', suffix: '', desc: 'Integrated & working' },
+                  { value: '4', label: 'Active Services', suffix: '', desc: 'RBAC, Vault, API, Tests' },
                 ].map((stat, i) => (
                   <motion.div
                     key={stat.label}
@@ -990,12 +1316,25 @@ export default function DemoShowcase({ isOpen, onClose }) {
                 animate={{ opacity: 1 }}
                 transition={{ delay: 1.5 }}
               >
+                <span>🤖 Agents</span>
                 <span>🧠 Overseer</span>
                 <span>☠️ Reaper</span>
                 <span>🚀 Updock</span>
                 <span>🛡️ WhiteKnight</span>
-                <span>♟️ WhitePawn</span>
+                <span>♙ WhitePawn</span>
+              </motion.div>
+              <motion.div
+                className="systems-row secondary"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 1.8 }}
+              >
                 <span>🎨 Designer</span>
+                <span>🔄 Orchestration</span>
+                <span>🔐 RBAC</span>
+                <span>🔒 Vault</span>
+                <span>📖 API Docs</span>
+                <span>🧪 Testing</span>
               </motion.div>
             </motion.div>
           )}

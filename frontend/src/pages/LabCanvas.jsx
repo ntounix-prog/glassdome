@@ -25,14 +25,25 @@ const initialEdges = []
 const elementTypes = {
   vms: [
     { id: 'kali', name: 'Kali Linux', type: 'attack', icon: '⚔️', os: 'linux' },
+    { id: 'parrot', name: 'Parrot Security', type: 'attack', icon: '🦜', os: 'linux' },
     { id: 'dvwa', name: 'DVWA', type: 'vulnerable', icon: '🎯', os: 'linux' },
     { id: 'metasploitable', name: 'Metasploitable', type: 'vulnerable', icon: '🎯', os: 'linux' },
     { id: 'ubuntu', name: 'Ubuntu Server', type: 'base', icon: '🖥️', os: 'linux' },
     { id: 'windows', name: 'Windows Server', type: 'base', icon: '🪟', os: 'windows' },
     { id: 'pfsense', name: 'pfSense Firewall', type: 'firewall', icon: '🛡️', os: 'bsd' },
+    { id: 'guacamole', name: 'Guacamole Gateway', type: 'gateway', icon: '🥑', os: 'linux' },
   ],
   networks: [
     { id: 'lab-network', name: 'Lab Network', icon: '🔗', type: 'isolated' },
+    { id: 'aws-vpc', name: 'AWS VPC', icon: '☁️', type: 'vpc', platform: 'aws' },
+    { id: 'attack-subnet', name: 'Attack Subnet', icon: '⚔️', type: 'subnet', subnetType: 'attack' },
+    { id: 'dmz-subnet', name: 'DMZ Subnet', icon: '🌐', type: 'subnet', subnetType: 'dmz' },
+    { id: 'internal-subnet', name: 'Internal Subnet', icon: '🔒', type: 'subnet', subnetType: 'internal' },
+  ],
+  platforms: [
+    { id: 'proxmox', name: 'Proxmox VE', icon: '🖥️', type: 'hypervisor' },
+    { id: 'aws', name: 'AWS EC2', icon: '☁️', type: 'cloud' },
+    { id: 'azure', name: 'Azure VM', icon: '🔷', type: 'cloud' },
   ]
 }
 
@@ -45,7 +56,7 @@ function LabCanvas() {
   const [selectedNode, setSelectedNode] = useState(null)
   const [labName, setLabName] = useState('New Cyber Range Lab')
   const [labId, setLabId] = useState(() => generateLabId())
-  const [platform, setPlatform] = useState('1')
+  const [platform, setPlatform] = useState('proxmox')
   const [isDeploying, setIsDeploying] = useState(false)
   const [savedLabs, setSavedLabs] = useState([])
   const [isLoadMenuOpen, setIsLoadMenuOpen] = useState(false)
@@ -253,6 +264,11 @@ function LabCanvas() {
       vulnerable: '#ffd93d',
       base: '#6bcf7f',
       firewall: '#ff9f43',
+      gateway: '#9b59b6',
+      vpc: '#3498db',
+      subnet: '#2ecc71',
+      hypervisor: '#e67e22',
+      cloud: '#1abc9c',
       default: '#74b9ff'
     }
     return colors[type] || colors.default
@@ -315,7 +331,8 @@ function LabCanvas() {
       return
     }
 
-    const platformName = platform === '1' ? 'Proxmox' : 'AWS'
+    const platformNames = { proxmox: 'Proxmox', aws: 'AWS', azure: 'Azure' }
+    const platformName = platformNames[platform] || platform
     const vmNodes = nodes.filter(n => n.data.nodeType === 'vm')
     const networkNodes = nodes.filter(n => n.data.nodeType === 'network')
     
@@ -421,8 +438,8 @@ function LabCanvas() {
         </div>
 
         <div className="element-section">
-          <h4>🌐 Networks</h4>
-          {elementTypes.networks.map((network) => (
+          <h4>🌐 Networks (Proxmox)</h4>
+          {elementTypes.networks.filter(n => !n.platform).map((network) => (
             <button
               key={network.id}
               className="element-button network-button"
@@ -432,6 +449,23 @@ function LabCanvas() {
               {network.name}
             </button>
           ))}
+        </div>
+
+        <div className="element-section">
+          <h4>☁️ AWS Cloud</h4>
+          {elementTypes.networks.filter(n => n.platform === 'aws' || n.type === 'subnet').map((network) => (
+            <button
+              key={network.id}
+              className="element-button network-button aws-button"
+              onClick={() => addNode(network, 'network')}
+            >
+              <span className="element-icon">{network.icon}</span>
+              {network.name}
+            </button>
+          ))}
+          <div className="element-hint">
+            <small>🥑 Guacamole auto-deployed as gateway</small>
+          </div>
         </div>
 
         <div className="sidebar-footer">
@@ -456,8 +490,9 @@ function LabCanvas() {
               value={platform}
               onChange={(e) => setPlatform(e.target.value)}
             >
-              <option value="1">🖥️ Proxmox</option>
-              <option value="2">☁️ AWS</option>
+              <option value="proxmox">🖥️ Proxmox (On-Prem)</option>
+              <option value="aws">☁️ AWS EC2</option>
+              <option value="azure">🔷 Azure (Coming Soon)</option>
             </select>
             <button className="btn-secondary" onClick={saveLab}>
               💾 Save

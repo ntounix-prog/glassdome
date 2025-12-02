@@ -6,8 +6,9 @@ Created: November 2025
 Copyright (c) 2025 Brett Turner. All rights reserved.
 """
 from pydantic_settings import BaseSettings
-from pydantic import ConfigDict, model_validator
-from typing import Optional, Dict, Any
+from pydantic import ConfigDict, model_validator, field_validator
+from typing import Optional, Dict, Any, List, Union
+import json
 from pathlib import Path
 import os
 import re
@@ -24,7 +25,7 @@ class Settings(BaseSettings):
     
     # Application
     app_name: str = "Glassdome"
-    app_version: str = "0.7.4"
+    app_version: str = "0.7.5"
     environment: str = "development"
     debug: bool = True
     
@@ -32,7 +33,27 @@ class Settings(BaseSettings):
     api_prefix: str = "/api"
     backend_port: int = 8010
     vite_port: int = 5174
-    backend_cors_origins: list = ["http://localhost:5174", "http://localhost:3000"]
+    cors_origins: str = '["http://localhost:5174", "http://localhost:3000"]'
+    
+    @property
+    def backend_cors_origins(self) -> List[str]:
+        """Parse CORS origins from various formats"""
+        v = self.cors_origins
+        if isinstance(v, list):
+            return v
+        if isinstance(v, str):
+            # Handle wildcard
+            if v == '*':
+                return ['*']
+            # Try JSON parsing
+            if v.startswith('['):
+                try:
+                    return json.loads(v)
+                except json.JSONDecodeError:
+                    pass
+            # Comma-separated
+            return [origin.strip() for origin in v.split(',') if origin.strip()]
+        return ["*"]
     
     # Database
     database_url: str = "postgresql+asyncpg://glassdome:glassdome@localhost:5432/glassdome"
@@ -57,6 +78,11 @@ class Settings(BaseSettings):
     log_json_enabled: bool = True        # Enable JSON output for SIEM
     log_console_enabled: bool = True     # Enable console output
     log_file_enabled: bool = True        # Enable file output
+    
+    # Logstash (ELK Stack Integration)
+    logstash_enabled: bool = False       # Enable direct Logstash TCP output
+    logstash_host: str = "192.168.3.26"  # Logstash server address
+    logstash_port: int = 5045            # Logstash TCP input port
     
     # Proxmox (Default/Instance 01 - backward compatible)
     proxmox_host: Optional[str] = None

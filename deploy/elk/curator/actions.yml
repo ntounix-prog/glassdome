@@ -1,0 +1,82 @@
+# Elasticsearch Curator Actions
+# =============================
+# Index lifecycle management for Glassdome logs
+
+actions:
+  # Delete old Glassdome indices (older than 30 days)
+  1:
+    action: delete_indices
+    description: "Delete Glassdome indices older than 30 days"
+    options:
+      ignore_empty_list: True
+      timeout_override:
+      continue_if_exception: False
+      disable_action: False
+    filters:
+    - filtertype: pattern
+      kind: prefix
+      value: glassdome-
+    - filtertype: age
+      source: name
+      direction: older
+      timestring: '%Y.%m.%d'
+      unit: days
+      unit_count: 30
+
+  # Delete old infrastructure indices (older than 14 days)
+  2:
+    action: delete_indices
+    description: "Delete infrastructure indices older than 14 days"
+    options:
+      ignore_empty_list: True
+      continue_if_exception: False
+    filters:
+    - filtertype: pattern
+      kind: prefix
+      value: infrastructure-
+    - filtertype: age
+      source: name
+      direction: older
+      timestring: '%Y.%m.%d'
+      unit: days
+      unit_count: 14
+
+  # Force merge old indices (for storage optimization)
+  3:
+    action: forcemerge
+    description: "Force merge Glassdome indices older than 2 days to 1 segment"
+    options:
+      max_num_segments: 1
+      delay: 120
+      ignore_empty_list: True
+      continue_if_exception: False
+    filters:
+    - filtertype: pattern
+      kind: prefix
+      value: glassdome-
+    - filtertype: age
+      source: name
+      direction: older
+      timestring: '%Y.%m.%d'
+      unit: days
+      unit_count: 2
+
+  # Close old indices (older than 7 days - saves memory)
+  4:
+    action: close
+    description: "Close Glassdome indices older than 7 days"
+    options:
+      ignore_empty_list: True
+      delete_aliases: False
+      continue_if_exception: False
+    filters:
+    - filtertype: pattern
+      kind: prefix
+      value: glassdome-
+    - filtertype: age
+      source: name
+      direction: older
+      timestring: '%Y.%m.%d'
+      unit: days
+      unit_count: 7
+

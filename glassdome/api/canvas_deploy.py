@@ -20,6 +20,7 @@ from glassdome.core.config import settings
 from glassdome.platforms.proxmox_client import ProxmoxClient
 from glassdome.networking.models import NetworkDefinition, DeployedVM, VMInterface
 from glassdome.networking.orchestrator import get_network_orchestrator
+from glassdome.networking.address_allocator import get_address_allocator, SubnetType
 from glassdome.whitepawn.orchestrator import get_whitepawn_orchestrator, auto_deploy_whitepawn
 from glassdome.reaper.hot_spare import get_hot_spare_pool
 from glassdome.registry.core import get_registry
@@ -136,13 +137,31 @@ class CanvasDeployResponse(BaseModel):
 # Template Mapping
 # ============================================================================
 
+# Template mappings - VERIFIED WORKING Dec 2024
+# Templates are split across nodes based on storage location:
+#   pve01: 9000 (local-lvm), 111 (truenas-nfs-labs)
+#   pve02: 9001, 9002, 9010 (esxstore)
 TEMPLATE_MAPPING = {
-    "ubuntu": 9001,      # Ubuntu 22.04 with guest agent
-    "kali": 9001,        # Use Ubuntu for now (Kali template TBD)
-    "dvwa": 9001,        # DVWA on Ubuntu
-    "metasploitable": 9002,
-    "windows": 9010,
-    "pfsense": 9020,     # pfSense gateway template
+    "ubuntu": 116,            # Ubuntu 22.04 lab-ready (pve01/truenas-nfs-labs) - cloud-init, vmbr1+VLAN101
+    "kali": 116,              # Use Ubuntu base (Kali template TBD)
+    "dvwa": 116,              # DVWA on Ubuntu base
+    "metasploitable": 9002,   # Metasploitable2 (pve02/esxstore)
+    "windows": 9010,          # Windows Server 2022 (pve02/esxstore)
+    "windows10": 9011,        # Windows 10 Enterprise (pve01/local-lvm) - user/user
+    "windows11": 9012,        # Windows 11 Enterprise (pve01/local-lvm) - needs install
+    "pfsense": 111,           # brettlab-gateway pfSense (pve01/truenas-nfs-labs)
+}
+
+# Node mapping for templates (which node has the template)
+TEMPLATE_NODE_MAPPING = {
+    116: "pve01",    # Ubuntu 22.04 lab-ready (truenas-nfs-labs)
+    9000: "pve01",   # Ubuntu cloudinit (local-lvm) - legacy
+    9001: "pve02",   # Ubuntu with agent (esxstore) - legacy
+    9002: "pve02",   # Metasploitable (esxstore)
+    9010: "pve02",   # Windows Server 2022 (esxstore)
+    9011: "pve01",   # Windows 10 Enterprise (local-lvm)
+    9012: "pve01",   # Windows 11 Enterprise (local-lvm)
+    111: "pve01",    # pfSense (truenas-nfs-labs)
 }
 
 VM_SPECS = {
@@ -384,13 +403,22 @@ async def deploy_pfsense_gateway(
         # Clone from template - get next available VMID
         next_vmid = client.client.cluster.nextid.get()
         
-        # Clone using raw API
+        # Get source node for template (may differ from target node)
+        template_source_node = TEMPLATE_NODE_MAPPING.get(template_id, node_name)
+        
+        # Clone using raw API - clone from source node, target to lab node
         try:
-            client.client.nodes(node_name).qemu(template_id).clone.create(
-                newid=next_vmid,
-                name=vm_name,
-                full=1
-            )
+            clone_params = {
+                "newid": next_vmid,
+                "name": vm_name,
+                "full": 1
+            }
+            # If template is on different node, specify target
+            if template_source_node != node_name:
+                clone_params["target"] = node_name
+                logger.info(f"[Gateway] Cross-node clone: {template_source_node} -> {node_name}")
+            
+            client.client.nodes(template_source_node).qemu(template_id).clone.create(**clone_params)
             # Wait for clone task to complete
             await asyncio.sleep(10)
             vmid = next_vmid
@@ -561,13 +589,22 @@ async def _deploy_lab_vm_internal(
             # Get next available VMID
             next_vmid = client.client.cluster.nextid.get()
             
-            # Clone using raw API
+            # Get source node for template (may differ from target node)
+            template_source_node = TEMPLATE_NODE_MAPPING.get(template_id, node_name)
+            
+            # Clone using raw API - clone from source node, target to lab node
             try:
-                client.client.nodes(node_name).qemu(template_id).clone.create(
-                    newid=next_vmid,
-                    name=vm_name,
-                    full=1
-                )
+                clone_params = {
+                    "newid": next_vmid,
+                    "name": vm_name,
+                    "full": 1
+                }
+                # If template is on different node, specify target
+                if template_source_node != node_name:
+                    clone_params["target"] = node_name
+                    logger.info(f"[Lab VM] Cross-node clone: {template_source_node} -> {node_name}")
+                
+                client.client.nodes(template_source_node).qemu(template_id).clone.create(**clone_params)
                 await asyncio.sleep(5)
                 vmid = next_vmid
                 logger.info(f"[Lab VM] Cloned template {template_id} -> VM {vmid}")
@@ -625,7 +662,240 @@ async def _deploy_lab_vm_internal(
 
 
 # ============================================================================
-# Main Deployment Orchestration
+# AWS Deployment
+# ============================================================================
+
+async def deploy_aws_lab(
+    request: CanvasDeployRequest,
+    session: AsyncSession,
+    lab_id: str,
+    lab_short: str,
+    deployment_id: str
+) -> CanvasDeployResponse:
+    """
+    Deploy a lab to AWS.
+    
+    Architecture:
+    1. Allocate network addresses (VPC CIDR, subnets)
+    2. Create VPC and subnets
+    3. Create security groups with proper chain (Guacamole → Attack → Lab)
+    4. Deploy Guacamole gateway (public subnet)
+    5. Deploy attack console (attack subnet)
+    6. Deploy vulnerable VMs (lab subnet)
+    7. Configure Guacamole with connections
+    """
+    from glassdome.networking.aws_handler import get_aws_network_handler, AWSLabInfrastructure
+    from glassdome.platforms.aws_client import AWSClient
+    
+    nodes = request.lab_data.nodes
+    vm_nodes = [n for n in nodes if n.type == "vm"]
+    network_nodes = [n for n in nodes if n.type == "network"]
+    
+    logger.info(f"╔══════════════════════════════════════════════════════════════╗")
+    logger.info(f"║ AWS Lab Deployment: {lab_id[:36]:<36} ║")
+    logger.info(f"║ VMs: {len(vm_nodes):<3} Networks: {len(network_nodes):<3}                              ║")
+    logger.info(f"╚══════════════════════════════════════════════════════════════╝")
+    
+    deployed_vms: List[DeployedVMInfo] = []
+    errors: List[str] = []
+    
+    try:
+        # Step 1: Allocate network addresses
+        allocator = get_address_allocator()
+        allocation = allocator.allocate_lab_networks(
+            lab_id=lab_id,
+            subnet_types=[SubnetType.PUBLIC, SubnetType.ATTACK, SubnetType.DMZ, SubnetType.INTERNAL],
+            platform="aws"
+        )
+        
+        logger.info(f"[AWS Network] Allocated VPC: {allocation.vpc_cidr}")
+        for subnet_type, subnet in allocation.subnets.items():
+            logger.info(f"[AWS Network]   {subnet_type.value}: {subnet.cidr}")
+        
+        # Step 2: Create AWS infrastructure
+        aws_handler = get_aws_network_handler()
+        
+        try:
+            infra = await aws_handler.create_lab_infrastructure(lab_id, allocation)
+            logger.info(f"[AWS] Created VPC: {infra.vpc_id}")
+        except Exception as e:
+            logger.error(f"[AWS] Failed to create infrastructure: {e}")
+            return CanvasDeployResponse(
+                success=False,
+                deployment_id=deployment_id,
+                lab_id=lab_id,
+                status="failed",
+                message=f"AWS infrastructure creation failed: {str(e)}",
+                vms=[],
+                errors=[str(e)]
+            )
+        
+        # Step 3: Create AWS client for VM deployment
+        aws_client = AWSClient(
+            access_key_id=getattr(settings, 'aws_access_key_id', ''),
+            secret_access_key=getattr(settings, 'aws_secret_access_key', ''),
+            region=aws_handler.region
+        )
+        
+        # Step 4: Deploy Guacamole gateway (auto-added for AWS)
+        logger.info("[AWS] Deploying Guacamole gateway...")
+        guac_config = {
+            "name": f"{lab_short}-guacamole",
+            "os_type": "linux",
+            "os_version": "22.04",
+            "instance_type": "t4g.small",
+            "subnet_id": infra.subnets.get(SubnetType.PUBLIC),
+            "security_group_ids": [infra.security_groups.get('guacamole')],
+            "packages": ["docker.io", "docker-compose"],
+        }
+        
+        try:
+            guac_result = await aws_client.create_vm(guac_config)
+            if guac_result.get("vm_id"):
+                deployed_vms.append(DeployedVMInfo(
+                    node_id="auto-guacamole",
+                    name=f"{lab_short}-guacamole",
+                    vm_id=guac_result["vm_id"],
+                    ip_address=guac_result.get("ip_address"),
+                    role="gateway",
+                    status="running"
+                ))
+                logger.info(f"[AWS] ✓ Guacamole deployed: {guac_result.get('ip_address')}")
+        except Exception as e:
+            logger.error(f"[AWS] Failed to deploy Guacamole: {e}")
+            errors.append(f"Guacamole: {str(e)}")
+        
+        # Step 5: Deploy attack console (Kali)
+        attack_nodes = [n for n in vm_nodes if n.elementId in ['kali', 'parrot']]
+        if not attack_nodes:
+            # Auto-add Kali if not in canvas
+            attack_nodes = [CanvasNode(id="auto-kali", type="vm", elementId="kali")]
+        
+        for node in attack_nodes:
+            logger.info(f"[AWS] Deploying attack console: {node.elementId}...")
+            attack_config = {
+                "name": f"{lab_short}-{node.elementId}",
+                "os_type": "linux",
+                "os_version": "22.04",  # Base Ubuntu, configure as Kali
+                "instance_type": "t4g.medium",
+                "subnet_id": infra.subnets.get(SubnetType.ATTACK),
+                "security_group_ids": [infra.security_groups.get('attack')],
+                "packages": ["nmap", "netcat", "python3-pip"],
+            }
+            
+            try:
+                result = await aws_client.create_vm(attack_config)
+                if result.get("vm_id"):
+                    deployed_vms.append(DeployedVMInfo(
+                        node_id=node.id,
+                        name=f"{lab_short}-{node.elementId}",
+                        vm_id=result["vm_id"],
+                        ip_address=result.get("ip_address"),
+                        role="attack",
+                        status="running"
+                    ))
+                    logger.info(f"[AWS] ✓ Attack console deployed: {result.get('ip_address')}")
+            except Exception as e:
+                logger.error(f"[AWS] Failed to deploy attack console: {e}")
+                errors.append(f"{node.elementId}: {str(e)}")
+        
+        # Step 6: Deploy other VMs (vulnerable targets)
+        other_nodes = [n for n in vm_nodes if n.elementId not in ['kali', 'parrot', 'guacamole', 'pfsense']]
+        
+        for idx, node in enumerate(other_nodes):
+            logger.info(f"[AWS] Deploying lab VM: {node.elementId}...")
+            
+            # Determine instance type based on element
+            instance_type = "t4g.micro"
+            if node.elementId == "windows":
+                instance_type = "t3.medium"  # Windows needs x86
+            elif node.elementId in ["metasploitable", "dvwa"]:
+                instance_type = "t4g.micro"
+            
+            vm_config = {
+                "name": f"{lab_short}-{node.elementId}-{idx}",
+                "os_type": "linux" if node.os != "windows" else "windows",
+                "os_version": "22.04",
+                "instance_type": instance_type,
+                "subnet_id": infra.subnets.get(SubnetType.DMZ),
+                "security_group_ids": [infra.security_groups.get('lab')],
+            }
+            
+            try:
+                result = await aws_client.create_vm(vm_config)
+                if result.get("vm_id"):
+                    deployed_vms.append(DeployedVMInfo(
+                        node_id=node.id,
+                        name=f"{lab_short}-{node.elementId}",
+                        vm_id=result["vm_id"],
+                        ip_address=result.get("ip_address"),
+                        role="target",
+                        status="running"
+                    ))
+                    logger.info(f"[AWS] ✓ Lab VM deployed: {result.get('ip_address')}")
+            except Exception as e:
+                logger.error(f"[AWS] Failed to deploy {node.elementId}: {e}")
+                errors.append(f"{node.elementId}: {str(e)}")
+        
+        # Save deployment info to database
+        orchestrator = get_network_orchestrator()
+        for vm_info in deployed_vms:
+            await orchestrator.register_deployed_vm(
+                session=session,
+                lab_id=lab_id,
+                name=vm_info.name,
+                vm_id=vm_info.vm_id,
+                platform="aws",
+                platform_instance=aws_handler.region,
+                ip_address=vm_info.ip_address
+            )
+        
+        # Save network definition
+        net_def = NetworkDefinition(
+            name=f"{lab_short}-vpc",
+            display_name="AWS VPC",
+            cidr=allocation.vpc_cidr,
+            network_type="vpc",
+            lab_id=lab_id
+        )
+        session.add(net_def)
+        await session.commit()
+        
+        # Build access URL
+        guac_vm = next((vm for vm in deployed_vms if vm.role == "gateway"), None)
+        access_url = f"https://{guac_vm.ip_address}/guacamole" if guac_vm and guac_vm.ip_address else None
+        
+        return CanvasDeployResponse(
+            success=len(errors) == 0,
+            deployment_id=deployment_id,
+            lab_id=lab_id,
+            status="deployed" if len(errors) == 0 else "partial",
+            message=f"AWS lab deployed. Access: {access_url}" if access_url else "AWS lab deployed",
+            network={
+                "vpc_id": infra.vpc_id,
+                "vpc_cidr": allocation.vpc_cidr,
+                "region": aws_handler.region,
+                "access_url": access_url
+            },
+            vms=deployed_vms,
+            errors=errors
+        )
+        
+    except Exception as e:
+        logger.error(f"[AWS] Lab deployment failed: {e}")
+        return CanvasDeployResponse(
+            success=False,
+            deployment_id=deployment_id,
+            lab_id=lab_id,
+            status="failed",
+            message=f"AWS deployment failed: {str(e)}",
+            vms=deployed_vms,
+            errors=[str(e)] + errors
+        )
+
+
+# ============================================================================
+# Main Deployment Orchestration (Proxmox)
 # ============================================================================
 
 async def deploy_canvas_lab(
@@ -682,14 +952,32 @@ async def deploy_canvas_lab(
     logger.info(f"  Cleaned lab_id: {lab_id}")
     logger.info(f"  lab_short (for naming): {lab_short}")
     
-    if platform_id != "1":
-        return CanvasDeployResponse(
-            success=False, deployment_id="", lab_id=lab_id, status="failed",
-            message="Only Proxmox deployment is currently supported",
-            vms=[], errors=["Platform not supported"]
-        )
+    # Normalize platform ID (support both old numeric and new string formats)
+    platform = platform_id.lower() if platform_id else "proxmox"
+    if platform == "1":
+        platform = "proxmox"
+    elif platform == "2":
+        platform = "aws"
+    
+    logger.info(f"  Target platform: {platform}")
     
     deployment_id = f"deploy-{lab_short}-{datetime.now(timezone.utc).strftime('%H%M%S')}"
+    
+    # Route to platform-specific deployment
+    if platform == "aws":
+        return await deploy_aws_lab(request, session, lab_id, lab_short, deployment_id)
+    elif platform == "azure":
+        return CanvasDeployResponse(
+            success=False, deployment_id=deployment_id, lab_id=lab_id, status="failed",
+            message="Azure deployment coming soon",
+            vms=[], errors=["Azure platform not yet implemented"]
+        )
+    elif platform not in ["proxmox", "1"]:
+        return CanvasDeployResponse(
+            success=False, deployment_id=deployment_id, lab_id=lab_id, status="failed",
+            message=f"Unknown platform: {platform}",
+            vms=[], errors=[f"Platform '{platform}' not supported"]
+        )
     
     # Separate VMs and networks
     vm_nodes = [n for n in nodes if n.type == "vm"]

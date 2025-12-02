@@ -18,8 +18,8 @@ import ActionConfirm from './ActionConfirm'
 import { getHelpForRoute, getHelpContextForOverseer } from '../../help-content'
 import './ChatModal.css'
 
-const CHAT_API_BASE = '/api/v1/chat'
-const WS_URL = `ws://${window.location.host}/api/v1/chat/ws`
+const CHAT_API_BASE = '/api/chat'
+const WS_URL = `ws://${window.location.host}/api/chat/ws`
 
 // SomaFM stations
 const STATIONS = {

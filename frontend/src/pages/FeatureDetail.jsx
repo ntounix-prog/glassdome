@@ -1041,7 +1041,7 @@ Why "Updock"?
   },
 
   whitepawn: {
-    icon: '♟️',
+    icon: '♙',
     title: 'WhitePawn Monitoring',
     subtitle: 'Continuous deployment monitoring with drift detection and alerting',
     
@@ -1670,6 +1670,391 @@ Total: 60+ secrets centrally managed
       'security.py',
       'config.py',
       'auth/vault_integration.py'
+    ]
+  },
+
+  'api-docs': {
+    icon: '📖',
+    title: 'Documented & Versioned API',
+    subtitle: 'Interactive OpenAPI documentation with full schema validation and versioned endpoints',
+    
+    description: `Glassdome provides comprehensive API documentation through FastAPI's built-in OpenAPI 
+    integration. Every endpoint is fully documented with request/response schemas, authentication 
+    requirements, and example payloads. The API follows semantic versioning with v1 endpoints and 
+    maintains backwards compatibility through intelligent request routing.`,
+    
+    implemented: [
+      {
+        name: 'OpenAPI/Swagger UI',
+        status: 'working',
+        description: 'Interactive API documentation at /docs',
+        details: [
+          'Auto-generated from FastAPI route definitions',
+          'Try-it-out feature for live API testing',
+          'Authentication header injection',
+          'Request/response schema visualization',
+          'Download OpenAPI JSON spec'
+        ]
+      },
+      {
+        name: 'ReDoc Documentation',
+        status: 'working',
+        description: 'Clean, readable API reference at /redoc',
+        details: [
+          'Three-panel responsive layout',
+          'Searchable endpoint catalog',
+          'Nested schema expansion',
+          'Print-friendly format'
+        ]
+      },
+      {
+        name: 'API Versioning (v1)',
+        status: 'working',
+        description: 'Versioned API endpoints with backwards compatibility',
+        details: [
+          '/api/v1/* - Current stable version',
+          '/api/* - Legacy endpoints (still supported)',
+          '307 redirects preserve HTTP methods',
+          'Query params preserved on redirect',
+          'Gradual migration path for clients'
+        ]
+      },
+      {
+        name: 'Pydantic Schema Validation',
+        status: 'working',
+        description: 'Strict request/response validation via Pydantic models',
+        details: [
+          'Type-safe request parsing',
+          'Automatic 422 on validation errors',
+          'Detailed error messages',
+          'JSON Schema generation',
+          'Custom validators and constraints'
+        ]
+      },
+      {
+        name: 'Modular Router Architecture',
+        status: 'working',
+        description: '18 API modules organized by domain',
+        details: [
+          'auth - Authentication & users',
+          'labs - Lab management',
+          'reaper - Vulnerability injection',
+          'registry - Resource tracking',
+          'platforms - Multi-cloud control',
+          'chat - Overseer AI interface',
+          '+ 12 more specialized modules'
+        ]
+      },
+      {
+        name: 'Consistent Response Formats',
+        status: 'working',
+        description: 'Standardized response structures across all endpoints',
+        details: [
+          'List endpoints: {"items": [...], "total": N}',
+          'Detail endpoints: Full resource object',
+          'Action endpoints: {"success": bool, "message": str}',
+          'Error responses: {"detail": str}'
+        ]
+      }
+    ],
+    
+    roadmap: [
+      {
+        name: 'API Changelog',
+        priority: 'medium',
+        description: 'Automated changelog generation from commits',
+        timeline: 'Q1 2025',
+        details: ['Semantic commit parsing', 'Breaking change detection', 'Migration guides']
+      },
+      {
+        name: 'GraphQL Gateway',
+        priority: 'low',
+        description: 'GraphQL interface for complex queries',
+        timeline: 'Q3 2025',
+        details: ['Strawberry GraphQL', 'Schema stitching', 'Subscription support']
+      },
+      {
+        name: 'SDK Generation',
+        priority: 'medium',
+        description: 'Auto-generate client SDKs from OpenAPI spec',
+        timeline: 'Q2 2025',
+        details: ['Python client', 'TypeScript client', 'Go client']
+      }
+    ],
+    
+    architecture: `
+┌─────────────────────────────────────────────────────────────────┐
+│                    API DOCUMENTATION FLOW                        │
+└─────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────┐
+│  FastAPI Application                                             │
+│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐  │
+│  │   /docs         │  │   /redoc        │  │  /openapi.json  │  │
+│  │   Swagger UI    │  │   ReDoc         │  │  JSON Schema    │  │
+│  └────────┬────────┘  └────────┬────────┘  └────────┬────────┘  │
+│           └───────────────┬────────────────────────┘            │
+│                           │                                      │
+│                           ▼                                      │
+│              ┌─────────────────────────┐                        │
+│              │   OpenAPI Spec (auto)   │                        │
+│              │   - Paths from routes   │                        │
+│              │   - Schemas from Pydantic│                       │
+│              │   - Auth from deps      │                        │
+│              └─────────────────────────┘                        │
+│                           │                                      │
+│              ┌────────────┼────────────┐                        │
+│              ▼            ▼            ▼                        │
+│        ┌──────────┐ ┌──────────┐ ┌──────────┐                   │
+│        │ /api/v1/ │ │ /api/v1/ │ │ /api/v1/ │                   │
+│        │ auth     │ │ labs     │ │ reaper   │  ... 18 modules   │
+│        └──────────┘ └──────────┘ └──────────┘                   │
+└─────────────────────────────────────────────────────────────────┘
+
+API Module Structure:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+glassdome/api/
+├── v1/__init__.py      # Router aggregator + versioning
+├── auth.py             # Authentication & user management
+├── labs.py             # Lab CRUD operations
+├── reaper.py           # Vulnerability injection
+├── whiteknight.py      # Validation engine
+├── whitepawn.py        # Monitoring orchestrator
+├── registry.py         # Resource registry
+├── platforms.py        # Multi-cloud platform control
+├── chat.py             # Overseer AI chat
+├── secrets.py          # Secrets management (admin)
+├── canvas_deploy.py    # Lab deployment from canvas
+├── ansible.py          # Playbook execution
+├── templates.py        # VM template library
+├── elements.py         # Drag-drop element library
+├── agents_status.py    # Agent health monitoring
+├── networks.py         # Network management
+├── network_probes.py   # External connectivity probes
+├── container_dispatch.py # Container deployment
+└── ubuntu.py           # Ubuntu-specific operations
+    `,
+    
+    codeLocation: 'glassdome/api/',
+    files: [
+      'v1/__init__.py',
+      'auth.py',
+      'labs.py',
+      'reaper.py',
+      'platforms.py',
+      'main.py (FastAPI app)'
+    ]
+  },
+
+  'api-testing': {
+    icon: '🧪',
+    title: 'API Test & Validation Pipeline',
+    subtitle: 'Comprehensive pytest suite with smoke tests, auth validation, and endpoint coverage',
+    
+    description: `Glassdome maintains a rigorous testing pipeline to ensure API reliability and 
+    prevent regressions. The test suite uses pytest with async support, httpx for HTTP testing, 
+    and comprehensive fixtures for database, Redis, and platform mocking. Every API endpoint 
+    is covered by smoke tests, with dedicated test modules for authentication, deployment, 
+    and domain-specific functionality.`,
+    
+    implemented: [
+      {
+        name: 'Pytest Framework',
+        status: 'working',
+        description: 'Modern Python testing with async support and rich fixtures',
+        details: [
+          'pytest-asyncio for async test support',
+          'httpx AsyncClient for HTTP testing',
+          'Comprehensive conftest.py fixtures',
+          'Parameterized test cases',
+          'Automatic test discovery'
+        ]
+      },
+      {
+        name: 'API Smoke Tests',
+        status: 'working',
+        description: 'Comprehensive endpoint validation in test_api_smoke.py',
+        details: [
+          '15+ test classes covering all API domains',
+          'Status code validation for every endpoint',
+          'Response structure verification',
+          'Auth requirement testing (401/403)',
+          '50+ individual test cases'
+        ]
+      },
+      {
+        name: 'Authentication Tests',
+        status: 'working',
+        description: 'Dedicated auth testing in test_auth.py',
+        details: [
+          'User registration flow (first user = admin)',
+          'Login with username/email',
+          'JWT token validation',
+          'Role-based access control',
+          'Password change workflow'
+        ]
+      },
+      {
+        name: 'Deployment Tests',
+        status: 'working',
+        description: 'Lab deployment testing in test_deployment.py',
+        details: [
+          'Deployment request validation',
+          'VLAN allocation logic',
+          'Mocked Proxmox client integration',
+          'DeployedVM model verification',
+          'NetworkDefinition testing'
+        ]
+      },
+      {
+        name: 'Unit Tests',
+        status: 'working',
+        description: 'Domain model and logic testing',
+        details: [
+          'test_reaper.py - Exploit models, MissionEngine',
+          'test_registry.py - Resource tracking, LabRegistry',
+          'Pydantic model validation',
+          'State machine transitions'
+        ]
+      },
+      {
+        name: 'Test Fixtures',
+        status: 'working',
+        description: 'Comprehensive mocking infrastructure',
+        details: [
+          'In-memory SQLite database (not production DB)',
+          'Mocked Redis for registry tests',
+          'Mocked Proxmox client with realistic responses',
+          'test_user and admin_user fixtures',
+          'sample_lab fixture for CRUD testing'
+        ]
+      },
+      {
+        name: 'Test Environment Isolation',
+        status: 'working',
+        description: 'Safe, isolated test execution',
+        details: [
+          'TESTING=1 environment flag',
+          'Dedicated Redis DB 15 for tests',
+          'Test-specific SECRET_KEY',
+          'No real infrastructure touched',
+          'Database auto-cleanup between tests'
+        ]
+      }
+    ],
+    
+    roadmap: [
+      {
+        name: 'End-to-End Tests',
+        priority: 'high',
+        description: 'Full workflow testing with real services',
+        timeline: 'Q1 2025',
+        details: ['Docker Compose test env', 'Real PostgreSQL', 'Real Redis', 'VM deployment mocking']
+      },
+      {
+        name: 'Coverage Reporting',
+        priority: 'high',
+        description: 'Automated test coverage tracking',
+        timeline: 'Q1 2025',
+        details: ['pytest-cov integration', 'Coverage badges', 'PR coverage diff', 'Minimum threshold enforcement']
+      },
+      {
+        name: 'CI/CD Integration',
+        priority: 'high',
+        description: 'Automated testing on every commit',
+        timeline: 'Q1 2025',
+        details: ['GitHub Actions workflow', 'Pre-commit hooks', 'Branch protection rules', 'Required status checks']
+      },
+      {
+        name: 'Load Testing',
+        priority: 'medium',
+        description: 'Performance and scalability testing',
+        timeline: 'Q2 2025',
+        details: ['Locust load testing', 'Concurrent user simulation', 'Latency benchmarks', 'Regression detection']
+      },
+      {
+        name: 'Contract Testing',
+        priority: 'low',
+        description: 'API contract validation against OpenAPI spec',
+        timeline: 'Q3 2025',
+        details: ['Schemathesis integration', 'Property-based testing', 'Edge case discovery']
+      }
+    ],
+    
+    architecture: `
+┌─────────────────────────────────────────────────────────────────┐
+│                    TEST PIPELINE ARCHITECTURE                    │
+└─────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────┐
+│                      pytest Execution                            │
+│  $ pytest tests/ -v --tb=short                                  │
+└──────────────────────────────┬──────────────────────────────────┘
+                               │
+               ┌───────────────┼───────────────┐
+               ▼               ▼               ▼
+    ┌────────────────┐ ┌────────────────┐ ┌────────────────┐
+    │    conftest    │ │  Integration   │ │     Unit       │
+    │    fixtures    │ │    Tests       │ │    Tests       │
+    └────────┬───────┘ └───────┬────────┘ └───────┬────────┘
+             │                 │                  │
+             ▼                 ▼                  ▼
+    ┌────────────────┐ ┌────────────────┐ ┌────────────────┐
+    │ • async_client │ │test_api_smoke  │ │ test_reaper    │
+    │ • test_user    │ │test_auth       │ │ test_registry  │
+    │ • admin_user   │ │test_deployment │ │                │
+    │ • mock_proxmox │ │                │ │                │
+    │ • sample_lab   │ │                │ │                │
+    └────────────────┘ └────────────────┘ └────────────────┘
+
+Test Categories:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+tests/
+├── conftest.py              # Shared fixtures
+├── integration/
+│   ├── test_api_smoke.py    # All endpoint smoke tests
+│   ├── test_auth.py         # Auth flow testing
+│   └── test_deployment.py   # Deployment workflow
+├── unit/
+│   ├── test_reaper.py       # Reaper models/engine
+│   └── test_registry.py     # Registry logic
+├── e2e/                     # (Planned) End-to-end tests
+└── fixtures/                # Test data files
+
+Coverage by Domain:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+✓ Health endpoints           ✓ Auth (login, register, RBAC)
+✓ Labs (CRUD)               ✓ Deployments
+✓ Registry (status, labs)    ✓ Reaper (exploits, missions)
+✓ WhitePawn (status)        ✓ WhiteKnight (validation)
+✓ Platforms                 ✓ Secrets (admin-only)
+✓ Chat                      ✓ Templates
+✓ Agents                    ✓ Elements
+
+Run Tests:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# All tests
+pytest tests/ -v
+
+# Smoke tests only
+pytest tests/integration/test_api_smoke.py -v
+
+# Auth tests only
+pytest tests/integration/test_auth.py -v
+
+# With coverage (after setup)
+pytest tests/ --cov=glassdome --cov-report=html
+    `,
+    
+    codeLocation: 'tests/',
+    files: [
+      'conftest.py',
+      'integration/test_api_smoke.py',
+      'integration/test_auth.py',
+      'integration/test_deployment.py',
+      'unit/test_reaper.py',
+      'unit/test_registry.py',
+      'README.md'
     ]
   }
 }

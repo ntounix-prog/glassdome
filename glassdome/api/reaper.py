@@ -1264,40 +1264,81 @@ class PoolStatusResponse(BaseModel):
 
 @router.get("/pool/status")
 async def get_pool_status(
+    os_type: str = None,
     session: AsyncSession = Depends(get_async_session),
     current_user: User = Depends(require_engineer)  # Engineer+ can view pool
 ):
-    """Get hot spare pool status"""
-    pool = get_hot_spare_pool()
-    status = await pool.get_pool_status(session)
+    """
+    Get hot spare pool status.
     
-    # Get all spares
-    result = await session.execute(
-        select(HotSpare).where(
-            HotSpare.platform_instance == pool.config.platform_instance
-        ).order_by(HotSpare.vmid)
-    )
-    spares = result.scalars().all()
+    Args:
+        os_type: Specific OS type to get status for, or None for all pools
+    """
+    from glassdome.reaper.hot_spare import get_all_pools, POOL_CONFIGS
     
-    status["spares"] = [
-        {
-            "id": s.id,
-            "vmid": s.vmid,
-            "name": s.name,
-            "platform": s.platform,
-            "platform_instance": s.platform_instance,
-            "node": s.node,
-            "os_type": s.os_type,
-            "ip_address": s.ip_address,
-            "status": s.status,
-            "assigned_to_mission": s.assigned_to_mission,
-            "created_at": s.created_at.isoformat() if s.created_at else None,
-            "ready_at": s.ready_at.isoformat() if s.ready_at else None,
-        }
-        for s in spares
-    ]
+    if os_type:
+        # Get status for specific OS type
+        pool = get_hot_spare_pool(os_type)
+        status = await pool.get_pool_status(session)
+        
+        # Get spares for this OS type
+        result = await session.execute(
+            select(HotSpare).where(
+                HotSpare.os_type == os_type
+            ).order_by(HotSpare.vmid)
+        )
+        spares = result.scalars().all()
+        
+        status["spares"] = [
+            {
+                "id": s.id,
+                "vmid": s.vmid,
+                "name": s.name,
+                "platform": s.platform,
+                "platform_instance": s.platform_instance,
+                "node": s.node,
+                "os_type": s.os_type,
+                "ip_address": s.ip_address,
+                "status": s.status,
+                "assigned_to_mission": s.assigned_to_mission,
+                "created_at": s.created_at.isoformat() if s.created_at else None,
+                "ready_at": s.ready_at.isoformat() if s.ready_at else None,
+            }
+            for s in spares
+        ]
+        
+        return status
     
-    return status
+    # Get status for all pools
+    all_status = {"pools": {}, "configured_types": list(POOL_CONFIGS.keys())}
+    
+    for os_name in POOL_CONFIGS.keys():
+        pool = get_hot_spare_pool(os_name)
+        pool_status = await pool.get_pool_status(session)
+        
+        # Get spares for this OS type
+        result = await session.execute(
+            select(HotSpare).where(
+                HotSpare.os_type == os_name
+            ).order_by(HotSpare.vmid)
+        )
+        spares = result.scalars().all()
+        
+        pool_status["spares"] = [
+            {
+                "id": s.id,
+                "vmid": s.vmid,
+                "name": s.name,
+                "os_type": s.os_type,
+                "ip_address": s.ip_address,
+                "status": s.status,
+            }
+            for s in spares
+        ]
+        
+        all_status["pools"][os_name] = pool_status
+    
+    return all_status
 
 
 @router.post("/pool/provision")
@@ -1312,8 +1353,12 @@ async def provision_spare(
     
     This bypasses the automatic pool management and immediately
     starts provisioning the requested number of spares.
+    
+    Args:
+        count: Number of spares to provision
+        os_type: OS type to provision ("ubuntu", "windows10", etc.)
     """
-    pool = get_hot_spare_pool()
+    pool = get_hot_spare_pool(os_type)
     
     provisioned = []
     for _ in range(count):
@@ -1323,46 +1368,79 @@ async def provision_spare(
                 "id": spare.id,
                 "vmid": spare.vmid,
                 "name": spare.name,
+                "os_type": os_type,
                 "ip_address": spare.ip_address,
                 "status": spare.status,
             })
     
-    logger.info(f"Manually provisioned {len(provisioned)} spares")
+    logger.info(f"Manually provisioned {len(provisioned)} {os_type} spares")
     
     return {
-        "message": f"Provisioning {len(provisioned)} spares",
+        "message": f"Provisioning {len(provisioned)} {os_type} spares",
         "spares": provisioned
     }
 
 
 @router.post("/pool/start")
 async def start_pool_manager(
+    os_type: str = None,
     current_user: User = Depends(require_architect)  # Architect+ can start pool
 ):
-    """Start the pool manager background task"""
-    pool = get_hot_spare_pool()
-    await pool.start()
-    return {"message": "Pool manager started"}
+    """
+    Start the pool manager background task.
+    
+    Args:
+        os_type: Specific OS type to start, or None to start all pools
+    """
+    from glassdome.reaper.hot_spare import initialize_all_pools, POOL_CONFIGS
+    
+    if os_type:
+        pool = get_hot_spare_pool(os_type)
+        await pool.start()
+        return {"message": f"Pool manager started for {os_type}"}
+    
+    # Start all pools
+    await initialize_all_pools()
+    return {"message": f"Pool managers started for: {list(POOL_CONFIGS.keys())}"}
 
 
 @router.post("/pool/stop")
 async def stop_pool_manager(
+    os_type: str = None,
     current_user: User = Depends(require_architect)  # Architect+ can stop pool
 ):
-    """Stop the pool manager background task"""
-    pool = get_hot_spare_pool()
-    await pool.stop()
-    return {"message": "Pool manager stopped"}
+    """
+    Stop the pool manager background task.
+    
+    Args:
+        os_type: Specific OS type to stop, or None to stop all pools
+    """
+    from glassdome.reaper.hot_spare import get_all_pools
+    
+    if os_type:
+        pool = get_hot_spare_pool(os_type)
+        await pool.stop()
+        return {"message": f"Pool manager stopped for {os_type}"}
+    
+    # Stop all pools
+    pools = get_all_pools()
+    stopped = []
+    for name, pool in pools.items():
+        await pool.stop()
+        stopped.append(name)
+    
+    return {"message": f"Pool managers stopped for: {stopped}"}
 
 
 @router.delete("/pool/spare/{spare_id}")
 async def delete_spare(
     spare_id: int,
+    os_type: str = "ubuntu",
     session: AsyncSession = Depends(get_async_session),
     current_user: User = Depends(require_architect)  # Architect+ can delete
 ):
     """Delete a spare from the pool"""
-    pool = get_hot_spare_pool()
+    pool = get_hot_spare_pool(os_type)
     await pool.release_spare(session, spare_id, destroy=True)
     return {"message": f"Spare {spare_id} deleted"}
 

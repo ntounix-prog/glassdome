@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+<head><title>Auth Test</title></head>
+<body>
+<h1>Glassdome Auth Test</h1>
+<button onclick="testLogin()">Test Login</button>
+<button onclick="clearAuth()">Clear Auth</button>
+<button onclick="goToReaper()">Go to Reaper</button>
+<pre id="result"></pre>
+<script>
+async function testLogin() {
+  const result = document.getElementById('result');
+  result.textContent = 'Testing login...';
+  
+  try {
+    // Step 1: Login
+    const loginResponse = await fetch('/api/v1/auth/login/user', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: 'brett', password: 'Glassdome2024!' })
+    });
+    
+    const tokenData = await loginResponse.json();
+    result.textContent = 'Login Status: ' + loginResponse.status + '\n';
+    
+    if (!tokenData.access_token) {
+      result.textContent += '❌ No token received!\n' + JSON.stringify(tokenData, null, 2);
+      return;
+    }
+    
+    result.textContent += '✅ Got token!\n\n';
+    
+    // Step 2: Get user info
+    const userResponse = await fetch('/api/v1/auth/me', {
+      headers: { 'Authorization': 'Bearer ' + tokenData.access_token }
+    });
+    
+    const userData = await userResponse.json();
+    result.textContent += 'User Status: ' + userResponse.status + '\n';
+    result.textContent += JSON.stringify(userData, null, 2) + '\n\n';
+    
+    // Step 3: Save to localStorage (same keys as AuthContext)
+    localStorage.setItem('glassdome_token', tokenData.access_token);
+    localStorage.setItem('glassdome_user', JSON.stringify(userData));
+    
+    result.textContent += '✅ Token and User saved to localStorage!\n';
+    result.textContent += 'You can now click "Go to Reaper" button.';
+    
+  } catch (e) {
+    result.textContent = '❌ Error: ' + e.message;
+  }
+}
+
+function clearAuth() {
+  localStorage.removeItem('glassdome_token');
+  localStorage.removeItem('glassdome_user');
+  document.getElementById('result').textContent = '🗑️ Auth cleared from localStorage';
+}
+
+function goToReaper() {
+  window.location.href = '/reaper';
+}
+</script>
+</body>
+</html>

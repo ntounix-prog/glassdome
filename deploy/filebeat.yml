@@ -1,59 +1,153 @@
 # Filebeat Configuration for Glassdome
+# =====================================
 # 
-# This configuration ships Glassdome logs to Elasticsearch/ELK.
+# Ships Glassdome logs to ELK stack at 192.168.3.26
 # 
-# Installation:
-#   1. Install Filebeat: https://www.elastic.co/guide/en/beats/filebeat/current/filebeat-installation.html
-#   2. Copy this file to /etc/filebeat/filebeat.yml
-#   3. Update the output.elasticsearch hosts
-#   4. Start Filebeat: systemctl start filebeat
+# Installation (on Glassdome server):
+#   1. Install Filebeat: curl -L -O https://artifacts.elastic.co/downloads/beats/filebeat/filebeat-8.11.3-amd64.deb && sudo dpkg -i filebeat-8.11.3-amd64.deb
+#   2. Copy this file: sudo cp deploy/filebeat.yml /etc/filebeat/filebeat.yml
+#   3. Enable and start: sudo systemctl enable filebeat && sudo systemctl start filebeat
 #
 # Author: Brett Turner (ntounix)
 # Created: November 2025
+# Updated: December 2025 - Configured for ELK stack at 192.168.3.26
 
 # ================================ Inputs =====================================
 
 filebeat.inputs:
 
-  # JSON logs (primary - structured for SIEM)
+  # ============================================================================
+  # JSON Logs (Primary - Structured for SIEM)
+  # ============================================================================
   - type: log
     id: glassdome-json
     enabled: true
     paths:
       - /opt/glassdome/logs/glassdome.json
       - /home/*/glassdome/logs/glassdome.json
+      - /app/logs/glassdome.json
     
-    # Parse JSON logs
+    # Parse JSON logs directly
     json.keys_under_root: true
     json.add_error_key: true
     json.message_key: message
+    json.overwrite_keys: true
     
-    # Add fields
+    # Add fields for identification
     fields:
       application: glassdome
       log_type: json
+      log_format: structured
     fields_under_root: true
     
-    # Multiline for stack traces (if needed)
+    # Multiline for stack traces embedded in JSON
     multiline.type: pattern
     multiline.pattern: '^\{'
     multiline.negate: true
     multiline.match: after
+    
+    # Harvester settings
+    close_inactive: 5m
+    clean_inactive: 72h
+    ignore_older: 24h
+    
+    # Processors for this input
+    processors:
+      - decode_json_fields:
+          fields: ["message"]
+          process_array: false
+          max_depth: 2
+          target: ""
+          overwrite_keys: true
+          add_error_key: true
 
-  # Plain text logs (backup)
+  # ============================================================================
+  # Plain Text Logs (Backup/Debug)
+  # ============================================================================
   - type: log
     id: glassdome-text
     enabled: true
     paths:
       - /opt/glassdome/logs/glassdome.log
       - /home/*/glassdome/logs/glassdome.log
+      - /app/logs/glassdome.log
     
     fields:
       application: glassdome
       log_type: text
+      log_format: plain
     fields_under_root: true
     
     # Multiline for Python tracebacks
+    multiline.type: pattern
+    multiline.pattern: '^\d{4}-\d{2}-\d{2}'
+    multiline.negate: true
+    multiline.match: after
+    
+    # Parse log line format
+    processors:
+      - dissect:
+          tokenizer: "%{timestamp} %{level} [%{logger}] %{message}"
+          field: "message"
+          target_prefix: ""
+          overwrite_keys: true
+          ignore_failure: true
+
+  # ============================================================================
+  # Container Logs (Docker containers)
+  # ============================================================================
+  - type: container
+    id: glassdome-containers
+    enabled: true
+    paths:
+      - '/var/lib/docker/containers/*/*.log'
+    
+    # Only collect from glassdome containers
+    include_lines: ['glassdome']
+    
+    # Parse container JSON logs
+    json.keys_under_root: true
+    json.add_error_key: true
+    
+    fields:
+      application: glassdome
+      log_type: container
+    fields_under_root: true
+    
+    processors:
+      - add_docker_metadata:
+          host: "unix:///var/run/docker.sock"
+          match_short_id: true
+      - decode_json_fields:
+          fields: ["message", "log"]
+          process_array: false
+          max_depth: 2
+          target: ""
+          overwrite_keys: false
+          add_error_key: true
+
+  # ============================================================================
+  # Worker-Specific Logs
+  # ============================================================================
+  - type: log
+    id: glassdome-workers
+    enabled: true
+    paths:
+      - /opt/glassdome/logs/orchestrator*.log
+      - /opt/glassdome/logs/reaper*.log
+      - /opt/glassdome/logs/whiteknight*.log
+      - /opt/glassdome/logs/whitepawn*.log
+      - /home/*/glassdome/logs/orchestrator*.log
+      - /home/*/glassdome/logs/reaper*.log
+      - /home/*/glassdome/logs/whiteknight*.log
+      - /home/*/glassdome/logs/whitepawn*.log
+      - /app/logs/*.log
+    
+    fields:
+      application: glassdome
+      log_type: worker
+    fields_under_root: true
+    
     multiline.type: pattern
     multiline.pattern: '^\d{4}-\d{2}-\d{2}'
     multiline.negate: true
@@ -69,45 +163,82 @@ processors:
   # Add cloud metadata (if running in cloud)
   - add_cloud_metadata: ~
   
-  # Parse timestamp
+  # Add process metadata
+  - add_process_metadata:
+      match_pids: [process.pid]
+      include_fields: ["process.name", "process.executable"]
+  
+  # Parse ISO8601 timestamp
   - timestamp:
       field: timestamp
       layouts:
+        - '2006-01-02T15:04:05.000000000Z07:00'
+        - '2006-01-02T15:04:05.000000Z'
         - '2006-01-02T15:04:05.000Z'
         - '2006-01-02T15:04:05Z'
+        - '2006-01-02 15:04:05.000'
+        - '2006-01-02 15:04:05'
       test:
-        - '2025-11-30T15:30:45.123Z'
+        - '2025-12-01T15:30:45.123456789Z'
+        - '2025-12-01T15:30:45.123Z'
+      ignore_failure: true
   
-  # Drop debug logs in production (optional)
+  # Drop debug logs in production (uncomment if needed)
   # - drop_event:
   #     when:
   #       equals:
   #         level: DEBUG
+  
+  # Add environment tag
+  - add_fields:
+      target: ''
+      fields:
+        environment: lab
+        cluster: glassdome-lab
 
 # ================================ Outputs ====================================
 
-# ---------------------------- Elasticsearch Output ---------------------------
-output.elasticsearch:
-  # Array of hosts to connect to
-  hosts: ["localhost:9200"]
-  
-  # Protocol - http or https
-  protocol: "http"
-  
-  # Authentication credentials
-  # username: "elastic"
-  # password: "changeme"
-  
-  # Index name
-  index: "glassdome-%{+yyyy.MM.dd}"
-  
-  # Pipeline for additional processing
-  # pipeline: "glassdome-pipeline"
-
 # ---------------------------- Logstash Output --------------------------------
-# Uncomment to send to Logstash instead of Elasticsearch directly
-# output.logstash:
-#   hosts: ["localhost:5044"]
+# Primary output - sends to Logstash for processing
+output.logstash:
+  hosts: ["192.168.3.26:5044"]
+  
+  # Load balancing (if multiple Logstash instances)
+  loadbalance: true
+  
+  # Worker threads
+  worker: 2
+  
+  # Compression (reduces bandwidth)
+  compression_level: 3
+  
+  # Retry settings
+  backoff.init: 1s
+  backoff.max: 60s
+  
+  # SSL (enable for production)
+  # ssl.enabled: true
+  # ssl.certificate_authorities: ["/etc/filebeat/ca.crt"]
+  # ssl.certificate: "/etc/filebeat/filebeat.crt"
+  # ssl.key: "/etc/filebeat/filebeat.key"
+
+# ---------------------------- Elasticsearch Output ---------------------------
+# Alternative: Send directly to Elasticsearch (bypass Logstash)
+# Uncomment to use instead of Logstash output
+
+# output.elasticsearch:
+#   hosts: ["192.168.3.26:9200"]
+#   protocol: "http"
+#   
+#   # Authentication (if enabled)
+#   # username: "elastic"
+#   # password: "changeme"
+#   
+#   # Index name
+#   index: "glassdome-%{+yyyy.MM.dd}"
+#   
+#   # Pipeline for additional processing
+#   # pipeline: "glassdome-pipeline"
 
 # ================================ Logging ====================================
 
@@ -119,18 +250,38 @@ logging.files:
   keepfiles: 7
   permissions: 0644
 
+# Metrics logging (for debugging)
+logging.metrics.enabled: true
+logging.metrics.period: 30s
+
 # ================================ Index Templates ============================
+
+setup.template.enabled: true
+setup.template.name: "glassdome"
+setup.template.pattern: "glassdome-*"
 
 setup.template.settings:
   index.number_of_shards: 1
+  index.number_of_replicas: 0
   index.codec: best_compression
 
-setup.ilm.enabled: auto
+# ILM (Index Lifecycle Management)
+setup.ilm.enabled: true
 setup.ilm.rollover_alias: "glassdome"
 setup.ilm.pattern: "{now/d}-000001"
+setup.ilm.policy_name: "glassdome-policy"
 
 # ================================ Kibana =====================================
 
-# Starting with Beats version 6.0.0, the dashboards are loaded via the Kibana API.
-# setup.kibana:
-#   host: "localhost:5601"
+# Kibana configuration (for dashboard setup)
+setup.kibana:
+  host: "192.168.3.26:5601"
+  # username: "elastic"
+  # password: "changeme"
+
+# ================================ Monitoring =================================
+
+# X-Pack monitoring (sends to same cluster)
+monitoring.enabled: true
+monitoring.elasticsearch:
+  hosts: ["192.168.3.26:9200"]

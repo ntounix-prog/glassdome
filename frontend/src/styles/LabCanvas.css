@@ -56,6 +56,25 @@
   border-color: rgba(102, 126, 234, 0.5);
 }
 
+.element-button.aws-button {
+  background: rgba(255, 153, 0, 0.1);
+  border-color: rgba(255, 153, 0, 0.3);
+}
+
+.element-button.aws-button:hover {
+  background: rgba(255, 153, 0, 0.2);
+  border-color: rgba(255, 153, 0, 0.5);
+}
+
+.element-hint {
+  padding: 0.5rem;
+  margin-top: 0.5rem;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 6px;
+  color: #888;
+  text-align: center;
+}
+
 .element-icon {
   font-size: 1.5rem;
 }

@@ -552,21 +552,106 @@ class HotSparePool:
         }
 
 
-# Global pool instance
-_pool: Optional[HotSparePool] = None
+# Global pool instances - one per OS type
+_pools: Dict[str, HotSparePool] = {}
+
+# Default pool configuration parameters (configs created lazily to avoid settings lookup at import time)
+POOL_CONFIG_PARAMS = {
+    "ubuntu": {
+        "min_spares": 5,
+        "max_spares": 8,
+        "os_type": "ubuntu",
+        "template_id": 116,  # Ubuntu 22.04 lab-ready template
+        "ip_range_start": "192.168.3.100",
+        "ip_range_end": "192.168.3.119",
+    },
+    "windows10": {
+        "min_spares": 5,
+        "max_spares": 8,
+        "os_type": "windows10",
+        "template_id": 9011,  # Windows 10 Enterprise template
+        "ip_range_start": "192.168.3.120",
+        "ip_range_end": "192.168.3.139",
+    },
+}
+
+# Lazy-loaded configs
+_pool_configs: Dict[str, HotSparePoolConfig] = {}
 
 
-def get_hot_spare_pool() -> HotSparePool:
-    """Get the global hot spare pool instance"""
-    global _pool
-    if _pool is None:
-        _pool = HotSparePool()
-    return _pool
+def get_pool_config(os_type: str) -> Optional[HotSparePoolConfig]:
+    """Get or create pool config for an OS type (lazy initialization)"""
+    if os_type not in _pool_configs:
+        params = POOL_CONFIG_PARAMS.get(os_type)
+        if params:
+            _pool_configs[os_type] = HotSparePoolConfig(**params)
+    return _pool_configs.get(os_type)
 
 
-async def initialize_pool():
-    """Initialize and start the hot spare pool"""
-    pool = get_hot_spare_pool()
-    await pool.start()
-    return pool
+# For backwards compatibility
+POOL_CONFIGS = POOL_CONFIG_PARAMS  # Just expose the param dict, not instantiated configs
+
+
+def get_hot_spare_pool(os_type: str = "ubuntu") -> HotSparePool:
+    """
+    Get the hot spare pool for a specific OS type.
+    
+    Args:
+        os_type: OS type to get pool for ("ubuntu", "windows10", etc.)
+    
+    Returns:
+        HotSparePool instance for the specified OS type
+    """
+    global _pools
+    
+    if os_type not in _pools:
+        config = get_pool_config(os_type)
+        if config is None:
+            # Create default config for unknown OS types
+            config = HotSparePoolConfig(
+                min_spares=2,
+                max_spares=4,
+                os_type=os_type,
+            )
+            logger.warning(f"No predefined config for OS type '{os_type}', using defaults")
+        
+        _pools[os_type] = HotSparePool(config)
+    
+    return _pools[os_type]
+
+
+def get_all_pools() -> Dict[str, HotSparePool]:
+    """Get all initialized hot spare pools"""
+    return _pools
+
+
+async def initialize_pool(os_type: str = None):
+    """
+    Initialize and start hot spare pool(s).
+    
+    Args:
+        os_type: Specific OS type to initialize, or None for all configured pools
+    
+    Returns:
+        Single pool if os_type specified, dict of all pools otherwise
+    """
+    if os_type:
+        pool = get_hot_spare_pool(os_type)
+        await pool.start()
+        return pool
+    
+    # Initialize all configured pools
+    pools = {}
+    for os_name in POOL_CONFIG_PARAMS.keys():
+        pool = get_hot_spare_pool(os_name)
+        await pool.start()
+        pools[os_name] = pool
+        logger.info(f"Started hot spare pool for {os_name}")
+    
+    return pools
+
+
+async def initialize_all_pools():
+    """Initialize and start all configured hot spare pools"""
+    return await initialize_pool(os_type=None)
 

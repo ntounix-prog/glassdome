@@ -15,15 +15,18 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useAuth } from '../contexts/AuthContext';
 import '../styles/ReaperDesign.css';
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8011';
+// Use empty string for API_BASE to use relative URLs through Vite proxy
+const API_BASE = '';
 
 // ============================================================================
 // Main Component
 // ============================================================================
 
 export default function ReaperDesign() {
+  const { getAuthHeaders } = useAuth();
   const [activeTab, setActiveTab] = useState('library');
   const [exploits, setExploits] = useState([]);
   const [missions, setMissions] = useState([]);
@@ -59,26 +62,32 @@ export default function ReaperDesign() {
     if (typeFilter) url += `&exploit_type=${typeFilter}`;
     if (severityFilter) url += `&severity=${severityFilter}`;
     
-    const res = await fetch(url);
+    const res = await fetch(url, { headers: getAuthHeaders() });
     const data = await res.json();
     setExploits(data.exploits || []);
   };
 
   const fetchMissions = async () => {
-    const res = await fetch(`${API_BASE}/api/v1/reaper/missions`);
+    const res = await fetch(`${API_BASE}/api/v1/reaper/missions`, { headers: getAuthHeaders() });
     const data = await res.json();
     setMissions(data.missions || []);
   };
 
   const fetchStats = async () => {
-    const res = await fetch(`${API_BASE}/api/v1/reaper/stats`);
+    const res = await fetch(`${API_BASE}/api/v1/reaper/stats`, { headers: getAuthHeaders() });
     const data = await res.json();
     setStats(data);
   };
 
   const seedExploits = async () => {
     try {
-      await fetch(`${API_BASE}/api/v1/reaper/exploits/seed`, { method: 'POST' });
+      const res = await fetch(`${API_BASE}/api/v1/reaper/exploits/seed`, { 
+        method: 'POST',
+        headers: getAuthHeaders()
+      });
+      if (!res.ok) {
+        throw new Error(`Seed failed: ${res.status}`);
+      }
       await fetchExploits();
       await fetchStats();
     } catch (err) {
@@ -169,6 +178,7 @@ export default function ReaperDesign() {
               severityFilter={severityFilter}
               setSeverityFilter={setSeverityFilter}
               loading={loading}
+              getAuthHeaders={getAuthHeaders}
             />
           )}
           
@@ -180,6 +190,7 @@ export default function ReaperDesign() {
                 fetchMissions();
                 setActiveTab('active');
               }}
+              getAuthHeaders={getAuthHeaders}
             />
           )}
           
@@ -237,7 +248,8 @@ export default function ReaperDesign() {
 
 function ExploitLibrary({ 
   exploits, onSelect, selectedExploit, onSeed, onRefresh,
-  typeFilter, setTypeFilter, severityFilter, setSeverityFilter, loading 
+  typeFilter, setTypeFilter, severityFilter, setSeverityFilter, loading,
+  getAuthHeaders
 }) {
   const [showAddModal, setShowAddModal] = useState(false);
   const [importResult, setImportResult] = useState(null);
@@ -284,7 +296,10 @@ function ExploitLibrary({
       
       const res = await fetch(`${API_BASE}/api/v1/reaper/exploits/import`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          ...getAuthHeaders()
+        },
         body: JSON.stringify({
           exploits: exploitsArray,
           overwrite: false
@@ -307,7 +322,9 @@ function ExploitLibrary({
 
   const downloadTemplate = async () => {
     try {
-      const res = await fetch(`${API_BASE}/api/v1/reaper/exploits/template`);
+      const res = await fetch(`${API_BASE}/api/v1/reaper/exploits/template`, {
+        headers: getAuthHeaders()
+      });
       const template = await res.json();
       
       const blob = new Blob([JSON.stringify(template, null, 2)], { type: 'application/json' });
@@ -324,7 +341,9 @@ function ExploitLibrary({
 
   const exportExploits = async () => {
     try {
-      const res = await fetch(`${API_BASE}/api/v1/reaper/exploits/export`);
+      const res = await fetch(`${API_BASE}/api/v1/reaper/exploits/export`, {
+        headers: getAuthHeaders()
+      });
       const data = await res.json();
       
       const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -420,6 +439,7 @@ function ExploitLibrary({
             setShowAddModal(false);
             onRefresh();
           }}
+          getAuthHeaders={getAuthHeaders}
         />
       )}
 
@@ -488,7 +508,7 @@ function ExploitLibrary({
 // Mission Builder Component
 // ============================================================================
 
-function MissionBuilder({ exploits, onMissionCreated }) {
+function MissionBuilder({ exploits, onMissionCreated, getAuthHeaders }) {
   const [step, setStep] = useState(1);
   const [missionName, setMissionName] = useState('');
   const [platform, setPlatform] = useState('proxmox');
@@ -536,7 +556,10 @@ function MissionBuilder({ exploits, onMissionCreated }) {
 
       const res = await fetch(`${API_BASE}/api/v1/reaper/missions`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          ...getAuthHeaders()
+        },
         body: JSON.stringify(payload)
       });
 
@@ -546,7 +569,8 @@ function MissionBuilder({ exploits, onMissionCreated }) {
       
       // Start the mission
       await fetch(`${API_BASE}/api/v1/reaper/missions/${mission.mission_id}/start`, {
-        method: 'POST'
+        method: 'POST',
+        headers: getAuthHeaders()
       });
 
       onMissionCreated();
@@ -917,7 +941,7 @@ function MissionHistory({ missions }) {
 // Add Exploit Modal
 // ============================================================================
 
-function AddExploitModal({ onClose, onCreated }) {
+function AddExploitModal({ onClose, onCreated, getAuthHeaders }) {
   const [formData, setFormData] = useState({
     name: '',
     display_name: '',
@@ -960,7 +984,10 @@ function AddExploitModal({ onClose, onCreated }) {
 
       const res = await fetch(`${API_BASE}/api/v1/reaper/exploits`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          ...getAuthHeaders()
+        },
         body: JSON.stringify(payload)
       });
 

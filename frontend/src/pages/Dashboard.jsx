@@ -192,7 +192,7 @@ function Dashboard({ healthStatus }) {
         </div>
 
         <div className="feature-card clickable whitepawn-card" onClick={() => navigate('/features/whitepawn')}>
-          <div className="feature-icon">♟️</div>
+          <div className="feature-icon">♙</div>
           <h3>WhitePawn Monitoring</h3>
           <p>Continuous deployment monitoring with drift detection and alerting</p>
           <span className="feature-link">Learn more →</span>
@@ -217,6 +217,22 @@ function Dashboard({ healthStatus }) {
           <div className="feature-icon">🔒</div>
           <h3>HashiCorp Vault</h3>
           <p>Centralized secrets management for credentials, API keys, and tokens</p>
+          <span className="feature-status active">✓ Active</span>
+          <span className="feature-link">Learn more →</span>
+        </div>
+
+        <div className="feature-card clickable api-docs-card active-feature" onClick={() => navigate('/features/api-docs')}>
+          <div className="feature-icon">📖</div>
+          <h3>Documented & Versioned API</h3>
+          <p>Interactive OpenAPI documentation with full schema validation and versioned endpoints</p>
+          <span className="feature-status active">✓ Active</span>
+          <span className="feature-link">Learn more →</span>
+        </div>
+
+        <div className="feature-card clickable api-testing-card active-feature" onClick={() => navigate('/features/api-testing')}>
+          <div className="feature-icon">🧪</div>
+          <h3>API Test & Validation Pipeline</h3>
+          <p>Comprehensive pytest suite with smoke tests, auth validation, and endpoint coverage</p>
           <span className="feature-status active">✓ Active</span>
           <span className="feature-link">Learn more →</span>
         </div>

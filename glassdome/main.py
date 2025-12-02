@@ -37,10 +37,13 @@ app = FastAPI(
 )
 
 # CORS Configuration
+# Note: When using wildcard "*" origins, credentials must be False (CORS spec requirement)
+_cors_origins = settings.backend_cors_origins
+_allow_credentials = "*" not in _cors_origins  # Disable credentials if using wildcard
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.backend_cors_origins,
-    allow_credentials=True,
+    allow_origins=_cors_origins,
+    allow_credentials=_allow_credentials,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -101,14 +104,13 @@ async def shutdown_event():
 
 async def _start_background_services():
     """Start all background services."""
-    # Hot Spare Pool Manager
+    # Hot Spare Pool Managers (one per OS type)
     try:
-        from glassdome.reaper.hot_spare import get_hot_spare_pool
-        pool = get_hot_spare_pool()
-        asyncio.create_task(pool.start())
-        logger.info("Hot Spare Pool Manager starting (background)")
+        from glassdome.reaper.hot_spare import initialize_all_pools, POOL_CONFIGS
+        asyncio.create_task(initialize_all_pools())
+        logger.info(f"Hot Spare Pool Managers starting for: {list(POOL_CONFIGS.keys())}")
     except Exception as e:
-        logger.warning(f"Could not start Hot Spare Pool Manager: {e}")
+        logger.warning(f"Could not start Hot Spare Pool Managers: {e}")
     
     # Network Reconciler
     try:
@@ -160,14 +162,15 @@ async def _start_background_services():
 
 async def _stop_background_services():
     """Stop all background services."""
-    # Hot Spare Pool Manager
+    # Hot Spare Pool Managers (all OS types)
     try:
-        from glassdome.reaper.hot_spare import get_hot_spare_pool
-        pool = get_hot_spare_pool()
-        await pool.stop()
-        logger.info("Hot Spare Pool Manager stopped")
+        from glassdome.reaper.hot_spare import get_all_pools
+        pools = get_all_pools()
+        for os_type, pool in pools.items():
+            await pool.stop()
+            logger.info(f"Hot Spare Pool Manager stopped for {os_type}")
     except Exception as e:
-        logger.warning(f"Error stopping Hot Spare Pool Manager: {e}")
+        logger.warning(f"Error stopping Hot Spare Pool Managers: {e}")
     
     # Network Reconciler
     try:
