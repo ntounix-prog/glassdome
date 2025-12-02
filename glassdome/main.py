@@ -175,6 +175,26 @@ async def _start_background_services():
     # except Exception as e:
     #     logger.warning(f"Could not start Registry Reconciler: {e}")
     logger.info("Registry Reconciler DISABLED - manual reconciliation available at /api/reconciler/run")
+    
+    # Pre-warm Chat Agent (so it's instant when modal opens)
+    try:
+        from glassdome.api.chat import get_chat_agent
+        logger.info("Pre-warming Chat Agent...")
+        chat_agent = get_chat_agent()
+        providers = chat_agent.llm.list_available_providers()
+        logger.info(f"✓ Chat Agent ready with providers: {providers}")
+    except Exception as e:
+        logger.warning(f"Could not pre-warm Chat Agent: {e}")
+    
+    # Overseer State Sync (DB reconciliation with Proxmox)
+    try:
+        from glassdome.overseer.state_sync import get_state_sync, get_sync_scheduler
+        state_sync = get_state_sync(backend_url="http://localhost:8000")
+        sync_scheduler = get_sync_scheduler(interval=300)  # 5 minutes
+        asyncio.create_task(sync_scheduler.start())
+        logger.info("✓ Overseer State Sync starting (5 min interval)")
+    except Exception as e:
+        logger.warning(f"Could not start Overseer State Sync: {e}")
 
 
 async def _stop_background_services():
@@ -215,6 +235,15 @@ async def _stop_background_services():
         logger.info("Registry Reconciler stopped")
     except Exception as e:
         logger.warning(f"Error stopping Registry Reconciler: {e}")
+    
+    # Overseer State Sync Scheduler
+    try:
+        from glassdome.overseer.state_sync import get_sync_scheduler
+        scheduler = get_sync_scheduler()
+        await scheduler.stop()
+        logger.info("Overseer State Sync stopped")
+    except Exception as e:
+        logger.warning(f"Error stopping Overseer State Sync: {e}")
     
     # Lab Registry
     try:

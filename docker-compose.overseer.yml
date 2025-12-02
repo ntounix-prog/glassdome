@@ -1,5 +1,17 @@
 version: '3.8'
 
+# Glassdome Overseer - Central Control Plane
+# 
+# Responsibilities:
+# - Health monitoring (frontend, backend, whitepawn, proxmox)
+# - State synchronization (DB <-> Proxmox reconciliation)
+# - Orphaned record cleanup
+# - Service observability
+#
+# Usage:
+#   docker-compose -f docker-compose.overseer.yml up -d
+#   docker-compose -f docker-compose.overseer.yml logs -f
+
 services:
   overseer:
     build:
@@ -17,7 +29,23 @@ services:
       - ./.env:/app/.env:ro
     environment:
       - PYTHONUNBUFFERED=1
+      # Service URLs (use host.docker.internal for host network access)
+      - FRONTEND_URL=${FRONTEND_URL:-http://host.docker.internal:5174}
+      - BACKEND_URL=${BACKEND_URL:-http://host.docker.internal:8000}
+      # Monitoring intervals
+      - HEALTH_CHECK_INTERVAL=${HEALTH_CHECK_INTERVAL:-30}
+      - STATE_SYNC_INTERVAL=${STATE_SYNC_INTERVAL:-300}
+      # Database (from .env)
+      - DATABASE_URL=${DATABASE_URL}
+      # Vault (from .env)
+      - VAULT_ADDR=${VAULT_ADDR}
+      - VAULT_ROLE_ID=${VAULT_ROLE_ID}
+      - VAULT_SECRET_ID=${VAULT_SECRET_ID}
+      - VAULT_MOUNT_POINT=${VAULT_MOUNT_POINT:-glassdome}
+      - SECRETS_BACKEND=${SECRETS_BACKEND:-vault}
     restart: unless-stopped
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     networks:
       - glassdome
     healthcheck:
@@ -26,8 +54,16 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    labels:
+      - "glassdome.service=overseer"
+      - "glassdome.role=control-plane"
 
 networks:
   glassdome:
     name: glassdome-network
-
+    driver: bridge

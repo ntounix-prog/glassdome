@@ -1,7 +1,7 @@
 # Glassdome Agent Context
 
-**Last Updated:** 2024-11-28
-**Version:** 0.5.0 (MVP 2.0)
+**Last Updated:** 2025-12-02
+**Version:** 0.7.6
 
 This file provides context for AI assistants working on Glassdome. Read this first to understand the current state of the project.
 
@@ -285,7 +285,17 @@ DNS_SERVERS=192.168.3.1,8.8.8.8
 
 ---
 
-## Recent Changes (2024-11-28 - MVP 2.0)
+## Recent Changes (2025-12-02 - v0.7.6)
+
+1. **Overseer Service** - Central control plane with health monitoring & state sync
+   - `glassdome/overseer/health_monitor.py` - Monitors frontend/backend/whitepawn/proxmox
+   - `glassdome/overseer/state_sync.py` - Reconciles DB with Proxmox (cleans orphaned records)
+   - Auto-runs every 5 minutes, also available via API
+2. **Instant Chat** - Chat agent pre-warmed on startup (23ms vs 5-10s)
+3. **Hot Spare Disabled** - `HOT_SPARE_ENABLED=false` in .env to prevent clone storms
+4. **Windows 11 Template** - VMID 9012 ready for cloning
+
+## Previous Changes (2024-11-28 - MVP 2.0)
 
 1. **Lab Registry** - Real-time monitoring with Redis + WebSocket
 2. **Proxmox Cluster** - 2-node cluster with shared NFS storage

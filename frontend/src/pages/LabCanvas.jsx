@@ -29,12 +29,14 @@ const elementTypes = {
     { id: 'dvwa', name: 'DVWA', type: 'vulnerable', icon: '🎯', os: 'linux' },
     { id: 'metasploitable', name: 'Metasploitable', type: 'vulnerable', icon: '🎯', os: 'linux' },
     { id: 'ubuntu', name: 'Ubuntu Server', type: 'base', icon: '🖥️', os: 'linux' },
-    { id: 'windows', name: 'Windows Server', type: 'base', icon: '🪟', os: 'windows' },
+    { id: 'windows', name: 'Windows Server 2022', type: 'base', icon: '🪟', os: 'windows' },
+    { id: 'windows10', name: 'Windows 10', type: 'base', icon: '🪟', os: 'windows' },
+    { id: 'windows11', name: 'Windows 11', type: 'base', icon: '🪟', os: 'windows' },
     { id: 'pfsense', name: 'pfSense Firewall', type: 'firewall', icon: '🛡️', os: 'bsd' },
     { id: 'guacamole', name: 'Guacamole Gateway', type: 'gateway', icon: '🥑', os: 'linux' },
   ],
   networks: [
-    { id: 'lab-network', name: 'Lab Network', icon: '🔗', type: 'isolated' },
+    { id: 'bridge', name: 'Bridge', icon: '🔀', type: 'isolated' },
     { id: 'aws-vpc', name: 'AWS VPC', icon: '☁️', type: 'vpc', platform: 'aws' },
     { id: 'attack-subnet', name: 'Attack Subnet', icon: '⚔️', type: 'subnet', subnetType: 'attack' },
     { id: 'dmz-subnet', name: 'DMZ Subnet', icon: '🌐', type: 'subnet', subnetType: 'dmz' },
@@ -121,10 +123,10 @@ function LabCanvas() {
             ...n.data,
             label: n.data.nodeType === 'network' ? (
               <div className="custom-node network-node">
-                <div className="node-icon">🔗</div>
-                <div className="node-label">Lab Network</div>
+                <div className="node-icon">🔀</div>
+                <div className="node-label">Bridge</div>
                 <div className="node-details">
-                  <span className="auto-assign">Auto-configured</span>
+                  <span className="auto-assign">vmbr (auto-assigned)</span>
                 </div>
               </div>
             ) : (
@@ -212,8 +214,8 @@ function LabCanvas() {
     let networkConfig = null
     if (isNetwork) {
       networkConfig = {
-        name: `lab-network-${nodeId}`,
-        displayName: 'Lab Network',
+        name: `vmbr-${nodeId}`,
+        displayName: 'Bridge',
         network_type: 'isolated',
         auto_assign: true
       }
@@ -229,10 +231,10 @@ function LabCanvas() {
       data: { 
         label: isNetwork ? (
           <div className="custom-node network-node">
-            <div className="node-icon">🔗</div>
-            <div className="node-label">Lab Network</div>
+            <div className="node-icon">🔀</div>
+            <div className="node-label">Bridge</div>
             <div className="node-details">
-              <span className="auto-assign">Auto-configured</span>
+              <span className="auto-assign">vmbr (auto-assigned)</span>
             </div>
           </div>
         ) : (
@@ -438,7 +440,7 @@ function LabCanvas() {
         </div>
 
         <div className="element-section">
-          <h4>🌐 Networks (Proxmox)</h4>
+          <h4>🔀 Bridges (Proxmox)</h4>
           {elementTypes.networks.filter(n => !n.platform).map((network) => (
             <button
               key={network.id}

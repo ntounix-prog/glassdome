@@ -176,8 +176,9 @@ class ProxmoxAgent(BaseAgent):
             resource_type = ResourceType.TEMPLATE
         else:
             # Check if this is a lab VM (has lab_id in name or tags)
-            # Lab VMs typically named like: lab-{lab_id}-{element_name}
-            if name.startswith("lab-"):
+            # Lab VMs named like: lab{short}-{element} or lab-{lab_id}-{element}
+            # Examples: lab176469-gateway, lab-abc123-ubuntu, labtest-kali
+            if name.startswith("lab"):
                 resource_type = ResourceType.LAB_VM
             else:
                 resource_type = ResourceType.VM
@@ -191,11 +192,17 @@ class ProxmoxAgent(BaseAgent):
         state = state_map.get(status, ResourceState.UNKNOWN)
         
         # Extract lab_id from VM name if present
+        # Lab VMs named like: lab{short}-{element} where short is first 6-8 chars of lab_id
+        # We can't fully recover lab_id from name, so we look it up from registry
         lab_id = None
-        if name.startswith("lab-"):
-            parts = name.split("-")
-            if len(parts) >= 2:
-                lab_id = parts[1]
+        if name.startswith("lab") and not is_template:
+            # Try to get lab_id from existing registry entry
+            try:
+                existing = await self.registry.get(resource_id)
+                if existing and existing.lab_id:
+                    lab_id = existing.lab_id
+            except:
+                pass
         
         # Build resource ID
         resource_id = Resource.make_id(

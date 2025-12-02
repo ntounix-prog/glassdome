@@ -139,18 +139,24 @@ class CanvasDeployResponse(BaseModel):
 
 # Template mappings - VERIFIED WORKING Dec 2024
 # Templates are split across nodes based on storage location:
-#   pve01: 9000 (local-lvm), 111 (truenas-nfs-labs)
+#   pve01: 9000 (local-lvm), 111 (truenas-nfs-labs), 116 (truenas-nfs-labs)
 #   pve02: 9001, 9002, 9010 (esxstore)
+# NOTE: All lab VMs should clone to truenas-nfs-labs storage
 TEMPLATE_MAPPING = {
     "ubuntu": 116,            # Ubuntu 22.04 lab-ready (pve01/truenas-nfs-labs) - cloud-init, vmbr1+VLAN101
     "kali": 116,              # Use Ubuntu base (Kali template TBD)
     "dvwa": 116,              # DVWA on Ubuntu base
+    "guacamole": 116,         # Guacamole gateway - Ubuntu base with Docker
+    "parrot": 116,            # Parrot Security - Ubuntu base (TBD)
     "metasploitable": 9002,   # Metasploitable2 (pve02/esxstore)
     "windows": 9010,          # Windows Server 2022 (pve02/esxstore)
     "windows10": 9011,        # Windows 10 Enterprise (pve01/local-lvm) - user/user
-    "windows11": 9012,        # Windows 11 Enterprise (pve01/local-lvm) - needs install
+    "windows11": 9012,        # Windows 11 Enterprise (pve01/local-lvm) - user/user
     "pfsense": 111,           # brettlab-gateway pfSense (pve01/truenas-nfs-labs)
 }
+
+# Default storage for lab VM clones (NFS shared storage)
+LAB_CLONE_STORAGE = "truenas-nfs-labs"
 
 # Node mapping for templates (which node has the template)
 TEMPLATE_NODE_MAPPING = {
@@ -170,6 +176,8 @@ VM_SPECS = {
     "dvwa": {"cores": 1, "memory": 1024, "disk": 10},
     "metasploitable": {"cores": 1, "memory": 1024, "disk": 20},
     "windows": {"cores": 2, "memory": 4096, "disk": 40},
+    "windows10": {"cores": 2, "memory": 4096, "disk": 64},
+    "windows11": {"cores": 4, "memory": 8192, "disk": 64},
     "pfsense": {"cores": 1, "memory": 1024, "disk": 8},
 }
 
@@ -412,13 +420,15 @@ async def deploy_pfsense_gateway(
             clone_params = {
                 "newid": next_vmid,
                 "name": vm_name,
-                "full": 1
+                "full": 1,
+                "storage": LAB_CLONE_STORAGE,  # Always clone to shared NFS storage
             }
             # If template is on different node, specify target
             if template_source_node != node_name:
                 clone_params["target"] = node_name
                 logger.info(f"[Gateway] Cross-node clone: {template_source_node} -> {node_name}")
             
+            logger.info(f"[Gateway] Cloning to storage: {LAB_CLONE_STORAGE}")
             client.client.nodes(template_source_node).qemu(template_id).clone.create(**clone_params)
             # Wait for clone task to complete
             await asyncio.sleep(10)
@@ -598,13 +608,15 @@ async def _deploy_lab_vm_internal(
                 clone_params = {
                     "newid": next_vmid,
                     "name": vm_name,
-                    "full": 1
+                    "full": 1,
+                    "storage": LAB_CLONE_STORAGE,  # Always clone to shared NFS storage
                 }
                 # If template is on different node, specify target
                 if template_source_node != node_name:
                     clone_params["target"] = node_name
                     logger.info(f"[Lab VM] Cross-node clone: {template_source_node} -> {node_name}")
                 
+                logger.info(f"[Lab VM] Cloning to storage: {LAB_CLONE_STORAGE}")
                 client.client.nodes(template_source_node).qemu(template_id).clone.create(**clone_params)
                 await asyncio.sleep(5)
                 vmid = next_vmid

@@ -1,6 +1,64 @@
 # Glassdome Session Notes
 
-## Session: 2025-11-27 (Distributed Worker Architecture & Simplified Networking)
+## Session: 2025-12-02 (Overseer Service & Instant Chat)
+
+### Summary
+Implemented Overseer as a standalone service with health monitoring, state synchronization, and instant chat initialization. Fixed stale DB records issue by adding automatic reconciliation with Proxmox.
+
+---
+
+## Completed Work
+
+### 1. Overseer Service ✨ NEW
+**Central control plane for Glassdome infrastructure**
+
+**New Files:**
+- `glassdome/overseer/health_monitor.py` - Service health monitoring
+- `glassdome/overseer/state_sync.py` - DB ↔ Proxmox reconciliation
+- `glassdome/overseer/service.py` - FastAPI service (port 8001)
+- `docker-compose.overseer.yml` - Container deployment
+
+**Features:**
+- Health checks for frontend/backend/whitepawn/proxmox
+- Automatic cleanup of orphaned DB records (every 5 min)
+- State sync between `deployed_vms`/`hot_spares` tables and Proxmox
+- Configurable intervals via environment variables
+
+**Endpoints (port 8001):**
+| Endpoint | Description |
+|----------|-------------|
+| `GET /health` | All service health status |
+| `GET /health/{service}` | Single service health |
+| `POST /sync` | Trigger state sync (background) |
+| `POST /sync/now` | Trigger sync (blocking) |
+| `GET /sync/status` | Sync history |
+
+### 2. Instant Chat ✨ NEW
+**Chat modal now opens instantly**
+
+**Problem:** Chat took 5-10 seconds to initialize (lazy loading)
+**Solution:** Pre-warm chat agent on backend startup
+
+**Changes to `main.py`:**
+- Chat agent initialized during `_start_background_services()`
+- LLM providers (OpenAI, Anthropic) ready immediately
+- State sync scheduler starts automatically
+
+**Performance:**
+| Before | After |
+|--------|-------|
+| ~5-10 seconds | **23ms** |
+
+### 3. Windows 11 Template
+**VMID 9012 converted to template**
+
+- Installed Windows 11 Enterprise on pve01
+- Converted to template for cloning
+- Added to TEMPLATE_MAPPING in canvas_deploy.py
+
+---
+
+## Previous Session: 2025-11-27 (Distributed Worker Architecture & Simplified Networking)
 
 ### Summary
 Major architecture session implementing distributed Celery workers, simplified lab networking (CIDR-driven auto-configuration), and pfSense integration planning. Pivoted from complex Docker container builds to simpler native Python workers.
