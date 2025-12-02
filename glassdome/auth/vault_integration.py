@@ -36,7 +36,15 @@ def get_vault_client():
     if not vault_addr:
         return None
     
-    client = hvac.Client(url=vault_addr)
+    # Respect VAULT_SKIP_VERIFY for self-signed certs
+    skip_verify = os.environ.get("VAULT_SKIP_VERIFY", "false").lower() in ("true", "1", "yes")
+    
+    # Set short timeout to avoid long waits on connection failures
+    client = hvac.Client(
+        url=vault_addr,
+        verify=not skip_verify,
+        timeout=5  # 5 second timeout
+    )
     
     # Try AppRole auth first (for services)
     role_id = os.environ.get("VAULT_ROLE_ID")
@@ -182,7 +190,7 @@ def get_auth_config() -> dict:
     Get authentication configuration.
     
     Priority:
-    1. Vault (if configured)
+    1. Vault (if configured and reachable)
     2. Environment variables
     3. Settings defaults
     
@@ -191,8 +199,15 @@ def get_auth_config() -> dict:
     """
     from glassdome.core.config import settings
     
-    # Try Vault first
-    jwt_secret = get_jwt_secret_from_vault()
+    # Skip Vault entirely if not configured properly
+    vault_addr = os.environ.get("VAULT_ADDR")
+    role_id = os.environ.get("VAULT_ROLE_ID")
+    secret_id = os.environ.get("VAULT_SECRET_ID")
+    
+    jwt_secret = None
+    if vault_addr and role_id and secret_id:
+        # Only try Vault if all credentials are configured
+        jwt_secret = get_jwt_secret_from_vault()
     
     # Fall back to settings/env
     if not jwt_secret:
