@@ -58,13 +58,13 @@ class TestCanvasDeploymentValidation:
         assert response.status_code == 422
     
     @pytest.mark.asyncio
-    async def test_only_proxmox_supported(self, async_client: AsyncClient):
-        """Only Proxmox (platform_id=1) is supported."""
+    async def test_unsupported_platform_rejected(self, async_client: AsyncClient):
+        """Unsupported platform IDs are rejected."""
         response = await async_client.post(
             "/api/deployments",
             json={
                 "lab_id": "test-lab",
-                "platform_id": "2",  # Not Proxmox
+                "platform_id": "99",  # Invalid platform
                 "lab_data": {
                     "nodes": [{"id": "n1", "type": "vm", "elementId": "ubuntu"}],
                     "edges": [],
@@ -74,8 +74,8 @@ class TestCanvasDeploymentValidation:
         assert response.status_code == 200
         data = response.json()
         assert data["success"] is False
-        # Message says "Only Proxmox deployment is currently supported"
-        assert "proxmox" in data["message"].lower()
+        # Message indicates unsupported platform
+        assert "unsupported" in data["message"].lower() or "platform" in data["message"].lower()
     
     @pytest.mark.asyncio
     async def test_deployment_needs_vms(self, async_client: AsyncClient):
