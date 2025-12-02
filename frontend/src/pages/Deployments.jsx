@@ -94,12 +94,35 @@ function Deployments() {
       
       if (data.success) {
         alert(`✅ VM ${mission.vm_created_id} destroyed successfully`)
-        fetchMissions() // Refresh the list
+        fetchData() // Refresh the list
       } else {
         alert(`❌ Failed to destroy VM: ${data.error || data.message}`)
       }
     } catch (error) {
       console.error('Error destroying VM:', error)
+      alert(`❌ Error: ${error.message}`)
+    }
+  }
+
+  const handleDestroyLab = async (lab) => {
+    const vmCount = lab.total_vms || lab.vm_count || 0
+    
+    if (!confirm(`🗑️ Destroy Lab "${lab.lab_id}"?\n\nThis will:\n• Stop and delete ${vmCount} VMs\n• Remove network configuration\n• Release VLAN\n\nThis cannot be undone!`)) return
+    
+    try {
+      const response = await fetch(`/api/v1/deployments/${lab.lab_id}`, {
+        method: 'DELETE',
+      })
+      const data = await response.json()
+      
+      if (data.success) {
+        alert(`✅ Lab destroyed!\n\nVMs destroyed: ${data.destroyed?.length || 0}\n${data.errors?.length > 0 ? `Errors: ${data.errors.join(', ')}` : ''}`)
+        fetchData() // Refresh the list
+      } else {
+        alert(`❌ Failed to destroy lab: ${data.message || 'Unknown error'}`)
+      }
+    } catch (error) {
+      console.error('Error destroying lab:', error)
       alert(`❌ Error: ${error.message}`)
     }
   }
@@ -207,6 +230,12 @@ function Deployments() {
                   onClick={() => navigate('/monitor')}
                 >
                   View in Monitor
+                </button>
+                <button 
+                  className="btn-small btn-danger"
+                  onClick={() => handleDestroyLab(lab)}
+                >
+                  🗑️ Destroy Lab
                 </button>
               </div>
             </div>

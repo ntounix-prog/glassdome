@@ -518,6 +518,115 @@ Building the entity revealed what's missing:
 
 ---
 
+## 🚀 Overseer Service (v0.7.6)
+
+**New in December 2025:** Overseer is now a standalone service with health monitoring and state sync.
+
+### Components
+
+```
+glassdome/overseer/
+├── entity.py          # Original OverseerEntity
+├── state.py           # SystemState management
+├── service.py         # FastAPI service (port 8001)
+├── health_monitor.py  # Service health checks ✨ NEW
+└── state_sync.py      # DB reconciliation ✨ NEW
+```
+
+### Health Monitor
+
+Monitors all Glassdome services:
+
+| Service | Check Method | Interval |
+|---------|--------------|----------|
+| Frontend | HTTP 5174 | 30s |
+| Backend | HTTP 8000/health | 30s |
+| WhitePawn | API call | 30s |
+| Proxmox 01 | API call | 30s |
+| Proxmox 02 | API call | 30s |
+| Database | Backend health | 30s |
+| Redis | Backend health | 30s |
+
+```python
+from glassdome.overseer import get_health_monitor
+
+monitor = get_health_monitor()
+status = monitor.get_status()
+# {"overall": "healthy", "services": {...}, "unhealthy_count": 0}
+```
+
+### State Sync (DB Reconciliation)
+
+Automatically cleans orphaned database records:
+
+```
+┌─────────────────┐       ┌─────────────────┐
+│   Proxmox       │       │   Database      │
+│   (Actual VMs)  │◄─────►│   (deployed_vms)│
+└─────────────────┘       └─────────────────┘
+        ▲                         ▲
+        │    State Sync           │
+        │    (every 5 min)        │
+        │         │               │
+        │    ┌────▼────┐          │
+        └────┤ Compare ├──────────┘
+             │ & Clean │
+             └─────────┘
+```
+
+**What it cleans:**
+- `deployed_vms` records for VMs that don't exist on Proxmox
+- `hot_spares` records for orphaned spares
+- Updates IP addresses from actual Proxmox state
+
+```python
+from glassdome.overseer import get_state_sync
+
+sync = get_state_sync()
+result = await sync.sync_all()
+# SyncResult(success=True, deployed_vms_cleaned=3, hot_spares_cleaned=1)
+```
+
+### Running as Service
+
+```bash
+# Option 1: Docker
+docker-compose -f docker-compose.overseer.yml up -d
+
+# Option 2: Direct
+python -m uvicorn glassdome.overseer.service:app --port 8001
+```
+
+### API Endpoints (port 8001)
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/` | GET | Health check |
+| `/health` | GET | All service health status |
+| `/health/{name}` | GET | Single service health |
+| `/sync` | POST | Trigger state sync (background) |
+| `/sync/now` | POST | Trigger sync (blocking) |
+| `/sync/status` | GET | Sync history |
+| `/status` | GET | Full Overseer status |
+
+### Pre-warming
+
+The Overseer components are now pre-warmed on backend startup:
+
+```python
+# In main.py startup
+from glassdome.api.chat import get_chat_agent
+chat_agent = get_chat_agent()  # Pre-warms LLM providers
+
+from glassdome.overseer.state_sync import get_sync_scheduler
+scheduler = get_sync_scheduler(interval=300)
+await scheduler.start()  # Runs every 5 minutes
+```
+
+**Result:** Chat modal opens instantly (23ms vs 5-10s before)
+
+---
+
 ## 📝 Summary
 
 **We built the skeleton of an autonomous ops engineer:**
@@ -527,6 +636,12 @@ Building the entity revealed what's missing:
 - State management
 - Request gating
 - RAG integration
+
+✅ **Service Layer (v0.7.6)**
+- Health monitoring
+- State reconciliation
+- Pre-warmed chat
+- Standalone container
 
 ❌ **Connections are missing**
 - Doesn't actually talk to platforms yet

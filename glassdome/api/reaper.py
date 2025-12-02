@@ -133,7 +133,7 @@ async def list_exploits(
     target_os: Optional[str] = None,
     enabled_only: bool = True,
     session: AsyncSession = Depends(get_async_session),
-    current_user: User = Depends(require_engineer)  # Engineer+ can view
+    current_user: User = Depends(get_current_user_optional)  # Public read
 ):
     """
     List all exploits in the library
@@ -475,7 +475,7 @@ async def list_missions(
     status: Optional[str] = None,
     limit: int = 50,
     session: AsyncSession = Depends(get_async_session),
-    current_user: User = Depends(require_engineer)  # Engineer+ can view
+    current_user: User = Depends(get_current_user_optional)  # Public read
 ):
     """
     List all missions
@@ -1126,7 +1126,7 @@ async def verify_with_whiteknight(vm_ip: str, exploit: Exploit) -> Dict[str, Any
 @router.get("/stats")
 async def get_reaper_stats(
     session: AsyncSession = Depends(get_async_session),
-    current_user: User = Depends(require_engineer)  # Engineer+ can view stats
+    current_user: User = Depends(get_current_user_optional)  # Public read
 ):
     """Get Reaper statistics"""
     # Count exploits
@@ -1267,7 +1267,7 @@ class PoolStatusResponse(BaseModel):
 async def get_pool_status(
     os_type: str = None,
     session: AsyncSession = Depends(get_async_session),
-    current_user: User = Depends(require_engineer)  # Engineer+ can view pool
+    current_user: User = Depends(get_current_user_optional)  # Public read
 ):
     """
     Get hot spare pool status.

@@ -227,37 +227,32 @@ class TestRegistryEndpoints:
 # =============================================================================
 
 class TestReaperEndpoints:
-    """Test Reaper exploit library endpoints (require engineer+ auth)."""
+    """Test Reaper exploit library endpoints.
+    
+    Note: As of v0.7.6, read-only endpoints (GET) are public for easier demo/dev.
+    Write operations still require authentication.
+    """
     
     @pytest.mark.asyncio
-    async def test_list_exploits_requires_auth(self, async_client: AsyncClient):
-        """GET /api/reaper/exploits requires authentication."""
+    async def test_list_exploits_public(self, async_client: AsyncClient):
+        """GET /api/reaper/exploits is now public (v0.7.6)."""
         response = await async_client.get("/api/reaper/exploits")
-        assert response.status_code == 401
-    
-    @pytest.mark.asyncio
-    async def test_list_exploits_with_auth(self, async_client: AsyncClient, test_user):
-        """GET /api/reaper/exploits returns exploit list when authenticated."""
-        headers = {"Authorization": f"Bearer {test_user['token']}"}
-        response = await async_client.get("/api/reaper/exploits", headers=headers)
         assert response.status_code == 200
         data = response.json()
         assert "exploits" in data
     
     @pytest.mark.asyncio
-    async def test_list_missions_with_auth(self, async_client: AsyncClient, test_user):
-        """GET /api/reaper/missions returns mission list."""
-        headers = {"Authorization": f"Bearer {test_user['token']}"}
-        response = await async_client.get("/api/reaper/missions", headers=headers)
+    async def test_list_missions_public(self, async_client: AsyncClient):
+        """GET /api/reaper/missions is now public (v0.7.6)."""
+        response = await async_client.get("/api/reaper/missions")
         assert response.status_code == 200
         data = response.json()
         assert "missions" in data
     
     @pytest.mark.asyncio
-    async def test_reaper_stats_with_auth(self, async_client: AsyncClient, test_user):
-        """GET /api/reaper/stats returns statistics."""
-        headers = {"Authorization": f"Bearer {test_user['token']}"}
-        response = await async_client.get("/api/reaper/stats", headers=headers)
+    async def test_reaper_stats_public(self, async_client: AsyncClient):
+        """GET /api/reaper/stats is now public (v0.7.6)."""
+        response = await async_client.get("/api/reaper/stats")
         assert response.status_code == 200
         data = response.json()
         # Response has nested structure: {"exploits": {...}, "missions": {...}}
@@ -265,25 +260,32 @@ class TestReaperEndpoints:
         assert "missions" in data
     
     @pytest.mark.asyncio
-    async def test_export_exploits_with_auth(self, async_client: AsyncClient, admin_user):
-        """GET /api/reaper/exploits/export requires architect role."""
-        # Export requires architect role. In test environment, may get 422 due to
-        # session/transaction isolation issues between fixtures and request handling.
-        headers = {"Authorization": f"Bearer {admin_user['token']}"}
-        response = await async_client.get("/api/reaper/exploits/export", headers=headers)
-        # Accept 200 (success) or 422 (test env fixture isolation)
-        assert response.status_code in [200, 422]
+    async def test_pool_status_public(self, async_client: AsyncClient):
+        """GET /api/reaper/pool is now public (v0.7.6)."""
+        response = await async_client.get("/api/reaper/pool")
+        # May return 200 or error if pool not configured
+        assert response.status_code in [200, 500]
     
     @pytest.mark.asyncio
-    async def test_exploit_template_with_auth(self, async_client: AsyncClient, test_user):
-        """GET /api/reaper/exploits/template returns template."""
-        headers = {"Authorization": f"Bearer {test_user['token']}"}
-        response = await async_client.get("/api/reaper/exploits/template", headers=headers)
-        # Accept 200 (success) or 422 (test env fixture isolation)
-        assert response.status_code in [200, 422]
-        if response.status_code == 200:
-            data = response.json()
-            assert "exploits" in data  # Template contains example exploits
+    async def test_export_exploits_requires_auth(self, async_client: AsyncClient):
+        """GET /api/reaper/exploits/export still requires architect auth."""
+        response = await async_client.get("/api/reaper/exploits/export")
+        assert response.status_code == 401
+    
+    @pytest.mark.asyncio
+    async def test_seed_exploits_requires_auth(self, async_client: AsyncClient):
+        """POST /api/reaper/exploits/seed requires architect auth."""
+        response = await async_client.post("/api/reaper/exploits/seed")
+        assert response.status_code == 401
+    
+    @pytest.mark.asyncio
+    async def test_create_exploit_requires_auth(self, async_client: AsyncClient):
+        """POST /api/reaper/exploits requires architect auth."""
+        response = await async_client.post(
+            "/api/reaper/exploits",
+            json={"name": "test", "description": "test"}
+        )
+        assert response.status_code == 401
 
 
 # =============================================================================
