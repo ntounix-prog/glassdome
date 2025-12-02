@@ -6,11 +6,11 @@ Created: November 2025
 Copyright (c) 2025 Brett Turner. All rights reserved.
 """
 
-import os
 from celery import Celery
+from glassdome.core.config import settings
 
-# Redis URL from environment or default
-REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+# Redis URL from settings (config, not secret)
+REDIS_URL = settings.redis_url
 
 # Create Celery app
 celery_app = Celery(

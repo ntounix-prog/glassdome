@@ -8,7 +8,6 @@ Copyright (c) 2025 Brett Turner. All rights reserved.
 
 import asyncio
 import logging
-import os
 from datetime import datetime
 from typing import Dict, Any, List, Optional
 
@@ -52,8 +51,9 @@ class UnifiAgent(BaseAgent):
         super().__init__(name="unifi", tier=tier, poll_interval=poll_interval, registry=registry)
         
         from glassdome.core.config import settings
-        self.host = host or settings.ubiquiti_gateway_host or os.getenv("UBIQUITI_GATEWAY_HOST", "192.168.2.1")
-        self.api_key = api_key or settings.ubiquiti_api_key or os.getenv("UBIQUITI_API_KEY", "")
+        from glassdome.core.secrets_backend import get_secret
+        self.host = host or settings.ubiquiti_gateway_host or "192.168.2.1"
+        self.api_key = api_key or get_secret("ubiquiti_api_key") or ""
         self._clients: Dict[str, Dict[str, Any]] = {}  # MAC -> client data
     
     async def poll(self) -> List[Resource]:

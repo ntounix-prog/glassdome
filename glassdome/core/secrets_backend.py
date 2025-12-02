@@ -361,3 +361,78 @@ def reset_backend():
     global _backend
     _backend = None
 
+
+# =============================================================================
+# Simple get_secret() - VAULT ONLY
+# =============================================================================
+
+_vault_client: Optional[VaultSecretsBackend] = None
+
+
+def get_secret(key: str, default: str = None) -> Optional[str]:
+    """
+    Get a secret from Vault. VAULT ONLY - no env fallback.
+    
+    This is the primary function all code should use to access secrets.
+    
+    Args:
+        key: Secret key (e.g., 'openai_api_key', 'aws_secret_access_key')
+        default: Default value if secret not found (use sparingly)
+    
+    Returns:
+        Secret value or default
+    
+    Raises:
+        RuntimeError: If Vault is not configured or unavailable
+    """
+    global _vault_client
+    
+    if _vault_client is None:
+        _vault_client = VaultSecretsBackend()
+        if not _vault_client.is_available():
+            raise RuntimeError(
+                "Vault is not available. Ensure VAULT_ADDR, VAULT_ROLE_ID, "
+                "and VAULT_SECRET_ID are set in .env"
+            )
+    
+    value = _vault_client.get(key)
+    if value is None and default is not None:
+        logger.debug(f"Secret '{key}' not found, using default")
+        return default
+    
+    return value
+
+
+def set_secret(key: str, value: str) -> bool:
+    """
+    Store a secret in Vault.
+    
+    Args:
+        key: Secret key
+        value: Secret value
+    
+    Returns:
+        True if successful
+    """
+    global _vault_client
+    
+    if _vault_client is None:
+        _vault_client = VaultSecretsBackend()
+    
+    return _vault_client.set(key, value)
+
+
+def list_secrets() -> List[str]:
+    """
+    List all secrets in Vault.
+    
+    Returns:
+        List of secret keys
+    """
+    global _vault_client
+    
+    if _vault_client is None:
+        _vault_client = VaultSecretsBackend()
+    
+    return _vault_client.list_keys()
+

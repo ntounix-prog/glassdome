@@ -295,14 +295,15 @@ async def wait_for_pfsense_wan_ip(
     """
     import subprocess
     import httpx
-    import os
+    from glassdome.core.secrets_backend import get_secret
+    from glassdome.core.config import settings
     
     logger.info(f"[pfSense VM {vmid}] Waiting for WAN IP (MAC: {mac_address}, timeout: {timeout}s)")
     mac_lower = mac_address.lower() if mac_address else ""
     
-    # Get Unifi API credentials
-    unifi_host = os.getenv("UBIQUITI_GATEWAY_HOST", "192.168.2.1")
-    unifi_api_key = os.getenv("UBIQUITI_API_KEY", "")
+    # Get Unifi API credentials from Vault
+    unifi_host = settings.ubiquiti_gateway_host or "192.168.2.1"
+    unifi_api_key = get_secret("ubiquiti_api_key") or ""
     
     start_time = asyncio.get_event_loop().time()
     

@@ -28,9 +28,10 @@ class WhitePawnMonitor:
     """
     
     def __init__(self):
-        self.worker_id = os.getenv("WORKER_ID", "whitepawn-1")
-        self.redis_url = os.getenv("REDIS_URL", "redis://localhost:6379/0")
-        self.monitor_interval = int(os.getenv("MONITOR_INTERVAL", "15"))
+        from glassdome.core.config import settings
+        self.worker_id = getattr(settings, 'worker_id', 'whitepawn-1')
+        self.redis_url = settings.redis_url
+        self.monitor_interval = getattr(settings, 'monitor_interval', 15)
         
         self.redis_client = redis.from_url(self.redis_url)
         self.assigned_labs: Dict[str, Dict] = {}

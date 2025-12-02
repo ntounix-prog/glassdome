@@ -6,7 +6,6 @@ Created: November 2025
 Copyright (c) 2025 Brett Turner. All rights reserved.
 """
 
-import os
 import json
 import logging
 import traceback
@@ -20,24 +19,19 @@ logger = logging.getLogger(__name__)
 
 
 def _get_api_key(key_name: str) -> Optional[str]:
-    """Get API key from session secrets or environment"""
-    # Try session first
+    """Get API key from Vault (VAULT ONLY - no env fallback)"""
     try:
-        from glassdome.core.session import get_session
-        session = get_session()
-        if session.authenticated and session.secrets:
-            secret_key = key_name.lower()
-            if secret_key in session.secrets:
-                logger.debug(f"Got {key_name} from session secrets")
-                return session.secrets[secret_key]
+        from glassdome.core.secrets_backend import get_secret
+        # Normalize key name to lowercase (Vault convention)
+        secret_key = key_name.lower()
+        value = get_secret(secret_key)
+        if value:
+            logger.debug(f"Got {key_name} from Vault")
+            return value
     except Exception as e:
-        logger.debug(f"Could not get {key_name} from session: {e}")
+        logger.warning(f"Could not get {key_name} from Vault: {e}")
     
-    # Fall back to environment
-    env_value = os.getenv(key_name)
-    if env_value:
-        logger.debug(f"Got {key_name} from environment")
-    return env_value
+    return None
 
 
 class LLMProviderType(str, Enum):
@@ -470,7 +464,9 @@ class LLMService:
             default_provider: Primary provider to use (openai, anthropic, local)
             fallback_providers: Ordered list of fallback providers
         """
-        self.default_provider = default_provider or os.getenv("LLM_DEFAULT_PROVIDER", "openai")
+        # Default provider is config, not a secret
+        from glassdome.core.config import settings
+        self.default_provider = default_provider or getattr(settings, 'llm_default_provider', 'openai')
         self.fallback_providers = fallback_providers or []
         
         # Initialize provider registry

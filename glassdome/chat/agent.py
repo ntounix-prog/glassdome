@@ -847,12 +847,11 @@ class OverseerChatAgent:
     
     async def _get_aws_status(self, region: str = None, instance_id: str = None) -> Dict[str, Any]:
         """Get AWS EC2 instance status"""
-        from glassdome.core.session import get_session
+        from glassdome.core.secrets_backend import get_secret
         
         try:
-            session = get_session()
-            aws_key = session.secrets.get('aws_access_key_id')
-            aws_secret = session.secrets.get('aws_secret_access_key')
+            aws_key = get_secret('aws_access_key_id')
+            aws_secret = get_secret('aws_secret_access_key')
             
             if not aws_key or not aws_secret:
                 return {"connected": False, "message": "AWS credentials not configured"}
@@ -1080,9 +1079,9 @@ class OverseerChatAgent:
         
         logger.info(f"Terminating AWS instance: {details}")
         
-        session = get_session()
-        aws_key = session.secrets.get('aws_access_key_id')
-        aws_secret = session.secrets.get('aws_secret_access_key')
+        from glassdome.core.secrets_backend import get_secret
+        aws_key = get_secret('aws_access_key_id')
+        aws_secret = get_secret('aws_secret_access_key')
         
         if not aws_key or not aws_secret:
             return {"success": False, "error": "AWS credentials not configured"}
@@ -1197,15 +1196,15 @@ class OverseerChatAgent:
         logger.info(f"Sending email: {details}")
         
         try:
-            session = get_session()
+            from glassdome.core.secrets_backend import get_secret
             
-            # Get Mailcow credentials from session (try multiple key names)
+            # Get Mailcow credentials from Vault (try multiple key names)
             mailcow_api_key = (
-                session.secrets.get('mailcow_api_key') or 
-                session.secrets.get('mail_api') or
-                session.secrets.get('mailcow_key')
+                get_secret('mailcow_api_key') or 
+                get_secret('mail_api') or
+                get_secret('mailcow_key')
             )
-            mailcow_url = session.secrets.get('mailcow_url', 'https://mail.xisx.org')
+            mailcow_url = get_secret('mailcow_url') or 'https://mail.xisx.org'
             
             if not mailcow_api_key:
                 return {
@@ -1228,11 +1227,11 @@ class OverseerChatAgent:
             html_body = details.get("html_body")
             cc = details.get("cc")
             
-            # Get SMTP password for the mailbox
+            # Get SMTP password for the mailbox from Vault
             smtp_password = (
-                session.secrets.get('overseer_mail_password') or 
-                session.secrets.get('mail_password') or
-                session.secrets.get('mailcow_smtp_password')
+                get_secret('overseer_mail_password') or 
+                get_secret('mail_password') or
+                get_secret('mailcow_smtp_password')
             )
             
             if not smtp_password:
@@ -1318,10 +1317,10 @@ class OverseerChatAgent:
         
         logger.info(f"Starting AWS deployment with details: {details}")
         
-        # Get AWS credentials from session
-        session = get_session()
-        aws_key = session.secrets.get('aws_access_key_id')
-        aws_secret = session.secrets.get('aws_secret_access_key')
+        # Get AWS credentials from Vault
+        from glassdome.core.secrets_backend import get_secret
+        aws_key = get_secret('aws_access_key_id')
+        aws_secret = get_secret('aws_secret_access_key')
         
         if not aws_key or not aws_secret:
             return {"success": False, "error": "AWS credentials not configured"}

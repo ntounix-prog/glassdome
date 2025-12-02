@@ -255,7 +255,8 @@ async def get_dispatch_health():
     # Check Redis
     try:
         import redis
-        r = redis.from_url(os.getenv("REDIS_URL", "redis://localhost:6379/0"))
+        from glassdome.core.config import settings
+        r = redis.from_url(settings.redis_url)
         if r.ping():
             health["redis"] = {
                 "status": "healthy",

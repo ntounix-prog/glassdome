@@ -1031,10 +1031,9 @@ class ProxmoxClient(PlatformClient):
             import paramiko
             ssh = paramiko.SSHClient()
             ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-            # Get root password from session-aware settings (secrets manager)
-            from glassdome.core.security import get_secure_settings
-            settings = get_secure_settings()
-            root_password = settings.proxmox_root_password or os.getenv('PROXMOX_ROOT_PASSWORD', '')
+            # Get root password from Vault
+            from glassdome.core.secrets_backend import get_secret
+            root_password = get_secret('proxmox_root_password') or ''
             ssh.connect(self.host, username='root', password=self.password or root_password)
             
             # Upload floppy to Proxmox
