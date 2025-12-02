@@ -1,0 +1,30 @@
+[Unit]
+Description=Glassdome Backend API
+After=network.target redis.service postgresql.service
+Wants=redis.service
+
+[Service]
+Type=simple
+User=nomad
+Group=nomad
+WorkingDirectory=/home/nomad/glassdome
+Environment="PATH=/home/nomad/glassdome/venv/bin:/usr/local/bin:/usr/bin:/bin"
+EnvironmentFile=/home/nomad/glassdome/.env
+ExecStart=/home/nomad/glassdome/venv/bin/uvicorn glassdome.main:app --host 0.0.0.0 --port 8000
+Restart=always
+RestartSec=5
+StartLimitBurst=5
+StartLimitIntervalSec=60
+
+# Logging
+StandardOutput=append:/var/log/glassdome/backend.log
+StandardError=append:/var/log/glassdome/backend.log
+
+# Hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=/home/nomad/glassdome /var/log/glassdome /tmp
+
+[Install]
+WantedBy=multi-user.target
+

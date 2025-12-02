@@ -160,13 +160,15 @@ async def _start_background_services():
         logger.warning(f"Could not start Lab Registry: {e}")
     
     # Registry Reconciler (keeps Redis in sync with all platforms)
-    try:
-        from glassdome.registry import get_reconciler
-        reconciler = get_reconciler()
-        asyncio.create_task(reconciler.start_background_reconciliation(interval_seconds=300))
-        logger.info("Registry Reconciler starting (5 min interval)")
-    except Exception as e:
-        logger.warning(f"Could not start Registry Reconciler: {e}")
+    # DISABLED: Causing Redis WRONGTYPE errors - needs debugging
+    # try:
+    #     from glassdome.registry import get_reconciler
+    #     reconciler = get_reconciler()
+    #     asyncio.create_task(reconciler.start_background_reconciliation(interval_seconds=300))
+    #     logger.info("Registry Reconciler starting (5 min interval)")
+    # except Exception as e:
+    #     logger.warning(f"Could not start Registry Reconciler: {e}")
+    logger.info("Registry Reconciler DISABLED - manual reconciliation available at /api/reconciler/run")
 
 
 async def _stop_background_services():

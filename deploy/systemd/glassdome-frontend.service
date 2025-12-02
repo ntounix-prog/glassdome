@@ -1,0 +1,25 @@
+[Unit]
+Description=Glassdome Frontend (Vite Dev Server)
+After=network.target glassdome-backend.service
+Wants=glassdome-backend.service
+
+[Service]
+Type=simple
+User=nomad
+Group=nomad
+WorkingDirectory=/home/nomad/glassdome/frontend
+Environment="PATH=/usr/local/bin:/usr/bin:/bin"
+Environment="NODE_ENV=development"
+ExecStart=/usr/bin/npm run dev
+Restart=always
+RestartSec=5
+StartLimitBurst=5
+StartLimitIntervalSec=60
+
+# Logging
+StandardOutput=append:/var/log/glassdome/frontend.log
+StandardError=append:/var/log/glassdome/frontend.log
+
+[Install]
+WantedBy=multi-user.target
+

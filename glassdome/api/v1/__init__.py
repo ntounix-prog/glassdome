@@ -33,6 +33,7 @@ from glassdome.api import agents_status
 from glassdome.api import elements
 from glassdome.api import ubuntu
 from glassdome.api import reconciler
+from glassdome.api import logs
 
 
 # Create the main v1 router
@@ -62,6 +63,7 @@ def get_all_routers():
         elements.router,
         ubuntu.router,
         reconciler.router,
+        logs.router,
     ]
 
 
