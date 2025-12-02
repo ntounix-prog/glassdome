@@ -25,6 +25,7 @@ from typing import List, Tuple, Set
 # Root directory of the glassdome package
 GLASSDOME_ROOT = Path(__file__).parent.parent.parent / "glassdome"
 PROJECT_ROOT = Path(__file__).parent.parent.parent
+FRONTEND_ROOT = Path(__file__).parent.parent.parent / "frontend"
 
 
 # =============================================================================
@@ -567,6 +568,149 @@ class TestImportStatements:
 # =============================================================================
 # Summary Report Test
 # =============================================================================
+
+# =============================================================================
+# Frontend Compliance Tests
+# =============================================================================
+
+class TestFrontendCompliance:
+    """Ensure frontend code doesn't contain secrets."""
+    
+    def test_no_env_files_in_frontend(self):
+        """Frontend should not have .env files with secrets."""
+        env_files = list(FRONTEND_ROOT.glob("*.env*"))
+        # Filter out .env.example files (those are allowed)
+        secret_env_files = [f for f in env_files if ".example" not in f.name]
+        
+        if secret_env_files:
+            pytest.fail(
+                f"Found .env files in frontend that may contain secrets:\n" +
+                "\n".join(f"  - {f.name}" for f in secret_env_files)
+            )
+    
+    def test_no_hardcoded_api_keys_in_frontend(self):
+        """Frontend JS/JSX files should not contain hardcoded API keys."""
+        patterns = [
+            (r'sk-[a-zA-Z0-9]{20,}', "OpenAI API key"),
+            (r'sk-ant-[a-zA-Z0-9-]+', "Anthropic API key"),
+            (r'AKIA[A-Z0-9]{16}', "AWS Access Key ID"),
+            (r'ghp_[a-zA-Z0-9]{36}', "GitHub Personal Access Token"),
+            (r'xox[baprs]-[a-zA-Z0-9-]+', "Slack Token"),
+        ]
+        
+        violations = []
+        src_dir = FRONTEND_ROOT / "src"
+        
+        if not src_dir.exists():
+            pytest.skip("Frontend src directory not found")
+        
+        for js_file in src_dir.rglob("*.js"):
+            if "node_modules" in str(js_file):
+                continue
+            try:
+                content = js_file.read_text()
+                for pattern, desc in patterns:
+                    if re.search(pattern, content):
+                        violations.append((js_file.relative_to(PROJECT_ROOT), desc))
+            except (UnicodeDecodeError, IOError):
+                continue
+        
+        for jsx_file in src_dir.rglob("*.jsx"):
+            if "node_modules" in str(jsx_file):
+                continue
+            try:
+                content = jsx_file.read_text()
+                for pattern, desc in patterns:
+                    if re.search(pattern, content):
+                        violations.append((jsx_file.relative_to(PROJECT_ROOT), desc))
+            except (UnicodeDecodeError, IOError):
+                continue
+        
+        if violations:
+            pytest.fail(
+                f"Found {len(violations)} hardcoded secrets in frontend:\n" +
+                "\n".join(f"  - {path}: {desc}" for path, desc in violations)
+            )
+    
+    def test_no_secrets_in_vite_config(self):
+        """Vite config should not expose secrets."""
+        vite_config = FRONTEND_ROOT / "vite.config.js"
+        
+        if not vite_config.exists():
+            pytest.skip("vite.config.js not found")
+        
+        content = vite_config.read_text()
+        
+        # Check for hardcoded credentials in proxy config
+        forbidden_patterns = [
+            (r'password\s*[:=]\s*["\'][^"\']{8,}["\']', "Hardcoded password"),
+            (r'api[_-]?key\s*[:=]\s*["\'][^"\']{16,}["\']', "Hardcoded API key"),
+            (r'secret\s*[:=]\s*["\'][^"\']{16,}["\']', "Hardcoded secret"),
+            (r'Authorization.*Bearer\s+[a-zA-Z0-9]{20,}', "Hardcoded bearer token"),
+        ]
+        
+        violations = []
+        for pattern, desc in forbidden_patterns:
+            if re.search(pattern, content, re.IGNORECASE):
+                violations.append(desc)
+        
+        if violations:
+            pytest.fail(
+                f"vite.config.js contains potential secrets:\n" +
+                "\n".join(f"  - {v}" for v in violations)
+            )
+    
+    def test_localStorage_only_stores_safe_data(self):
+        """Verify localStorage is only used for auth tokens and UI preferences."""
+        allowed_keys = {
+            'glassdome_token',      # JWT auth token (necessary for auth)
+            'glassdome_user',       # Non-sensitive user profile
+            'overseer-button-position',  # UI preference
+        }
+        
+        src_dir = FRONTEND_ROOT / "src"
+        if not src_dir.exists():
+            pytest.skip("Frontend src directory not found")
+        
+        # Find all localStorage usage
+        localStorage_pattern = r'localStorage\.(set|get)Item\(["\']([^"\']+)["\']\)'
+        
+        found_keys = set()
+        for jsx_file in src_dir.rglob("*.jsx"):
+            if "node_modules" in str(jsx_file):
+                continue
+            try:
+                content = jsx_file.read_text()
+                matches = re.findall(localStorage_pattern, content)
+                for _, key in matches:
+                    found_keys.add(key)
+            except (UnicodeDecodeError, IOError):
+                continue
+        
+        for js_file in src_dir.rglob("*.js"):
+            if "node_modules" in str(js_file):
+                continue
+            try:
+                content = js_file.read_text()
+                matches = re.findall(localStorage_pattern, content)
+                for _, key in matches:
+                    found_keys.add(key)
+            except (UnicodeDecodeError, IOError):
+                continue
+        
+        unknown_keys = found_keys - allowed_keys
+        if unknown_keys:
+            # Check if any unknown keys might be storing secrets
+            suspicious = [k for k in unknown_keys if any(
+                p in k.lower() for p in ['secret', 'password', 'key', 'token', 'credential']
+            )]
+            if suspicious:
+                pytest.fail(
+                    f"Found localStorage keys that might store secrets:\n" +
+                    "\n".join(f"  - {k}" for k in suspicious) +
+                    "\n\nAdd to allowed_keys if these are safe."
+                )
+
 
 class TestSecretsComplianceSummary:
     """Generate a summary report of secrets compliance."""
