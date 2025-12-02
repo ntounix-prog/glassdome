@@ -1,28 +1,32 @@
 """
-  Init   module
+Glassdome Registry Module
+
+Manages the central registry of all deployed resources across platforms.
+Uses Redis as the source of truth with periodic reconciliation.
 
 Author: Brett Turner (ntounix)
-Created: November 2025
+Created: December 2025
 Copyright (c) 2025 Brett Turner. All rights reserved.
 """
 
-from glassdome.registry.core import LabRegistry, get_registry, init_registry
-from glassdome.registry.models import (
-    Resource, ResourceType, ResourceState,
-    StateChange, EventType, Drift, DriftType, LabSnapshot
+from glassdome.registry.reconciler import (
+    RegistryReconciler,
+    get_reconciler,
+    start_reconciler,
+    force_reconcile,
+    Resource,
+    ResourceType,
+    ProxmoxScanner,
+    AWSScanner,
 )
 
 __all__ = [
-    "LabRegistry",
-    "get_registry", 
-    "init_registry",
+    "RegistryReconciler",
+    "get_reconciler", 
+    "start_reconciler",
+    "force_reconcile",
     "Resource",
     "ResourceType",
-    "ResourceState", 
-    "StateChange",
-    "EventType",
-    "Drift",
-    "DriftType",
-    "LabSnapshot",
+    "ProxmoxScanner",
+    "AWSScanner",
 ]
-

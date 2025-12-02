@@ -158,6 +158,15 @@ async def _start_background_services():
         
     except Exception as e:
         logger.warning(f"Could not start Lab Registry: {e}")
+    
+    # Registry Reconciler (keeps Redis in sync with all platforms)
+    try:
+        from glassdome.registry import get_reconciler
+        reconciler = get_reconciler()
+        asyncio.create_task(reconciler.start_background_reconciliation(interval_seconds=300))
+        logger.info("Registry Reconciler starting (5 min interval)")
+    except Exception as e:
+        logger.warning(f"Could not start Registry Reconciler: {e}")
 
 
 async def _stop_background_services():
@@ -189,6 +198,15 @@ async def _stop_background_services():
         logger.info("WhitePawn Orchestrator stopped")
     except Exception as e:
         logger.warning(f"Error stopping WhitePawn Orchestrator: {e}")
+    
+    # Registry Reconciler
+    try:
+        from glassdome.registry import get_reconciler
+        reconciler = get_reconciler()
+        await reconciler.stop()
+        logger.info("Registry Reconciler stopped")
+    except Exception as e:
+        logger.warning(f"Error stopping Registry Reconciler: {e}")
     
     # Lab Registry
     try:
