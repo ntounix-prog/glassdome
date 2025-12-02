@@ -902,10 +902,11 @@ async def deploy_mission_vm(platform: str, config: Dict[str, Any]) -> Dict[str, 
             
         elif platform == "aws":
             from glassdome.platforms.aws_client import AWSClient
+            from glassdome.core.secrets_backend import get_secret
             
             client = AWSClient(
-                access_key=settings.aws_access_key_id,
-                secret_key=settings.aws_secret_access_key,
+                access_key=get_secret('aws_access_key_id'),
+                secret_key=get_secret('aws_secret_access_key'),
                 region=config.get("region", settings.aws_region)
             )
             

@@ -80,10 +80,11 @@ class OverseerEntity:
     @property
     def proxmox(self):
         if not self._proxmox:
+            from glassdome.core.secrets_backend import get_secret
             self._proxmox = ProxmoxClient(
                 host=self.settings.proxmox_host,
                 username=self.settings.proxmox_username,
-                password=self.settings.proxmox_password,
+                password=get_secret('proxmox_password'),
                 node=self.settings.proxmox_node
             )
         return self._proxmox
@@ -91,19 +92,21 @@ class OverseerEntity:
     @property
     def esxi(self):
         if not self._esxi:
+            from glassdome.core.secrets_backend import get_secret
             self._esxi = ESXiClient(
                 host=self.settings.esxi_host,
                 username=self.settings.esxi_username,
-                password=self.settings.esxi_password
+                password=get_secret('esxi_password')
             )
         return self._esxi
     
     @property
     def aws(self):
         if not self._aws:
+            from glassdome.core.secrets_backend import get_secret
             self._aws = AWSClient(
-                access_key_id=self.settings.aws_access_key_id,
-                secret_access_key=self.settings.aws_secret_access_key,
+                access_key_id=get_secret('aws_access_key_id'),
+                secret_access_key=get_secret('aws_secret_access_key'),
                 region=self.settings.aws_region
             )
         return self._aws
@@ -111,10 +114,11 @@ class OverseerEntity:
     @property
     def azure(self):
         if not self._azure:
+            from glassdome.core.secrets_backend import get_secret
             self._azure = AzureClient(
                 tenant_id=self.settings.azure_tenant_id,
                 client_id=self.settings.azure_client_id,
-                client_secret=self.settings.azure_client_secret,
+                client_secret=get_secret('azure_client_secret'),
                 subscription_id=self.settings.azure_subscription_id
             )
         return self._azure

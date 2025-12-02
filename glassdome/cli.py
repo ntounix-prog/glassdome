@@ -120,7 +120,8 @@ def status():
         try:
             if settings.esxi_host:
                 from glassdome.platforms.esxi_client import ESXiClient
-                client = ESXiClient(settings.esxi_host, settings.esxi_user, settings.esxi_password)
+                from glassdome.core.secrets_backend import get_secret
+                client = ESXiClient(settings.esxi_host, settings.esxi_user, get_secret('esxi_password'))
                 if await client.test_connection():
                     platforms_status.append(("ESXi", "✓ Connected"))
                 else:
@@ -132,7 +133,8 @@ def status():
         
         # AWS
         try:
-            if settings.aws_access_key_id:
+            from glassdome.core.secrets_backend import get_secret
+            if get_secret('aws_access_key_id'):
                 platforms_status.append(("AWS", "✓ Configured"))
             else:
                 platforms_status.append(("AWS", "⚠ Not configured"))
@@ -192,6 +194,8 @@ def test_platform(platform):
         click.echo("Run './glassdome_start' first to initialize the session.")
         return
     
+    from glassdome.core.secrets_backend import get_secret
+    
     if platform == 'proxmox':
         from glassdome.platforms.proxmox_client import ProxmoxClient
         if not secure_settings.proxmox_host:
@@ -201,7 +205,7 @@ def test_platform(platform):
         client = ProxmoxClient(
             host=secure_settings.proxmox_host,
             user=secure_settings.proxmox_user,
-            password=secure_settings.proxmox_password,
+            password=get_secret('proxmox_password'),
             verify_ssl=secure_settings.proxmox_verify_ssl
         )
         result = asyncio.run(client.test_connection())
@@ -216,19 +220,20 @@ def test_platform(platform):
             subscription_id=secure_settings.azure_subscription_id,
             tenant_id=secure_settings.azure_tenant_id,
             client_id=secure_settings.azure_client_id,
-            client_secret=secure_settings.azure_client_secret
+            client_secret=get_secret('azure_client_secret')
         )
         result = asyncio.run(client.test_connection())
         
     elif platform == 'aws':
         from glassdome.platforms.aws_client import AWSClient
-        if not secure_settings.aws_access_key_id:
+        aws_key = get_secret('aws_access_key_id')
+        if not aws_key:
             click.echo("Error: AWS not configured")
             return
         
         client = AWSClient(
-            access_key_id=secure_settings.aws_access_key_id,
-            secret_access_key=secure_settings.aws_secret_access_key,
+            access_key_id=aws_key,
+            secret_access_key=get_secret('aws_secret_access_key'),
             region=secure_settings.aws_region
         )
         result = asyncio.run(client.test_connection())
