@@ -16,7 +16,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 
 // API base - uses relative URLs for proxy
-const API_BASE = '/api/v1/registry'
+const API_BASE = '/api/registry'
 
 /**
  * Hook for accessing registry status and resources
