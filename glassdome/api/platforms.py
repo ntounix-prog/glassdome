@@ -353,10 +353,11 @@ async def get_esxi_status():
     try:
         from glassdome.platforms.esxi_client import ESXiClient
         
+        from glassdome.core.secrets_backend import get_secret
         client = ESXiClient(
             host=settings.esxi_host,
             user=settings.esxi_user,
-            password=settings.esxi_password,
+            password=get_secret('esxi_password'),
             verify_ssl=settings.esxi_verify_ssl
         )
         
@@ -422,10 +423,10 @@ async def get_esxi_status():
 @router.get("/aws", response_model=PlatformStatusResponse)
 async def get_aws_status(region: str = None):
     """Get AWS platform status and list EC2 instances"""
-    # Get credentials from session or settings
-    secrets = _get_session_secrets()
-    aws_access_key = secrets.get('aws_access_key_id') or settings.aws_access_key_id
-    aws_secret_key = secrets.get('aws_secret_access_key') or settings.aws_secret_access_key
+    # Get credentials from Vault
+    from glassdome.core.secrets_backend import get_secret
+    aws_access_key = get_secret('aws_access_key_id')
+    aws_secret_key = get_secret('aws_secret_access_key')
     
     if not aws_access_key:
         return PlatformStatusResponse(
@@ -505,10 +506,10 @@ async def get_aws_status(region: str = None):
 @router.get("/aws/all-regions", response_model=PlatformStatusResponse)
 async def get_aws_all_regions_status():
     """Get AWS status across multiple regions (us-east-1, us-west-2)"""
-    # Get credentials from session or settings
-    secrets = _get_session_secrets()
-    aws_access_key = secrets.get('aws_access_key_id') or settings.aws_access_key_id
-    aws_secret_key = secrets.get('aws_secret_access_key') or settings.aws_secret_access_key
+    # Get credentials from Vault
+    from glassdome.core.secrets_backend import get_secret
+    aws_access_key = get_secret('aws_access_key_id')
+    aws_secret_key = get_secret('aws_secret_access_key')
     
     if not aws_access_key:
         return PlatformStatusResponse(
@@ -607,10 +608,11 @@ async def get_azure_status():
         from azure.identity import ClientSecretCredential
         from azure.mgmt.compute import ComputeManagementClient
         
+        from glassdome.core.secrets_backend import get_secret
         credential = ClientSecretCredential(
             tenant_id=settings.azure_tenant_id,
             client_id=settings.azure_client_id,
-            client_secret=settings.azure_client_secret
+            client_secret=get_secret('azure_client_secret')
         )
         
         compute_client = ComputeManagementClient(

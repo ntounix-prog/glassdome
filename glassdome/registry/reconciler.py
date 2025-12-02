@@ -155,7 +155,11 @@ class AWSScanner(PlatformScanner):
         """Scan AWS region for EC2 instances"""
         resources = []
         
-        if not settings.aws_access_key_id:
+        from glassdome.core.secrets_backend import get_secret
+        aws_key = get_secret('aws_access_key_id')
+        aws_secret = get_secret('aws_secret_access_key')
+        
+        if not aws_key:
             logger.warning("AWS not configured, skipping scan")
             return resources
         
@@ -164,8 +168,8 @@ class AWSScanner(PlatformScanner):
             
             ec2 = boto3.client(
                 'ec2',
-                aws_access_key_id=settings.aws_access_key_id,
-                aws_secret_access_key=settings.aws_secret_access_key,
+                aws_access_key_id=aws_key,
+                aws_secret_access_key=aws_secret,
                 region_name=self.region
             )
             
@@ -256,7 +260,8 @@ class RegistryReconciler:
                 logger.info(f"Added Proxmox scanner for instance {instance_id}")
         
         # Add AWS scanner if configured
-        if settings.aws_access_key_id:
+        from glassdome.core.secrets_backend import get_secret
+        if get_secret('aws_access_key_id'):
             # Scan common regions
             for region in ["us-west-2", "us-east-1"]:
                 self.scanners.append(AWSScanner(region))
