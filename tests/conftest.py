@@ -1,16 +1,17 @@
 """
 Pytest fixtures for Glassdome test suite.
 
-Provides mock database, Redis, Proxmox client, and authenticated test clients.
+Provides mock database, Redis, Proxmox client, Vault, and authenticated test clients.
 
 Author: Brett Turner (ntounix)
 Created: November 2025
+Updated: December 2025 - Added Vault mocking
 """
 
 import asyncio
 import os
 from datetime import datetime, timedelta
-from typing import AsyncGenerator, Generator
+from typing import AsyncGenerator, Generator, Dict, Any, Optional
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -27,6 +28,7 @@ os.environ["TESTING"] = "1"
 os.environ["DATABASE_URL"] = "sqlite+aiosqlite:///:memory:"
 os.environ["REDIS_URL"] = "redis://localhost:6379/15"  # Use DB 15 for testing
 os.environ["SECRET_KEY"] = "test-secret-key-for-jwt-signing-12345"
+os.environ["SECRETS_BACKEND"] = "env"  # Use env backend for testing (mocked)
 
 
 # =============================================================================
@@ -380,6 +382,147 @@ async def sample_network(db_session) -> dict:
 
 
 # =============================================================================
+# Vault and Secrets Backend Fixtures
+# =============================================================================
+
+class MockSecretsBackend:
+    """
+    Mock secrets backend for testing.
+    
+    Stores secrets in-memory and allows tests to set/get values
+    without requiring a real Vault connection.
+    
+    Implements the SecretsBackend interface.
+    """
+    
+    def __init__(self, secrets: Dict[str, str] = None):
+        self._secrets = secrets or {}
+        # Pre-populate with test values
+        self._secrets.update({
+            # Test API keys (fake values)
+            "openai_api_key": "sk-test-openai-key-for-testing-only",
+            "anthropic_api_key": "sk-ant-test-anthropic-key-only",
+            
+            # Test AWS credentials (fake)
+            "aws_access_key_id": "AKIAIOSFODNN7EXAMPLE",
+            "aws_secret_access_key": "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+            "aws_region": "us-west-2",
+            
+            # Test Proxmox credentials
+            "proxmox_password": "test-proxmox-password",
+            "proxmox_root_password": "test-proxmox-root",
+            
+            # Test ESXi credentials
+            "esxi_password": "test-esxi-password",
+            
+            # Test Azure credentials
+            "azure_client_secret": "test-azure-secret",
+            "azure_tenant_id": "test-tenant-id",
+            "azure_client_id": "test-client-id",
+            "azure_subscription_id": "test-subscription-id",
+            
+            # Test Ubiquiti credentials
+            "ubiquiti_api_key": "test-ubiquiti-key",
+            "ubiquiti_gateway_host": "192.168.1.1",
+            
+            # Test Mailcow credentials
+            "mailcow_api_key": "test-mailcow-key",
+            "mailcow_url": "https://mail.test.local",
+            
+            # LLM configuration
+            "llm_default_provider": "openai",
+            
+            # Vault config (for nested Vault tests)
+            "vault_addr": "http://localhost:8200",
+            "vault_skip_verify": "true",
+        })
+    
+    def get(self, key: str) -> Optional[str]:
+        """Get a secret value."""
+        return self._secrets.get(key.lower())
+    
+    def set(self, key: str, value: str) -> bool:
+        """Set a secret value (for testing)."""
+        self._secrets[key.lower()] = value
+        return True
+    
+    def delete(self, key: str) -> bool:
+        """Delete a secret (for testing)."""
+        if key.lower() in self._secrets:
+            del self._secrets[key.lower()]
+            return True
+        return False
+    
+    def list_keys(self) -> list:
+        """List all secret keys (for testing)."""
+        return list(self._secrets.keys())
+    
+    def is_available(self) -> bool:
+        """Mock is always available."""
+        return True
+
+
+@pytest.fixture
+def mock_secrets_backend():
+    """
+    Provide a mock secrets backend for testing.
+    
+    Use this fixture when testing code that uses get_secret().
+    """
+    return MockSecretsBackend()
+
+
+@pytest.fixture(autouse=True)
+def mock_vault_backend(mock_secrets_backend):
+    """
+    Automatically mock the secrets backend for all tests.
+    
+    This ensures tests never accidentally connect to real Vault
+    or try to read real secrets.
+    """
+    import glassdome.core.secrets_backend as sb
+    
+    # Save original values
+    original_backend = sb._backend
+    original_vault_client = sb._vault_client
+    original_get_secret = sb.get_secret
+    
+    # Replace with mock
+    sb._backend = mock_secrets_backend
+    sb._vault_client = mock_secrets_backend
+    
+    # Replace get_secret to use our mock
+    def mock_get_secret(key: str, default: str = None):
+        value = mock_secrets_backend.get(key)
+        if value is None and default is not None:
+            return default
+        return value
+    
+    sb.get_secret = mock_get_secret
+    
+    try:
+        yield mock_secrets_backend
+    finally:
+        # Restore original values
+        sb._backend = original_backend
+        sb._vault_client = original_vault_client
+        sb.get_secret = original_get_secret
+
+
+@pytest.fixture
+def vault_test_secrets(mock_secrets_backend):
+    """
+    Fixture to add custom test secrets.
+    
+    Usage:
+        def test_something(vault_test_secrets):
+            vault_test_secrets.set("custom_key", "custom_value")
+            # Now get_secret("custom_key") returns "custom_value"
+    """
+    return mock_secrets_backend
+
+
+# =============================================================================
 # Environment Cleanup
 # =============================================================================
 
@@ -399,5 +542,13 @@ def reset_singletons():
     try:
         import glassdome.core.session as session_module
         session_module._session = None
+    except:
+        pass
+    
+    # Reset secrets backend singletons
+    try:
+        import glassdome.core.secrets_backend as secrets_module
+        secrets_module._backend = None
+        secrets_module._vault_client = None
     except:
         pass

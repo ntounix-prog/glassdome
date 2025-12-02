@@ -105,12 +105,18 @@ async def shutdown_event():
 async def _start_background_services():
     """Start all background services."""
     # Hot Spare Pool Managers (one per OS type)
-    try:
-        from glassdome.reaper.hot_spare import initialize_all_pools, POOL_CONFIGS
-        asyncio.create_task(initialize_all_pools())
-        logger.info(f"Hot Spare Pool Managers starting for: {list(POOL_CONFIGS.keys())}")
-    except Exception as e:
-        logger.warning(f"Could not start Hot Spare Pool Managers: {e}")
+    # Set HOT_SPARE_ENABLED=false to disable (e.g., to stop clone storms)
+    import os
+    hot_spare_enabled = os.getenv("HOT_SPARE_ENABLED", "true").lower() != "false"
+    if hot_spare_enabled:
+        try:
+            from glassdome.reaper.hot_spare import initialize_all_pools, POOL_CONFIGS
+            asyncio.create_task(initialize_all_pools())
+            logger.info(f"Hot Spare Pool Managers starting for: {list(POOL_CONFIGS.keys())}")
+        except Exception as e:
+            logger.warning(f"Could not start Hot Spare Pool Managers: {e}")
+    else:
+        logger.info("Hot Spare Pool Managers DISABLED via HOT_SPARE_ENABLED=false")
     
     # Network Reconciler
     try:
