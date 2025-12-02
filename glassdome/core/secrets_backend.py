@@ -166,7 +166,7 @@ class VaultSecretsBackend(SecretsBackend):
             except ImportError:
                 raise ImportError("hvac package required for Vault backend: pip install hvac")
             
-            self._client = hvac.Client(url=self.addr, verify=self.verify)
+            self._client = hvac.Client(url=self.addr, verify=self.verify, timeout=5)
             
             # Authenticate with AppRole
             if self.role_id and self.secret_id:
