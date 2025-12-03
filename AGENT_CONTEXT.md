@@ -282,8 +282,8 @@ redis-cli ping
 
 ## Contact
 
-- **Dev Environment**: `/home/nomad/glassdome` on AgentX
-- **Production**: `/opt/glassdome` on glassdome-prod-app
+- **Dev Environment**: `/home/nomad/glassdome` on AgentX (192.168.215.228)
+- **Production**: `/opt/glassdome` on glassdome-prod-app (192.168.3.6)
 - **Database**: PostgreSQL at 192.168.3.7
 - **Vault**: HashiCorp Vault at 192.168.3.7:8200
-- **User**: nomad
+- **User**: nomad (dev), ubuntu (prod)
