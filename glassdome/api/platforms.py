@@ -15,7 +15,7 @@ from glassdome.core.session import get_session
 from glassdome.platforms.proxmox_factory import get_proxmox_client, list_available_proxmox_instances
 
 logger = logging.getLogger(__name__)
-router = APIRouter(prefix="/api/platforms", tags=["platforms"])
+router = APIRouter(prefix="/platforms", tags=["platforms"])
 
 
 def _get_session_secrets():

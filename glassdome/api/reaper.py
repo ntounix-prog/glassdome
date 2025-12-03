@@ -32,7 +32,7 @@ from pathlib import Path
 # Reaper logger - uses centralized logging configuration
 logger = logging.getLogger("glassdome.reaper")
 
-router = APIRouter(prefix="/api/reaper", tags=["reaper"])
+router = APIRouter(prefix="/reaper", tags=["reaper"])
 
 
 # ============================================================================

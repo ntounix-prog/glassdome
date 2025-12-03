@@ -563,7 +563,10 @@ function MissionBuilder({ exploits, onMissionCreated, getAuthHeaders }) {
         body: JSON.stringify(payload)
       });
 
-      if (!res.ok) throw new Error('Failed to create mission');
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.detail || 'Failed to create mission');
+      }
       
       const mission = await res.json();
       

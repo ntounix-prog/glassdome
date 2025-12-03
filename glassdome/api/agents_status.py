@@ -12,7 +12,7 @@ from typing import Dict, Any
 
 from glassdome.agents.manager import agent_manager
 
-router = APIRouter(prefix="/api/agents", tags=["agents"])
+router = APIRouter(prefix="/agents", tags=["agents"])
 
 
 @router.get("/status")

@@ -24,7 +24,7 @@ from glassdome.registry.controllers.lab_controller import get_lab_controller
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/registry", tags=["registry"])
+router = APIRouter(prefix="/registry", tags=["registry"])
 
 
 # =============================================================================

@@ -38,7 +38,7 @@ from glassdome.auth.dependencies import (
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/auth", tags=["authentication"])
+router = APIRouter(prefix="/auth", tags=["authentication"])
 
 
 # ============================================================================

@@ -14,7 +14,7 @@ from glassdome.agents.overseer import OverseerAgent
 from glassdome.platforms.proxmox_client import ProxmoxClient
 
 logger = logging.getLogger(__name__)
-router = APIRouter(prefix="/api/overseer", tags=["overseer"])
+router = APIRouter(prefix="/overseer", tags=["overseer"])
 
 # Global overseer instance (in production, would be properly managed)
 overseer_instance: Optional[OverseerAgent] = None

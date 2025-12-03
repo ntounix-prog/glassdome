@@ -14,9 +14,10 @@ from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
 
-# Cache the backend type
+# Cache the backend type and Vault client
 _backend_type: Optional[str] = None
 _env_loaded: bool = False
+_vault_backend: Optional[Any] = None  # Cached VaultSecretsBackend instance
 
 
 def _load_env_file() -> None:
@@ -75,10 +76,12 @@ def get_secret(key: str) -> Optional[str]:
         return os.environ.get(key.upper())
     
     elif backend_type == "vault":
-        # Future: HashiCorp Vault
-        from glassdome.core.secrets_backend import VaultSecretsBackend
-        vault = VaultSecretsBackend()
-        return vault.get(key)
+        # HashiCorp Vault - use cached client
+        global _vault_backend
+        if _vault_backend is None:
+            from glassdome.core.secrets_backend import VaultSecretsBackend
+            _vault_backend = VaultSecretsBackend()
+        return _vault_backend.get(key)
     
     elif backend_type == "local":
         # Legacy: encrypted local store
@@ -108,10 +111,12 @@ def ensure_security_context() -> None:
         return
     
     elif backend_type == "vault":
-        # Verify Vault is accessible
-        from glassdome.core.secrets_backend import VaultSecretsBackend
-        vault = VaultSecretsBackend()
-        if not vault.is_available():
+        # Verify Vault is accessible - use cached client
+        global _vault_backend
+        if _vault_backend is None:
+            from glassdome.core.secrets_backend import VaultSecretsBackend
+            _vault_backend = VaultSecretsBackend()
+        if not _vault_backend.is_available():
             raise RuntimeError(
                 "Vault backend configured but not available.\n"
                 "Set VAULT_ADDR and VAULT_TOKEN environment variables."

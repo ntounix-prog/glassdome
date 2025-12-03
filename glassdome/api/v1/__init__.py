@@ -1,15 +1,13 @@
 """
 API v1 Router Aggregator
 
-Aggregates all API routers under the /api/v1 prefix.
-Provides backwards compatibility redirect from /api/* to /api/v1/*.
+All API routes are mounted under /api/v1/ prefix.
 
 Author: Brett Turner (ntounix)
 Created: November 2025
 Copyright (c) 2025 Brett Turner. All rights reserved.
 """
-from fastapi import APIRouter, Request
-from fastapi.responses import RedirectResponse
+from fastapi import APIRouter
 
 from glassdome.core.config import settings
 
@@ -34,12 +32,8 @@ from glassdome.api import elements
 from glassdome.api import ubuntu
 from glassdome.api import reconciler
 from glassdome.api import logs
+from glassdome.api import overseer
 
-
-# Create the main v1 router
-# Note: Individual routers already have /api/* prefix
-# We include them directly - they work at /api/*
-# The v1 endpoint serves as a redirect layer
 
 def get_all_routers():
     """Return all API routers to be included in the app."""
@@ -64,11 +58,12 @@ def get_all_routers():
         ubuntu.router,
         reconciler.router,
         logs.router,
+        overseer.router,
     ]
 
 
 # V1 router for health and root endpoints
-v1_router = APIRouter(prefix="/api/v1", tags=["v1"])
+v1_router = APIRouter(tags=["v1"])
 
 
 @v1_router.get("/health")
@@ -93,48 +88,18 @@ async def root_v1():
     }
 
 
-# Legacy redirect router - redirects /api/v1/* to /api/*
-# This allows frontend to use /api/v1 while backend still uses /api
-legacy_redirect_router = APIRouter()
-
-
-@legacy_redirect_router.api_route(
-    "/api/v1/{path:path}",
-    methods=["GET", "POST", "PUT", "DELETE", "PATCH"],
-    include_in_schema=False
-)
-async def v1_to_legacy_redirect(path: str, request: Request):
-    """
-    Redirect /api/v1/* requests to /api/* endpoints.
-    
-    This provides backwards compatibility while transitioning to v1 API.
-    Uses 307 to preserve HTTP method.
-    """
-    # Reconstruct the URL with /api/ prefix instead of /api/v1/
-    new_url = f"/api/{path}"
-    
-    # Preserve query string
-    if request.query_params:
-        new_url += f"?{request.query_params}"
-    
-    return RedirectResponse(url=new_url, status_code=307)
-
-
 def setup_v1_routes(app):
     """
     Set up v1 API routes on the FastAPI app.
     
-    Call this from main.py to configure all routes.
+    All routes are mounted at /api/v1/*
     
     Args:
         app: FastAPI application instance
     """
-    # Include the v1 router for /api/v1/health and /api/v1/
-    app.include_router(v1_router)
+    # Include the v1 health/root router at /api/v1
+    app.include_router(v1_router, prefix="/api/v1")
     
-    # Include the redirect router for /api/v1/* -> /api/*
-    app.include_router(legacy_redirect_router)
-    
-    # Include all existing routers (at /api/*)
+    # Include all routers at /api/v1 (they have their own sub-prefixes like /reaper, /labs)
     for router in get_all_routers():
-        app.include_router(router)
+        app.include_router(router, prefix="/api/v1")

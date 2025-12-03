@@ -13,7 +13,7 @@ import logging
 from glassdome.integrations.ansible_bridge import AnsibleBridge
 from glassdome.integrations.ansible_executor import AnsibleExecutor
 
-router = APIRouter(prefix="/api/ansible", tags=["ansible"])
+router = APIRouter(prefix="/ansible", tags=["ansible"])
 logger = logging.getLogger(__name__)
 
 # Initialize executor

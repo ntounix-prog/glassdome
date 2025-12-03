@@ -19,7 +19,7 @@ from glassdome.auth.dependencies import require_admin
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/secrets", tags=["secrets"])
+router = APIRouter(prefix="/secrets", tags=["secrets"])
 
 
 class SecretCreate(BaseModel):

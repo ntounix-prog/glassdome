@@ -14,7 +14,7 @@ from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/whiteknight", tags=["whiteknight"])
+router = APIRouter(prefix="/whiteknight", tags=["whiteknight"])
 
 
 class ValidationRequest(BaseModel):

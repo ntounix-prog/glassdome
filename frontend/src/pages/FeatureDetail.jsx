@@ -949,9 +949,9 @@ Why "Updock"?
         status: 'working',
         description: 'REST API for triggering and monitoring validations',
         details: [
-          'POST /api/whiteknight/validate',
-          'GET /api/whiteknight/status/:id',
-          'GET /api/whiteknight/results/:id'
+          'POST /api/v1/whiteknight/validate',
+          'GET /api/v1/whiteknight/status/:id',
+          'GET /api/v1/whiteknight/results/:id'
         ]
       },
       {
@@ -1400,10 +1400,10 @@ Overseer: [GPT-4o Research] "CVE-2024-1234 is a critical RCE
         status: 'working',
         description: 'Admin endpoints for user administration',
         details: [
-          'POST /api/auth/register - Create users',
-          'GET /api/auth/users - List all users (admin only)',
-          'PUT /api/auth/users/{id} - Update user role/level',
-          'DELETE /api/auth/users/{id} - Deactivate users'
+          'POST /api/v1/auth/register - Create users',
+          'GET /api/v1/auth/users - List all users (admin only)',
+          'PUT /api/v1/auth/users/{id} - Update user role/level',
+          'DELETE /api/v1/auth/users/{id} - Deactivate users'
         ]
       },
       {

@@ -17,7 +17,7 @@ import uuid
 from glassdome.core.database import get_db
 from glassdome.models.lab import LabTemplate
 
-router = APIRouter(prefix="/api/templates", tags=["templates"])
+router = APIRouter(prefix="/templates", tags=["templates"])
 
 
 # Pydantic models for request/response

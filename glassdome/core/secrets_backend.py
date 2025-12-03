@@ -166,6 +166,11 @@ class VaultSecretsBackend(SecretsBackend):
             except ImportError:
                 raise ImportError("hvac package required for Vault backend: pip install hvac")
             
+            # Suppress InsecureRequestWarning for self-signed certs
+            if not self.verify:
+                import urllib3
+                urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+            
             self._client = hvac.Client(url=self.addr, verify=self.verify, timeout=5)
             
             # Authenticate with AppRole

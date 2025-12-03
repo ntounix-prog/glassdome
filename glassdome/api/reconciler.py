@@ -17,7 +17,7 @@ from glassdome.registry import get_reconciler, force_reconcile
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/reconciler", tags=["reconciler"])
+router = APIRouter(prefix="/reconciler", tags=["reconciler"])
 
 
 class ReconcileResponse(BaseModel):

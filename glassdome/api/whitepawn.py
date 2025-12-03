@@ -18,7 +18,7 @@ from glassdome.networking.reconciler import get_network_reconciler
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/whitepawn", tags=["whitepawn"])
+router = APIRouter(prefix="/whitepawn", tags=["whitepawn"])
 
 
 # ============================================================================

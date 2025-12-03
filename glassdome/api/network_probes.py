@@ -19,7 +19,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
-router = APIRouter(prefix="/api/probes", tags=["network-probes"])
+router = APIRouter(prefix="/probes", tags=["network-probes"])
 
 # ============================================================================
 # Configuration - Network Probes

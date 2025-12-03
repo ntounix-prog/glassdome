@@ -30,7 +30,7 @@ from sqlalchemy import select
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/deployments", tags=["deployments"])
+router = APIRouter(prefix="/deployments", tags=["deployments"])
 
 # Semaphore to limit concurrent Proxmox API calls (prevent overwhelming the API)
 _proxmox_semaphore = asyncio.Semaphore(3)  # Max 3 concurrent VM operations

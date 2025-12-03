@@ -19,7 +19,7 @@ from pydantic import BaseModel
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
-router = APIRouter(prefix="/api/chat", tags=["chat"])
+router = APIRouter(prefix="/chat", tags=["chat"])
 
 # Global chat agent instance (initialized on first use)
 _chat_agent = None

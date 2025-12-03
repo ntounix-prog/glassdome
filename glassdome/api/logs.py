@@ -17,7 +17,7 @@ import httpx
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/logs", tags=["logs"])
+router = APIRouter(prefix="/logs", tags=["logs"])
 
 # ELK Configuration
 ELASTICSEARCH_URL = "http://192.168.3.26:9200"

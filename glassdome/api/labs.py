@@ -23,7 +23,7 @@ from glassdome.orchestration.lab_orchestrator import LabOrchestrator
 from glassdome.platforms.proxmox_client import ProxmoxClient
 
 logger = logging.getLogger(__name__)
-router = APIRouter(prefix="/api/labs", tags=["labs"])
+router = APIRouter(prefix="/labs", tags=["labs"])
 
 
 # =============================================================================

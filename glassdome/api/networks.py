@@ -19,7 +19,7 @@ from glassdome.networking.proxmox_handler import get_proxmox_network_handler
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/networks", tags=["networks"])
+router = APIRouter(prefix="/networks", tags=["networks"])
 
 
 # ============================================================================

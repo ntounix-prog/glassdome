@@ -1,7 +1,7 @@
 # Glassdome Agent Context
 
-**Last Updated:** 2024-11-28
-**Version:** 0.6.3 (Contextual Help)
+**Last Updated:** 2025-12-02
+**Version:** 0.7.7 (API v1 Migration + Vault Security Fix)
 
 This file provides context for AI assistants working on Glassdome. Read this first to understand the current state of the project.
 
@@ -21,12 +21,13 @@ Glassdome is a **cyber range automation platform** for creating, deploying, and 
 │  React Frontend (port 5174) - Lab Canvas, Monitor, Deployments   │
 │  - Overseer Chat (Claude AI)  - Integrated SomaFM Radio         │
 └────────────────────────────┬────────────────────────────────────┘
-                             │ REST API + WebSocket
+                             │ REST API (/api/v1/*) + WebSocket
 ┌────────────────────────────┴────────────────────────────────────┐
-│                    FastAPI Backend (port 8011)                   │
+│                    FastAPI Backend (port 8000)                   │
 │  - Lab management        - Platform connections                  │
 │  - Reaper missions       - WhiteKnight validation                │
 │  - Registry API          - WebSocket events                      │
+│  - Vault secrets (AppRole auth)                                  │
 └────────────────────────────┬────────────────────────────────────┘
                              │
 ┌────────────────────────────┴────────────────────────────────────┐
@@ -56,31 +57,72 @@ Glassdome is a **cyber range automation platform** for creating, deploying, and 
 
 ---
 
+## API Versioning (v0.7.7)
+
+**All API endpoints use `/api/v1/` prefix:**
+
+```
+GET  /api/v1/health              # Health check
+GET  /api/v1/reaper/missions     # Reaper missions
+GET  /api/v1/whiteknight/status  # WhiteKnight status
+GET  /api/v1/whitepawn/status    # WhitePawn monitoring
+GET  /api/v1/labs                # Lab management
+GET  /api/v1/networks            # Network definitions
+GET  /api/v1/platforms           # Platform connections
+GET  /api/v1/registry/status     # Registry health
+WS   /api/v1/registry/ws/events  # Real-time events
+```
+
+**Old `/api/*` paths return `{"error":"Not found"}`**
+
+---
+
+## Secrets Management
+
+**Backend:** HashiCorp Vault with AppRole authentication
+
+```bash
+# .env configuration
+SECRETS_BACKEND=vault
+VAULT_ADDR=https://192.168.3.7:8200
+VAULT_ROLE_ID=xxxxx
+VAULT_SECRET_ID=xxxxx
+VAULT_MOUNT_POINT=glassdome
+VAULT_SKIP_VERIFY=true  # Self-signed cert
+```
+
+**Code Usage:**
+```python
+from glassdome.core.security import get_secret
+api_key = get_secret('openai_api_key')  # Uses cached Vault client
+```
+
+**Important:** The Vault client is cached globally - never create new instances per request.
+
+---
+
 ## Key Directories
 
 ```
 glassdome/
 ├── glassdome/              # Main Python package
-│   ├── api/                # FastAPI routers
+│   ├── api/                # FastAPI routers (all use /api/v1/)
+│   │   ├── v1/__init__.py  # Router aggregation
 │   │   ├── reaper.py       # Reaper missions API
 │   │   ├── whiteknight.py  # WhiteKnight validation API
+│   │   ├── whitepawn.py    # WhitePawn monitoring API
 │   │   ├── canvas_deploy.py# Lab deployment from Canvas
-│   │   ├── registry.py     # Lab Registry API ✨ NEW
+│   │   ├── registry.py     # Lab Registry API
 │   │   └── ...
-│   ├── registry/           # Lab Registry system ✨ NEW
+│   ├── core/               # Core utilities
+│   │   ├── config.py       # Settings (Pydantic)
+│   │   ├── security.py     # get_secret() - CACHED Vault
+│   │   ├── secrets_backend.py # VaultSecretsBackend
+│   │   └── database.py     # SQLAlchemy setup
+│   ├── registry/           # Lab Registry system
 │   │   ├── core.py         # LabRegistry class (Redis)
 │   │   ├── models.py       # Resource, StateChange, Drift
-│   │   ├── agents/         # Platform polling agents
-│   │   │   ├── base.py     # BaseAgent framework
-│   │   │   ├── proxmox_agent.py
-│   │   │   └── unifi_agent.py
-│   │   └── controllers/    # Reconciliation controllers
-│   │       └── lab_controller.py
-│   ├── workers/            # Celery workers
-│   │   ├── celery_app.py   # Celery configuration
-│   │   ├── orchestrator.py # Lab deployment tasks
-│   │   ├── reaper.py       # Vulnerability injection
-│   │   └── whiteknight.py  # Validation tasks
+│   │   └── agents/         # Platform polling agents
 │   ├── reaper/             # Reaper subsystem
 │   │   ├── exploit_library.py # Exploit/Mission models
 │   │   └── hot_spare.py    # Hot spare VM pool
@@ -89,93 +131,24 @@ glassdome/
 │   │   ├── esxi_client.py
 │   │   ├── aws_client.py
 │   │   └── azure_client.py
-│   └── core/               # Core utilities
-│       ├── config.py       # Settings (Pydantic)
-│       ├── database.py     # SQLAlchemy setup
-│       └── ssh_client.py   # SSH utilities
+│   └── overseer/           # Overseer service
+│       ├── health_monitor.py
+│       └── state_sync.py
 ├── frontend/               # React frontend
 │   └── src/
 │       ├── pages/          # Page components
-│       │   ├── LabCanvas.jsx    # Visual lab builder
-│       │   ├── LabMonitor.jsx   # Registry monitor ✨ NEW
-│       │   ├── FeatureDetail.jsx# Feature descriptions ✨ NEW
-│       │   ├── Deployments.jsx  # Deployment management
+│       │   ├── LabCanvas.jsx
+│       │   ├── ReaperDesign.jsx
+│       │   ├── WhiteKnightDesign.jsx
 │       │   └── WhitePawnMonitor.jsx
-│       ├── hooks/          # React hooks ✨ NEW
-│       │   └── useRegistry.js   # Registry API hooks
-│       ├── components/
-│       │   └── OverseerChat/    # AI Chat + Radio ✨ UPDATED
-│       └── styles/
-├── scripts/
-│   ├── start_workers.sh    # Worker fleet management
-│   └── network_discovery/  # Switch configuration
+│       ├── hooks/
+│       │   └── useRegistry.js  # /api/v1/registry
+│       └── components/
+│           └── OverseerChat/
 ├── docs/
-│   ├── session_logs/       # Daily progress logs
-│   ├── CODE_AUDIT_REPORT.md
-│   └── CODEBASE_INVENTORY.md
-├── _deprecated/            # Deprecated code ✨ NEW
-└── docker-compose.yml
-```
-
----
-
-## Key Concepts
-
-### 1. Lab Registry (Central Source of Truth)
-Real-time infrastructure monitoring with tiered polling:
-
-```python
-# Registry API endpoints
-GET  /api/registry/status           # Health check
-GET  /api/registry/resources        # List resources (filterable)
-GET  /api/registry/labs/{id}        # Lab snapshot
-WS   /api/registry/ws/events        # Real-time events
-
-# Tier structure
-Tier 1: Lab VMs, Networks  → 1s polling (webhook-ready)
-Tier 2: All VMs, Templates → 10s polling
-Tier 3: Hosts, Storage     → 30-60s polling
-```
-
-### 2. Hot Spare Pool
-Pre-provisioned VMs ready for instant deployment:
-
-```python
-pool = get_hot_spare_pool()
-spare = await pool.acquire_spare(session, os_type="ubuntu", mission_id="xxx")
-```
-
-### 3. Platform Abstraction
-All platforms implement the same interface:
-
-```python
-client = ProxmoxClient(...)  # or ESXiClient, AWSClient, AzureClient
-await client.create_vm(config)
-await client.clone_vm(template_id, new_vm_id, config)
-await client.start_vm(node, vmid)
-```
-
-### 4. Canvas Lab Deployment
-pfSense-as-gateway architecture for isolated lab networks:
-
-```
-┌─────────────────────────────────────────┐
-│              Management (VLAN 2)         │
-│           192.168.2.x (DHCP)            │
-└──────────────────┬──────────────────────┘
-                   │ net0 (WAN)
-              ┌────┴────┐
-              │ pfSense │
-              │ Gateway │
-              └────┬────┘
-                   │ net1 (LAN)
-┌──────────────────┴──────────────────────┐
-│           Lab Network (10.X.0.0/24)      │
-│         VLAN 100-170, DHCP via pfSense  │
-│   ┌─────┐    ┌─────┐    ┌─────┐         │
-│   │Kali │    │ MS3 │    │ Win │         │
-│   └─────┘    └─────┘    └─────┘         │
-└─────────────────────────────────────────┘
+│   ├── SESSION_NOTES.md    # Daily progress
+│   └── AGENT_CONTEXT.md    # This file
+└── .env                    # Environment config
 ```
 
 ---
@@ -184,35 +157,34 @@ pfSense-as-gateway architecture for isolated lab networks:
 
 ### Start the System
 ```bash
-# Terminal 1: Backend
-cd /home/nomad/glassdome
-source venv/bin/activate
-uvicorn glassdome.main:app --host 0.0.0.0 --port 8011 &
+# Backend runs as systemd service
+sudo systemctl start glassdome-backend
+sudo systemctl status glassdome-backend
 
-# Terminal 2: Frontend
+# Frontend
 cd /home/nomad/glassdome/frontend
 npm run dev &
-
-# Terminal 3: Workers (optional)
-cd /home/nomad/glassdome
-./scripts/start_workers.sh start
 ```
 
-### Check Registry Status
+### Check API Health
 ```bash
-curl http://localhost:8011/api/registry/status | jq
+curl http://localhost:8000/api/v1/health | jq
 ```
 
-### List Proxmox Resources
+### Test Reaper Endpoints
 ```bash
-curl "http://localhost:8011/api/registry/resources?platform=proxmox" | jq
+curl http://localhost:8000/api/v1/reaper/missions | jq
+curl http://localhost:8000/api/v1/reaper/exploits | jq
+curl http://localhost:8000/api/v1/reaper/stats | jq
 ```
 
-### Deploy a Lab from Canvas
+### Check Vault Connection
 ```bash
-curl -X POST http://localhost:8011/api/deployments \
-  -H "Content-Type: application/json" \
-  -d '{"nodes": [...], "edges": [...], "platform": "proxmox"}'
+# Test Vault directly
+curl -k https://192.168.3.7:8200/v1/sys/health | jq
+
+# Test via backend
+curl http://localhost:8000/api/v1/secrets/status | jq
 ```
 
 ---
@@ -221,53 +193,46 @@ curl -X POST http://localhost:8011/api/deployments \
 
 Key variables in `.env`:
 ```bash
+# Secrets Backend
+SECRETS_BACKEND=vault
+VAULT_ADDR=https://192.168.3.7:8200
+VAULT_ROLE_ID=xxxxx
+VAULT_SECRET_ID=xxxxx
+VAULT_MOUNT_POINT=glassdome
+VAULT_SKIP_VERIFY=true
+
 # Database
-DATABASE_URL=postgresql+asyncpg://glassdome:xxx@192.168.3.26:5432/glassdome_dev
+DATABASE_URL=postgresql+asyncpg://glassdome:xxx@192.168.3.7:5432/glassdome
 
 # Proxmox Cluster
-PROXMOX_HOST=192.168.215.78      # pve01 (production)
-PROXMOX_USER=root@pam
-PROXMOX_PASSWORD=xxxxx
-
-PROXMOX_02_HOST=192.168.215.77   # pve02 (labs)
-PROXMOX_02_USER=root@pam
-PROXMOX_02_PASSWORD=xxxxx
-
-# Templates
-UBUNTU_2204_TEMPLATE_ID=9000
-PFSENSE_TEMPLATE_ID=9020
+PROXMOX_01_HOST=192.168.215.78
+PROXMOX_02_HOST=192.168.215.77
 
 # Redis
 REDIS_URL=redis://localhost:6379/0
 
-# Unifi (for IP discovery)
-UBIQUITI_GATEWAY_HOST=192.168.2.1
-UBIQUITI_API_KEY=xxxxx
-
-# DNS (local resolver)
-DNS_SERVERS=192.168.3.1,8.8.8.8
+# Hot Spares (disable to prevent clone storms)
+HOT_SPARE_ENABLED=false
 ```
 
 ---
 
-## Infrastructure
+## Recent Changes (v0.7.7 - December 2, 2025)
 
-### Proxmox Cluster
-- **pve01** (192.168.215.78): Production VMs - mooker, rome, scribe, agentx, prod-app, prod-db
-- **pve02** (192.168.215.77): Lab deployments, templates
-- **Shared Storage**: `truenas-nfs-labs` (29TB NFS)
-- **Cluster Communication**: 10G SAN interfaces (VLANs 211/212)
-- **HA & Live Migration**: Enabled
+### API v1 Migration
+- All 19+ routers migrated from `/api/*` to `/api/v1/*`
+- Frontend updated to use `/api/v1/` paths
+- Old paths return `{"error":"Not found"}`
 
-### TrueNAS (192.168.215.75)
-- 29TB ZFS pool with SLOG (NVMe) and L2ARC (4TB SSD)
-- NFS share: `/mnt/PROXMOX/proxmox-vms`
-- Dual 10G paths for redundancy
+### Vault Security Fix
+- Fixed infinite Vault auth loop (100%+ CPU → ~18%)
+- Cached `_vault_backend` in `security.py`
+- Suppressed SSL warnings for self-signed certs
 
-### Nexus 3064X Switch (192.168.2.244)
-- Core SAN switch for 10G traffic
-- VLANs: 211 (SAN-A), 212 (SAN-B), 215 (Mgmt)
-- Documented in `docs/NEXUS_3064_SAN_SWITCH.md`
+### Security Audit
+- Verified Vault is active backend
+- No hardcoded secrets in code
+- Local .secrets not used with vault backend
 
 ---
 
@@ -279,106 +244,39 @@ DNS_SERVERS=192.168.3.1,8.8.8.8
 | Windows Installer | ⚠ Partial | Template-based on-prem, AMI on cloud |
 | Overseer | ✓ Working | Claude AI chat with tool execution |
 | Guest Agent Fixer | ✓ Working | QEMU guest agent repair |
-| Mailcow | ✓ Working | Email integration |
-| Reaper | ⚠ Partial | WEAK SSH injection, seed patterns |
-| Research | ⚠ Partial | GPT-4o via Overseer, Range AI |
-
----
-
-## Recent Changes (2024-11-28 - Player Portal MVP)
-
-### Player Access Pipeline ✨ NEW
-1. **Player Portal** (`/player`) - Lab code entry with particle effects
-2. **Player Lobby** (`/player/:labId`) - Machine cards, mission brief, network info
-3. **Player Session** (`/player/:labId/:vmName`) - RDP/SSH via Guacamole
-
-### Updock (Guacamole) Server ✨ NEW
-- **Host**: 192.168.3.8 (Docker on pve02)
-- **Services**: PostgreSQL + guacd + Guacamole web
-- **Access**: http://192.168.3.8:8080/guacamole
-- **Credentials**: guacadmin / guacadmin
-
-### Lab Network (brettlab) ✨ WORKING
-- **pfSense Gateway**: WAN 192.168.3.242, LAN 10.101.0.1/24
-- **Kali Attack Box**: 10.101.0.10 (xRDP + SSH)
-- **Ubuntu Target**: 10.101.0.11 (xRDP + SSH)
-- **VM Credentials**: ubuntu / Password123!
-
-### Previous (MVP 2.0)
-1. **Lab Registry** - Real-time monitoring with Redis + WebSocket
-2. **Proxmox Cluster** - 2-node cluster with shared NFS storage
-3. **Frontend Overhaul** - Design/Monitor dropdowns, LabMonitor page
-4. **Integrated Radio** - SomaFM in Overseer chat modal
-5. **Feature Pages** - Dynamic detail pages for capabilities
-6. **Code Cleanup** - Deprecated code moved to `_deprecated/`
-7. **DNS Update** - Local resolver (192.168.3.1) as primary
-
----
-
-## TODO: Create Templates from Configured VMs
-
-**ACTION REQUIRED:** Convert both lab VMs to templates - they're fully configured!
-
-### VM 115 → Kali Template (9002)
-### VM 116 → Ubuntu Template (9003)
-
-Both VMs are configured with:
-- ✅ xRDP + XFCE desktop environment
-- ✅ SSH password authentication enabled
-- ✅ DNS configured (8.8.8.8)
-- ✅ Ready for DHCP on any lab network
-- ✅ User: ubuntu / Password123!
-
-```bash
-# On pve02 - Create templates from the configured VMs
-ssh root@192.168.215.77
-
-# Shutdown VMs first
-qm shutdown 115
-qm shutdown 116
-
-# Option A: Convert in-place to templates
-qm template 115
-qm template 116
-
-# Option B: Clone to new template IDs (preserves originals)
-qm clone 115 9002 --name kali-xrdp-template --full
-qm clone 116 9003 --name ubuntu-xrdp-template --full
-qm template 9002
-qm template 9003
-```
-
-These replace the basic cloud-init templates (9000/9001) for labs needing RDP access.
+| Reaper | ✓ Working | Exploit injection with hot spares |
+| WhiteKnight | ✓ Working | Vulnerability validation |
+| WhitePawn | ✓ Working | Continuous monitoring |
 
 ---
 
 ## Troubleshooting
 
-### Registry not connecting
+### High CPU on Backend
+- Check if Vault client is being recreated per request
+- `security.py` should use cached `_vault_backend`
+- Verify `VAULT_SKIP_VERIFY=true` in `.env`
+
+### API Returning 404
+- Ensure using `/api/v1/` prefix
+- Old `/api/*` paths are deprecated
+- Check `glassdome/api/v1/__init__.py` for router mounting
+
+### Vault Connection Failed
+```bash
+# Check Vault is running
+curl -k https://192.168.3.7:8200/v1/sys/health
+
+# Check AppRole credentials
+grep VAULT_ .env
+```
+
+### Registry Not Connecting
 ```bash
 # Check Redis
 docker ps | grep redis
 redis-cli ping
-
-# Restart backend
-pkill -f uvicorn
-uvicorn glassdome.main:app --host 0.0.0.0 --port 8011 &
 ```
-
-### Frontend proxy issues
-```bash
-# Check Vite is running
-lsof -i :5174
-
-# Restart frontend
-cd /home/nomad/glassdome/frontend
-npm run dev &
-```
-
-### Proxmox agents not reporting
-- Check `.env` credentials (PROXMOX_USER, PROXMOX_PASSWORD)
-- Verify network connectivity to Proxmox hosts
-- Check backend logs for timeout errors
 
 ---
 
@@ -386,14 +284,6 @@ npm run dev &
 
 - **Dev Environment**: `/home/nomad/glassdome` on AgentX
 - **Production**: `/opt/glassdome` on glassdome-prod-app
-- **Database**: PostgreSQL at 192.168.3.26
+- **Database**: PostgreSQL at 192.168.3.7
+- **Vault**: HashiCorp Vault at 192.168.3.7:8200
 - **User**: nomad
-
-## v0.6.3 Changes (November 29, 2025)
-- Contextual help system in Overseer modal
-- Help tab shows page-specific documentation
-- "Ask" button to query Overseer about topics
-- Page context injected into all chat messages
-- Extended demo showcase (12 slides, presenter mode)
-- Feature cards for Updock, WhiteKnight, WhitePawn, Overseer
-- Fixed WebSocket message handling for chat

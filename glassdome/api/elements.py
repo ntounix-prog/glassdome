@@ -10,10 +10,10 @@ Copyright (c) 2025 Brett Turner. All rights reserved.
 from fastapi import APIRouter
 from typing import Dict, Any
 
-router = APIRouter(tags=["elements"])
+router = APIRouter(prefix="/elements", tags=["elements"])
 
 
-@router.get("/api/elements")
+@router.get("")
 async def list_elements() -> Dict[str, Any]:
     """List available lab elements (VMs, networks, services)."""
     return {
@@ -36,7 +36,7 @@ async def list_elements() -> Dict[str, Any]:
     }
 
 
-@router.get("/api/stats")
+@router.get("/stats")
 async def get_statistics() -> Dict[str, Any]:
     """Get overall statistics."""
     return {
