@@ -329,7 +329,7 @@ class HotSparePool:
                     spare.ip_address = result["ip_address"]
                 
                 spare.status = SpareStatus.READY.value
-                spare.ready_at = datetime.now(timezone.utc)
+                spare.ready_at = datetime.utcnow()  # Use naive datetime for DB compatibility
                 await session.commit()
                 
                 logger.info(f"Spare {spare.name} ready at {spare.ip_address}")
@@ -363,7 +363,7 @@ class HotSparePool:
                 await proc.wait()
                 
                 if proc.returncode == 0:
-                    spare.last_health_check = datetime.now(timezone.utc)
+                    spare.last_health_check = datetime.utcnow()  # Use naive datetime for DB compatibility
                     spare.health_check_failures = 0
                 else:
                     spare.health_check_failures += 1
@@ -409,7 +409,7 @@ class HotSparePool:
             # Row is locked - safe to update
             spare.status = SpareStatus.IN_USE.value
             spare.assigned_to_mission = mission_id
-            spare.assigned_at = datetime.now(timezone.utc)
+            spare.assigned_at = datetime.utcnow()  # Use naive datetime for DB compatibility
             await session.commit()  # Releases the lock
             logger.info(f"Acquired spare {spare.name} for mission {mission_id}")
             

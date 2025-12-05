@@ -602,7 +602,7 @@ async def start_mission(
     
     # Update status
     mission.status = "starting"
-    mission.started_at = datetime.now(timezone.utc)
+    mission.started_at = datetime.utcnow()  # Use naive datetime for DB compatibility
     await session.commit()
     
     # Run mission in background
@@ -822,7 +822,7 @@ async def execute_mission(mission_id: str):
             mission.progress = 100
             mission.current_step = "Mission complete"
             mission.results = results
-            mission.completed_at = datetime.now(timezone.utc)
+            mission.completed_at = datetime.utcnow()  # Use naive datetime for DB compatibility
             await session.commit()
             
             # Log completion summary
@@ -1465,7 +1465,7 @@ async def acquire_spare(
     
     spare.status = SpareStatus.IN_USE.value
     spare.assigned_to_mission = mission_id
-    spare.assigned_at = datetime.now(timezone.utc)
+    spare.assigned_at = datetime.utcnow()  # Use naive datetime for DB compatibility
     await session.commit()
     
     return {
