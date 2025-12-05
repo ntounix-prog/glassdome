@@ -448,7 +448,7 @@ class Settings(BaseSettings):
     esxi_testing_enabled: bool = True
     
     # VM Template IDs
-    ubuntu_2204_template_id: int = 9000
+    ubuntu_2204_template_id: int = 9003  # Ubuntu 22.04 with QEMU guest agent
     ubuntu_2004_template_id: int = 9001
     windows_server2022_template_id: Optional[int] = None  # Set after template creation
     

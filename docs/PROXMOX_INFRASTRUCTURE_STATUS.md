@@ -1,7 +1,7 @@
 # Proxmox Infrastructure Status
 
-**Last Updated:** 2025-11-27  
-**Status:** ✅ COMPLETE - Ready for Production
+**Last Updated:** 2025-12-03  
+**Status:** ✅ COMPLETE - 3-Node Cluster Production Ready
 
 ---
 
@@ -9,16 +9,17 @@
 
 ### Proxmox Cluster: FtC
 
-| Node | IP (Mgmt) | IP (SAN 211) | IP (SAN 212) | Status |
-|------|-----------|--------------|--------------|--------|
-| pve01 | 192.168.215.78 | 192.168.211.78 | 192.168.212.78 | ✅ Online |
-| pve02 | 192.168.215.77 | 192.168.211.26 | 192.168.212.26 | ✅ Online |
+| Node | IP (Mgmt) | IP (SAN 211) | IP (SAN 212) | Nexus Ports | Status |
+|------|-----------|--------------|--------------|-------------|--------|
+| pve01 | 192.168.215.78 | 192.168.211.78 | 192.168.212.78 | Eth1/9, Eth1/10 | ✅ Online |
+| pve02 | 192.168.215.77 | 192.168.211.26 | 192.168.212.26 | Eth1/13, Eth1/23 | ✅ Online |
+| pve (pve03) | 192.168.215.79 | 192.168.211.79 | 192.168.212.79 | Eth1/3, Eth1/19 | ✅ Online |
 
 ### Cluster Network
 - **Transport:** knet (10G only)
 - **Link 0:** VLAN 211 (192.168.211.x)
 - **Link 1:** VLAN 212 (192.168.212.x)
-- **Quorum:** 2 nodes, quorate
+- **Quorum:** 3 nodes, quorate
 
 ### Shared Storage
 
@@ -83,6 +84,9 @@
 - [x] Mount NFS on both nodes
 - [x] Create Proxmox cluster (10G only)
 - [x] Test live migration (11s, 76ms downtime)
+- [x] Add pve03 (pve) to cluster (Dec 2025)
+- [x] Configure Nexus ports Eth1/3 and Eth1/19 for pve03
+- [x] Configure 10G SAN on pve03 (VLAN 211/212)
 
 ---
 
@@ -112,6 +116,11 @@
 ### pve01 (Secondary - ready for failover)
 - Currently empty
 - Ready for HA or manual migration
+
+### pve (pve03) - New Node (Dec 2025)
+- Currently empty
+- Ready for workloads
+- Note: Hostname is "pve" in cluster (can be renamed if needed)
 
 ---
 

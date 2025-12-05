@@ -561,7 +561,7 @@ POOL_CONFIG_PARAMS = {
         "min_spares": 5,
         "max_spares": 8,
         "os_type": "ubuntu",
-        "template_id": 116,  # Ubuntu 22.04 lab-ready template
+        "template_id": 9003,  # Ubuntu 22.04 with QEMU guest agent
         "ip_range_start": "192.168.3.100",
         "ip_range_end": "192.168.3.119",
     },

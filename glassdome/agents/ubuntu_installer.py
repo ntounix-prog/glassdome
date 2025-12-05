@@ -24,7 +24,7 @@ class UbuntuInstallerAgent(DeploymentAgent):
         "22.04": {
             "name": "Ubuntu 22.04 LTS (Jammy)",
             "iso": "ubuntu-22.04.3-live-server-amd64.iso",
-            "template_id": 9000,
+            "template_id": 9003,  # Ubuntu 22.04 with QEMU guest agent
         },
         "24.04": {
             "name": "Ubuntu 24.04 LTS (Noble)",
